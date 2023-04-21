@@ -47,6 +47,9 @@ class ZarrDataset(IterableDataset):
                  **kwargs):
 
         self._filenames = filenames
+        if not source_format.startswith("."):
+            source_format = "." + source_format
+
         self._source_format = source_format
 
         self._transform = transform

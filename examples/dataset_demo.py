@@ -1,6 +1,7 @@
 import argparse
 import os
 import torch
+import torchvision
 from torch.utils.data import DataLoader
 
 import zarrdataset as zds
@@ -93,7 +94,12 @@ if __name__ == "__main__":
     else:
         patch_sampler = None
 
-    transform_fn = zds.DaskToArray(True)
+    transform_fn = torchvision.transforms.Compose([
+        zds.SelectAxes(source_axes=args.data_axes,
+                       axes_selection={"T": 0, "W": 0, "Z": 0},
+                       target_axes="CYX"),
+        zds.DaskToArray(True),
+    ])
 
     if args.labels_data_group is not None:
         my_dataset = zds.LabeledZarrDataset(

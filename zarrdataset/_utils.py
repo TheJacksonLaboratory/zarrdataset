@@ -13,28 +13,35 @@ def parse_roi(filename, source_format):
     """Parse the filename and ROIs from `filename`.
 
     The filename and ROIs must be separated by a semicolon (;).
-    Any number of ROIs are accepted. ROIs are expected to be passed as
-    (start_coords:axis_lengths), in the axis order of the input data axes.
+    Any number of ROIs are accepted; however, this parser only supports
+    rectangle shaped ROIs.
 
-    Notes:
-    ------
-    An example of a ROI structure is the following.
-
-    test_file.zarr;(0, 10, 0, 0, 0):(10, 10, 1, 1, 1)
-    Will parse a ROI from \"test_file\" from 0:10 in the first axis, 10:20 in
-    the second axis, 0:1 in the third to fifth axes.
-
-    Parameters:
+    Parameters
     ----------
     filename : str
-        Path to the image.
+        Path to the image. If the string does not contain any ROI in the format
+        specified, the same filename is returned.
     source_format : str
         Format of the input file.
 
     Returns
     -------
     fn : str
+        The parsed filename
     rois : list of tuples
+        A list of regions of interest parsed from the input string.
+
+    Notes
+    -----
+    ROIs are spected as filename;(start coordinate):(lenght of the ROI).
+    Coordinates and lenghts are expected for each one of the axis in the image.
+    The following is an exaple of a ROI defined for a test file in zarr format.
+
+    test_file.zarr;(0, 10, 0, 0, 0):(10, 10, 1, 1, 1)
+
+    This will parse a ROI from `test_file.zarr` from indices 0 to 10 in the
+    first axis, indices from 10 to 20 in the second axis, and indices from 0 to
+    1 in the third, fourth, and fifth axes.
     """
     rois = []
     if isinstance(filename, str):
@@ -43,6 +50,7 @@ def parse_roi(filename, source_format):
         fn = filename[:split_pos + len(source_format)]
         rois_str = rois_str.split(";")[1:]
 
+        # Create a tuple of slices to define each ROI.
         for roi in rois_str:
             start_coords, axis_lengths = roi.split(":")
 
@@ -60,15 +68,53 @@ def parse_roi(filename, source_format):
     return fn, rois
 
 
-def get_spatial_axes_order(data_axes, spatial_axes="YX"):
-    unused_axes = list(set(data_axes) - set(spatial_axes))
-    transpose_order = [data_axes.index(a)
-                       for a in unused_axes + list(spatial_axes)]
+def map_axes_order(source_axes, target_axes="YX"):
+    """Get the indices of a set of axes that reorders it to match another set
+    of axes. This is can be used to transpose an array which coordinates
+    systems is defined in a different ordering than the one needed.
+
+    Parameters
+    ----------
+    source_axes : str
+        Set of axes to be reordered to match `target_axes`.
+    target_axes : str
+        Set of axes in the desired order.
+
+    Returns
+    -------
+    transpose_order : list of ints
+        The indices order in `source_axes` that makes it match `target_axes`.
+        If `source_axes` has more axes than `target_axes`, the unspecified axes
+        will be moved to the front of the ordering, leaving the `target_axes`
+        at the trailing positions.
+
+    Notes
+    -----
+    The axes must be passed as a string in format `XYZ`, and cannot be appear
+    more than once.
+    """
+    unused_axes = list(set(source_axes) - set(target_axes))
+    transpose_order = [source_axes.index(a)
+                       for a in unused_axes + list(target_axes)]
 
     return transpose_order
 
 
 def connect_s3(filename_sample):
+    """Stablish a connection with a S3 bucket.
+
+    Parameters
+    ----------
+    filename_sample : str
+        A sample filename containing the S3 end-point and bucket names.
+
+    Returns
+    -------
+    s3_obj : dict of None
+        A dictionary containing the bucket name and a boto3 client connected to
+        the S3 bucket. If the filename does not points to a S3 bucket, this
+        returns None.
+    """
     if (filename_sample.startswith("s3")
        or filename_sample.startswith("http")):
         endpoint = "/".join(filename_sample.split("/")[:3])
@@ -86,19 +132,62 @@ def connect_s3(filename_sample):
 
 
 def load_image(filename, s3_obj=None):
+    """Load an image stored locally or from a S3 bucket.
+
+    Parameters
+    ----------
+    filename : str
+        The image's filename.
+    s3_obj : dict or None
+        A dictionary containing the bucket name and a boto3 client connection
+        to a S3 bucket, or None if the file is stored locally.
+
+    Returns
+    -------
+    im : PIL.Image.Image
+        The opened image object.
+
+    Notes
+    -----
+    Only images with formats supported by PIL Image loader can be opened with
+    this function.    
+    """
     if s3_obj is not None:
         # Remove the end-point from the file name
         filename = "/".join(filename.split("/")[4:])
         im_bytes = s3_obj["s3"].get_object(Bucket=s3_obj["bucket_name"],
                                            Key=filename)["Body"].read()
-        with Image.open(BytesIO(im_bytes)) as im_s3:
-            arr = im_s3.convert("RGB")
+        im = Image.open(BytesIO(im_bytes))
+
     else:
-        im = Image.open(filename, mode="r").convert("RGB")
+        im = Image.open(filename, mode="r")
+
     return im
 
 
-def image2dask(arr_src, source_format, data_group, s3_obj=None):
+def image2dask(arr_src, source_format, data_group=None, s3_obj=None):
+    """Open images stored in zarr format or any image format that can be opened
+    by PIL as a dask array.
+
+    Parameters
+    ----------
+    arr_src : str, zarr.Group, or zarr.Array
+        The image filename, or zarr object, to be loaded as a dask array.
+    source_format : str
+        The source format of the image to determine whether it is a zarr file
+        or not.
+    data_group : src or None
+        The group within the zarr file from where the array is loaded. This is
+        used only when the input file is a zarr object.
+    s3_obj : dict or None
+        A dictionary containing the bucket name and a boto3 client connection
+        to a S3 bucket, or None if the file is stored locally.
+
+    Returns
+    -------
+    arr : dask.array.core.Array
+        A dask array for lazy loading the source array.
+    """
     if (isinstance(arr_src, zarr.Group) or (isinstance(arr_src, str)
        and ".zarr" in source_format)):
         arr = da.from_zarr(arr_src, component=data_group)
@@ -116,7 +205,7 @@ def image2dask(arr_src, source_format, data_group, s3_obj=None):
                               shape=(im.size[1], im.size[0], channels),
                               dtype=np.uint8)
 
-    return arr, arr.shape
+    return arr
 
 
 
@@ -134,9 +223,9 @@ class ImageLoader(object):
         # Separate the filename and any ROI passed as the name of the file
         self._filename, rois = parse_roi(filename, source_format)
 
-        (self._arr,
-         self.shape) = image2dask(self._filename, source_format, data_group,
-                                  s3_obj)
+        self._arr = image2dask(self._filename, source_format, data_group,
+                               s3_obj)
+        self.shape = self._arr.shape
 
         if len(rois) == 0:
             rois = [tuple([slice(0, s, None) for s in self.shape])]
@@ -153,7 +242,7 @@ class ImageLoader(object):
             self.mask = None
 
     def _get_valid_mask(self):
-        spatial_axes = get_spatial_axes_order(self._data_axes, "YX")
+        spatial_axes = map_axes_order(self._data_axes, "YX")
         default_mask_scale = 1 / min(self.shape[spatial_axes[-1]],
                                      self.shape[spatial_axes[-2]])
 
@@ -162,7 +251,7 @@ class ImageLoader(object):
         if self._mask_group is not None and ".zarr" in self._filename:
             mask = da.from_zarr(self._filename, component=self._mask_group)
 
-            tr_ord = get_spatial_axes_order(self._mask_data_axes, "YX")
+            tr_ord = map_axes_order(self._mask_data_axes, "YX")
             mask = mask.transpose(tr_ord).squeeze()
             mask = mask.compute(scheduler="synchronous")
 
@@ -174,7 +263,7 @@ class ImageLoader(object):
 
         scale = mask.shape[-1] / self.shape[-1]
         roi_mask = np.zeros_like(mask, dtype=bool)
-        tr_ord = get_spatial_axes_order(self._data_axes, "YX")
+        tr_ord = map_axes_order(self._data_axes, "YX")
 
         for roi in self._rois:
             if len(roi) >= 2:

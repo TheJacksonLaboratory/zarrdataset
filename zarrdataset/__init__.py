@@ -4,12 +4,13 @@ from ._zarrdataset import (ZarrDataset,
 from ._samplers import (GridPatchSampler,
                         BlueNoisePatchSampler)
 from ._utils import parse_roi
-from ._augs import DaskToArray
+from ._augs import (DaskToArray,
+                    SelectAxes)
 
 __all__ = ['ZarrDataset',
            'LabeledZarrDataset',
            'zarrdataset_worker_init',
            'GridPatchSampler',
            'BlueNoisePatchSampler',
-           'DaskToArray',
+           'DaskToArray',           
            'parse_roi']

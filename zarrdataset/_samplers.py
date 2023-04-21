@@ -8,6 +8,17 @@ from bridson import poisson_disc_samples
 
 
 class PatchSampler(object):
+    """Base class to implement patches sampler from images.
+
+    If the image used for extracting patches has a mask associated to it, only
+    patches from masked regions of the image are retrieved.
+
+    Parameters
+    ----------
+    patch_size : int
+        Size in pixels of the patches extracted. Only squared patches are
+        supported by now.
+    """
     def __init__(self, patch_size):
         self._patch_size = patch_size
 
@@ -17,19 +28,49 @@ class PatchSampler(object):
                                   " actual sampling method.")
 
     def compute_toplefts(self, image):
-        curr_tls = self._sampling_method(image.mask, image.shape)
-        curr_brs = curr_tls + self._patch_size
-        toplefts = np.hstack((curr_tls, curr_brs))
+        """Compute the top-left and bottom-right positions that define each of
+        the possible patches that can be extracted from the image.
 
-        return toplefts
+        Parameters
+        ----------
+        image : zarrdataset.ImageLoader
+            The image from where the patches are extracted.
+
+        Returns
+        -------
+        tl_brs : numpy.ndarray
+            An array containing the coordinates of the patches that can be
+            extracted from `image`. Each row in the array has the coordinates
+            in the following format.
+            (top-left y, top-left x, bottom-right y, bottom-right x)
+        """
+        tls = self._sampling_method(image.mask, image.shape)
+        brs = tls + self._patch_size
+        tl_brs = np.hstack((tls, brs))
+
+        return tl_brs
 
 
 class GridPatchSampler(PatchSampler):
+    """Patch sampler that retrieves non-overlapping patches from a grid of
+    coordinates that cover all the masked image.
+
+    Parameters
+    ----------
+    patch_size : int
+        Size in pixels of the patches extracted. Only squared patches are
+        supported by now.
+    min_object_presence : int
+        Minimum presence of the masked object inside each patch. Only patches
+        containing at least `min_object_presence` are retrieved.
+    """
     def __init__(self, patch_size, min_object_presence=0.1, **kwargs):
         super(GridPatchSampler, self).__init__(patch_size)
         self._min_object_presence = min_object_presence
 
     def _sampling_method(self, mask, shape):
+        # Use the mask as base to determine the valid patches that can be
+        # retrieved from the image.
         mask_scale = mask.shape[-1] / shape[-1]
         scaled_ps = self._patch_size * mask_scale
 
@@ -37,6 +78,8 @@ class GridPatchSampler(PatchSampler):
             mask_scale = 1.0
             scaled_h = round(shape[-2] / self._patch_size)
             scaled_w = round(shape[-1] / self._patch_size)
+
+            # Upscale the mask to a size where each pixel represents a patch.
             dwn_valid_mask = transform.resize(mask, (scaled_h, scaled_w),
                                               order=0,
                                               mode="edge",
@@ -47,21 +90,37 @@ class GridPatchSampler(PatchSampler):
             scaled_h = mask.shape[-2] // scaled_ps
             scaled_w = mask.shape[-1] // scaled_ps
 
+            # Downscale the mask to a size where each pixel represents a patch.
             dwn_valid_mask = transform.downscale_local_mean(
                 mask, factors=(scaled_ps, scaled_ps))
 
             dwn_valid_mask = dwn_valid_mask[:scaled_h, :scaled_w]
 
+        # Retrieve patches that contain at least the requested minimum presence
+        # of the masked object.
         valid_mask = dwn_valid_mask > self._min_object_presence
 
         toplefts = np.nonzero(valid_mask)
         toplefts = np.stack(toplefts, axis=1)
+
+        # Map the positions back to the original scale of the image.
         toplefts = toplefts * self._patch_size
 
         return toplefts
 
 
 class BlueNoisePatchSampler(PatchSampler):
+    """Patch sampler that retrieves patches from coordinates sampled using the
+    Bridson sampling algorithm, also known as Blue-noise sampling algorithm.
+
+    Parameters
+    ----------
+    patch_size : int
+        Size in pixels of the patches extracted. Only squared patches are
+        supported by now.
+    allow_overlap : bool
+        Whether overlapping of patches is allowed or not.
+    """
     def __init__(self, patch_size, allow_overlap=True, **kwargs):
         super(BlueNoisePatchSampler, self).__init__(patch_size)
         self._overlap = math.sqrt(2) ** (not allow_overlap)
@@ -72,6 +131,8 @@ class BlueNoisePatchSampler(PatchSampler):
         rad = self._patch_size * mask_scale
         H, W = mask.shape
 
+        # If the image is smaller than the scaled patch, retrieve the full
+        # image instead.
         if H <= rad or W <= rad:
             sample_tls = np.array([[0, 0]], dtype=np.float32)
 
@@ -82,10 +143,11 @@ class BlueNoisePatchSampler(PatchSampler):
                                                        k=30),
                                   dtype=np.float32)
 
-        # If there are ROIs in the mask, take the sampling positions that
-        # are inside them.
+        # If there are ROIs in the mask, only take sampling coordinates inside
+        # them.
         if np.any(np.bitwise_not(mask)):
             validsample_tls = np.zeros(len(sample_tls), dtype=bool)
+
             mask_conts = measure.find_contours(np.pad(mask, 1),
                                                fully_connected='low',
                                                level=0.999)
