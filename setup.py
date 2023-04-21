@@ -33,5 +33,5 @@ setuptools.setup(
         'bridson>=0.1.0',
         'matplotlib>=3.5.3',
     ],
-    python_requires='>=3.8'
+    python_requires='>=3.7'
 )
