@@ -76,8 +76,8 @@ class GridPatchSampler(PatchSampler):
 
         if scaled_ps < 1:
             mask_scale = 1.0
-            scaled_h = round(shape[-2] / self._patch_size)
-            scaled_w = round(shape[-1] / self._patch_size)
+            scaled_h = shape[-2] // self._patch_size
+            scaled_w = shape[-1] // self._patch_size
 
             # Upscale the mask to a size where each pixel represents a patch.
             dwn_valid_mask = transform.resize(mask, (scaled_h, scaled_w),
@@ -86,7 +86,7 @@ class GridPatchSampler(PatchSampler):
                                               anti_aliasing=False)
 
         else:
-            scaled_ps = round(scaled_ps)
+            scaled_ps = int(math.floor(scaled_ps))
             scaled_h = mask.shape[-2] // scaled_ps
             scaled_w = mask.shape[-1] // scaled_ps
 
