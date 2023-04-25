@@ -52,11 +52,11 @@ The following structure illustrated the kind of groups structure within zarr fil
 ```
 image.zarr
 |-0
-| |-0 // Where the pixels data of image.zarr is stored (image.zarr["0/0"])
+| |-0 // Where the pixels data of image.zarr are stored (image.zarr["0/0"])
 |
 |-labels
   |-0
-    |-0 // Where the labels of image.zarr are stored as an array (image.zarr["labels/0/0"])
+    |-0 // Where the labels of image.zarr are stored (image.zarr["labels/0/0"])
 ```
 
 These files can be loaded as follows.
@@ -77,7 +77,56 @@ my_dataset = zds.LabeledZarrDataset(filenames,
                                     progress_bar=False)
 ```
 
-Examples of integration of the ZarrDataset class can be found in the _examples_ folder.
+### Transforms
+Some transforms are provided to be integrated along torchvision transforms for data pre-processing and data augmentation.
+
+```
+from torchvision
+import zarrdataset as zds
+
+# Add a pre-process pipeline to select index 0 from axes T and Z, and reorder
+# the remaining axes as Y-axis, X-axis, Color channels. Then convert the array
+# to numpy float32 data type and finally to a PyTorch Tensor.
+preprocess_funs = torchvision.transforms.Compose(
+  [zds.SeletAxes(source_axes=args.data_axes,
+                 axes_selection={"T": 0, "Z": 0},
+                 target_axes="YXC"),
+   zds.ZarrToArray(np.float32),
+   torchvision.transforms.ToTensor()
+  ]
+)
+
+my_dataset = zds.ZarrDataset(filenames,
+                             data_group="0",
+                             data_axes="TCZYX",
+                             transform=preprocess_funs,
+                             patch_sampler=None,
+                             shuffle=False,
+                             progress_bar=False)
+```
+
+### Patch sampling
+The **ZarrDataset** and **LabeledZarrDataset** retrieve the full array contained in *data_group* by default.
+To retrieve patches from that array instead, use any of the two samplers provided within this package, or implement a custom one derived from the **PatchSampler** class.
+
+The two existing samplers are **GridPatchSampler** and **BlueNoisePatchSampler**.
+**GridPatchSampler** generates a evenly distributed grid of non-overlapping squared patches of side *patch_size*. **BlueNoisePatchSampler** generates a random sample of non-overlapping squared patches of side *patch_size* that uniformly covers the image.
+The patch sampler can be integated into a **ZarrDataset** or **LabeledZarrDataset** object as follows.
+```
+import zarrdataset as zds
+
+# Retrieve patches of size patch_size in an evenly spaced grid from the image.
+my_patch_sampler = zds.GridPatchSampler(patch_size)
+
+my_dataset = zds.ZarrDataset(filenames,
+                             data_group="0",
+                             data_axes="TCZYX",
+                             patch_sampler=my_patch_sampler,
+                             shuffle=False,
+                             progress_bar=False)
+```
+
+Examples of integration of the **ZarrDataset** class with the PyTorch's **DataLoader** can be found in the _examples_ folder.
 
 ## Installation
 To install this package and have access to the zarr-based PyTorch Dataset (ZarrDataset and LabeledZarrDataset) and other functionalities, clone this repository and use the following command from the cloned repository location.
