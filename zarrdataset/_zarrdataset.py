@@ -43,7 +43,8 @@ class ZarrDataset(IterableDataset):
                  transform=None,
                  patch_sampler=False,
                  shuffle=False,
-                 progress_bar=False,                 
+                 progress_bar=False,
+                 use_dask=False,
                  **kwargs):
 
         self._filenames = filenames
@@ -51,7 +52,7 @@ class ZarrDataset(IterableDataset):
             source_format = "." + source_format
 
         self._source_format = source_format
-
+        self._use_dask = use_dask
         self._transform = transform
 
         self._data_axes = data_axes
@@ -82,7 +83,7 @@ class ZarrDataset(IterableDataset):
         toplefts = []
 
         if self._progress_bar:
-            q = tqdm(desc="Preloading files as dask arrays",
+            q = tqdm(desc="Preloading zarr files",
                      total=len(filenames))
 
         for fn in filenames:
@@ -92,7 +93,8 @@ class ZarrDataset(IterableDataset):
                                    mask_data_axes=mask_data_axes,
                                    source_format=self._source_format,
                                    s3_obj=self._s3_obj,
-                                   compute_valid_mask=compute_valid_mask)
+                                   compute_valid_mask=compute_valid_mask,
+                                   use_dask=self._use_dask)
 
             # If a patch sampler was passed, it is used to determine the
             # top-left and bottom-right coordinates of the valid samples that

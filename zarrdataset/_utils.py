@@ -1,9 +1,11 @@
+import os
 import math
 import zarr
 import numpy as np
 import dask
 import dask.array as da
 
+import requests
 from PIL import Image
 import boto3
 from io import BytesIO
@@ -165,9 +167,10 @@ def load_image(filename, s3_obj=None):
     return im
 
 
-def image2dask(arr_src, source_format, data_group=None, s3_obj=None):
+def image2array(arr_src, source_format, data_group=None, s3_obj=None,
+                use_dask=False):
     """Open images stored in zarr format or any image format that can be opened
-    by PIL as a dask array.
+    by PIL as an array.
 
     Parameters
     ----------
@@ -182,28 +185,64 @@ def image2dask(arr_src, source_format, data_group=None, s3_obj=None):
     s3_obj : dict or None
         A dictionary containing the bucket name and a boto3 client connection
         to a S3 bucket, or None if the file is stored locally.
+    use_dask : bool
+        Whether use dask to lazy load arrays or not. If False, return the array
+        as zarr array.
 
     Returns
     -------
-    arr : dask.array.core.Array
+    arr : dask.array.core.Array or zarr.Array
         A dask array for lazy loading the source array.
     """
-    if (isinstance(arr_src, zarr.Group) or (isinstance(arr_src, str)
-       and ".zarr" in source_format)):
-        arr = da.from_zarr(arr_src, component=data_group)
+    if isinstance(arr_src, zarr.Group):
+        if use_dask:
+            arr = da.from_zarr(arr_src, component=data_group)
+        else:
+            arr = arr_src[data_group]
 
     elif isinstance(arr_src, zarr.Array):
         # The array was already open from a zarr file
-        arr = da.from_zarr(arr_src)
+        if use_dask:
+            arr = da.from_zarr(arr_src)
+        else:
+            arr = arr_src
+
+    elif isinstance(arr_src, str) and ".zarr" in source_format:
+        if use_dask:
+            arr = da.from_zarr(arr_src, component=data_group)
+        else:
+            # Check if the zarr file is consolidated so it is faster to open.
+            is_consolidated = False
+
+            if "http" in arr_src:
+                response = requests.get(arr_src + "/.zmetadata")
+                is_consolidated = response.status_code == 200
+            else:
+                is_consolidated = os.path.exists(os.path.join(arr_src,
+                                                              ".zmetadata"))
+
+            if is_consolidated:
+                arr = zarr.open_consolidated(arr_src, mode="r")[data_group]
+            else:
+                arr = zarr.open(arr_src, mode="r")[data_group]
 
     elif (isinstance(arr_src, str) and ".zarr" not in source_format):
         # If the input is a path to an image stored in a format
         # supported by PIL, open it and use it as a numpy array.
         im = load_image(arr_src, s3_obj=s3_obj)
         channels = len(im.getbands())
-        arr = da.from_delayed(dask.delayed(np.array)(im),
-                              shape=(im.size[1], im.size[0], channels),
-                              dtype=np.uint8)
+        if use_dask:
+            arr = da.from_delayed(dask.delayed(np.array)(im),
+                                  shape=(im.size[1], im.size[0], channels),
+                                  dtype=np.uint8)
+        else:
+            arr = zarr.array(data=np.array(im),
+                             shape=(im.size[1], im.size[0], channels),
+                             dtype=np.uint8,
+                             chunks=True)
+    else:
+        raise ValueError(
+            f"The file/object {arr_src} cannot be opened as a zarr/dask array")
 
     return arr
 
@@ -218,12 +257,13 @@ class ImageLoader(object):
                  mask_data_axes="YX",
                  source_format=".zarr",
                  s3_obj=None,
-                 compute_valid_mask=False):
+                 compute_valid_mask=False,
+                 use_dask=False):
 
         # Separate the filename and any ROI passed as the name of the file
         self._filename, rois = parse_roi(filename, source_format)
 
-        self._arr = image2dask(self._filename, source_format, data_group,
+        self._arr = image2array(self._filename, source_format, data_group,
                                s3_obj)
         self.shape = self._arr.shape
 
@@ -271,7 +311,7 @@ class ImageLoader(object):
                 scaled_roi = (slice(int(math.ceil(roi[-2].start * scale)),
                                     int(math.ceil(roi[-2].stop * scale)),
                                     None),
-                            slice(int(math.ceil(roi[-1].start * scale)),
+                              slice(int(math.ceil(roi[-1].start * scale)),
                                     int(math.ceil(roi[-1].stop * scale)),
                                     None))
             else:
