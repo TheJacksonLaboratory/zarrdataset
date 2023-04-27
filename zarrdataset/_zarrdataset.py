@@ -28,6 +28,7 @@ def zarrdataset_worker_init(worker_id):
         dataset_obj._filenames[slice(n_files_per_worker * worker_id,
                                      n_files_per_worker * (worker_id + 1),
                                      None)]
+    dataset_obj._worker_id = worker_id
     dataset_obj._initialize()
 
 
@@ -46,6 +47,8 @@ class ZarrDataset(IterableDataset):
                  progress_bar=False,
                  use_dask=False,
                  **kwargs):
+
+        self._worker_id = 0
 
         self._filenames = filenames
         if not source_format.startswith("."):
@@ -84,7 +87,8 @@ class ZarrDataset(IterableDataset):
 
         if self._progress_bar:
             q = tqdm(desc="Preloading zarr files",
-                     total=len(filenames))
+                     total=len(filenames),
+                     position=self._worker_id)
 
         for fn in filenames:
             curr_img = ImageLoader(fn, data_group=data_group,
