@@ -5,6 +5,7 @@ import numpy as np
 
 import torch
 from torch.utils.data import IterableDataset
+import dask.array as da
 
 from tqdm import tqdm
 
@@ -32,6 +33,31 @@ def zarrdataset_worker_init(worker_id):
     dataset_obj._initialize()
 
 
+
+def chained_zarrdataset_worker_init(worker_id):
+    worker_info = torch.utils.data.get_worker_info()
+    dataset_obj = worker_info.dataset
+
+    # Reset the random number generators in each worker.
+    torch_seed = torch.initial_seed()
+    random.seed(torch_seed)
+    np.random.seed(torch_seed % (2**32 - 1))
+
+    # Open a copy of the dataset on each worker.
+    n_datasets = len(dataset_obj.datasets)
+    n_datasets_per_worker = int(math.ceil(n_datasets
+                                          / worker_info.num_workers))
+
+    dataset_obj.datasets = \
+        dataset_obj.datasets[slice(n_datasets_per_worker * worker_id,
+                                   n_datasets_per_worker * (worker_id + 1),
+                                   None)]
+
+    for ds in dataset_obj.datasets:
+        ds._worker_id = worker_id
+        ds._initialize()
+
+
 class ZarrDataset(IterableDataset):
     """A zarr-based dataset.
 
@@ -46,9 +72,15 @@ class ZarrDataset(IterableDataset):
                  shuffle=False,
                  progress_bar=False,
                  use_dask=False,
+                 return_positions=False,
+                 return_batches=False,
+                 batch_size=None,
                  **kwargs):
 
         self._worker_id = 0
+
+        if not isinstance(filenames, list):
+            filenames = [filenames]
 
         self._filenames = filenames
         if not source_format.startswith("."):
@@ -66,6 +98,10 @@ class ZarrDataset(IterableDataset):
 
         self._shuffle = shuffle
         self._progress_bar = progress_bar
+
+        self._return_positions = return_positions
+        self._return_batches = return_batches
+        self._batch_size = batch_size
 
         self._arr_list = []
         self._patch_sampler = patch_sampler
@@ -183,6 +219,8 @@ class ZarrDataset(IterableDataset):
         else:
             im_indices = range(len(self._arr_list))
 
+        batch = []
+
         for im_id in im_indices:
             curr_topleft = self._toplefts[im_id]
 
@@ -192,8 +230,26 @@ class ZarrDataset(IterableDataset):
             else:
                 tlbr_indices = range(len(curr_topleft))
 
-            for tlbr_id in tlbr_indices:
-                yield self._getitem(im_id, curr_topleft[tlbr_id])
+            for b, tlbr_id in enumerate(tlbr_indices):
+                patch, target = self._getitem(im_id, curr_topleft[tlbr_id])
+
+                if self._return_positions:
+                    curr_pair = (curr_topleft[tlbr_id].astype(np.int64), patch,
+                                 target)
+                else:
+                    curr_pair = (patch, target)
+
+                batch.append(curr_pair)
+
+                if self._return_batches:
+                    if ((b + 1) % self._batch_size == 0
+                      or (b + 1) == len(tlbr_indices)):
+                        yield batch
+
+                        batch.clear()
+
+                else:
+                    yield batch.pop()
 
     def __len__(self):
         return self._dataset_size
@@ -257,3 +313,25 @@ class LabeledZarrDataset(ZarrDataset):
             target = self._target_transform(target)
 
         return patch, target
+
+
+def collate_zarr_batches_fn(batch):
+    """A function to collate batches yielded by ZarrDataset-derived objects
+    when `return_batches` is True.
+    """
+    torch_batch = [[] for _ in range(len(batch[0]))]
+
+    for element in batch:
+        for o, output in enumerate(element):
+            if isinstance(output, np.ndarray):
+                output = torch.from_numpy(output)
+            elif isinstance(output, int):
+                output = torch.LongTensor([output])
+            elif isinstance(output, float):
+                output = torch.FloatTensor([output])
+
+            torch_batch[o].append(output)
+
+    torch_batch = tuple(torch.stack(out_batch) for out_batch in torch_batch)
+
+    return torch_batch

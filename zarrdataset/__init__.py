@@ -1,6 +1,8 @@
 from ._zarrdataset import (ZarrDataset,
                            LabeledZarrDataset,
-                           zarrdataset_worker_init)
+                           zarrdataset_worker_init,
+                           chained_zarrdataset_worker_init,
+                           collate_zarr_batches_fn)
 
 from ._samplers import (PatchSampler,
                         GridPatchSampler,
@@ -20,6 +22,8 @@ from ._augs import (ZarrToArray,
 __all__ = ['ZarrDataset',
            'LabeledZarrDataset',
            'zarrdataset_worker_init',
+           'chained_zarrdataset_worker_init',
+           'collate_zarr_batches_fn',
            'PatchSampler',
            'GridPatchSampler',
            'BlueNoisePatchSampler',
