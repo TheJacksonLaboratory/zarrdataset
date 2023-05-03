@@ -57,5 +57,8 @@ if __name__ == "__main__":
         collate_fn=zds.collate_zarr_batches_fn,
         persistent_workers=num_workers > 0)
 
-    for i, (p, x, t) in enumerate(my_dataloader):
-        print("Batched sample %i" % i, p.shape, x.shape, x.dtype, t.shape, t.dtype)
+    print("Dataset size (uninitialized):", len(my_dataloader))
+    for i, sample in enumerate(my_dataloader):
+        sample_str = "Batched sample %i" % i
+        sample_str += "".join(f" {s.shape}, {s.dtype}" for s in sample)
+        print(sample_str)

@@ -101,7 +101,11 @@ class ZarrDataset(IterableDataset):
 
         self._return_positions = return_positions
         self._return_batches = return_batches
-        self._batch_size = batch_size
+
+        if return_batches:
+            self._batch_size = batch_size
+        else:
+            self._batch_size = 1
 
         self._arr_list = []
         self._patch_sampler = patch_sampler
@@ -252,7 +256,7 @@ class ZarrDataset(IterableDataset):
                     yield batch.pop()
 
     def __len__(self):
-        return self._dataset_size
+        return self._dataset_size // self._batch_size
 
 
 class LabeledZarrDataset(ZarrDataset):
