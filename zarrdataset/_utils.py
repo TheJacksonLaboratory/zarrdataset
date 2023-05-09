@@ -263,8 +263,10 @@ class ImageLoader(object):
         # Separate the filename and any ROI passed as the name of the file
         self._filename, rois = parse_roi(filename, source_format)
 
-        self._arr = image2array(self._filename, source_format, data_group,
-                               s3_obj)
+        self._arr = image2array(self._filename, source_format=source_format,
+                                data_group=data_group,
+                                s3_obj=s3_obj,
+                                use_dask=use_dask)
         self.shape = self._arr.shape
 
         if len(rois) == 0:
