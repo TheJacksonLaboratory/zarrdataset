@@ -1,3 +1,4 @@
+from itertools import cycle, chain
 import math
 import random
 
@@ -217,43 +218,37 @@ class ZarrDataset(IterableDataset):
         # Preload the files and masks associated with them
         self._initialize()
 
-        if self._shuffle:
-            im_indices = random.sample(range(len(self._arr_list)),
-                                       len(self._arr_list))
+        if self._return_batches:
+            batch_size = self._batch_size
         else:
-            im_indices = range(len(self._arr_list))
+            batch_size = 1
 
-        batch = []
+        id_pairs = [zip(cycle([im_id]),
+                        range(tls_idx, min(tls_idx + batch_size, len(tls))))
+                    for im_id, tls in enumerate(self._toplefts)
+                    for tls_idx in range(0, len(tls), batch_size)]
 
-        for im_id in im_indices:
-            curr_topleft = self._toplefts[im_id]
+        if self._shuffle:
+            id_pairs = random.sample(id_pairs, len(id_pairs))
 
-            if self._shuffle:
-                tlbr_indices = random.sample(range(len(curr_topleft)),
-                                             len(curr_topleft))
-            else:
-                tlbr_indices = range(len(curr_topleft))
+        for batch_pairs in id_pairs:
+            batch = []
+            for im_id, tl_id in batch_pairs:
+                curr_tl = self._toplefts[im_id][tl_id]
 
-            for b, tlbr_id in enumerate(tlbr_indices):
-                patch, target = self._getitem(im_id, curr_topleft[tlbr_id])
+                patch, target = self._getitem(im_id, curr_tl)
 
                 if self._return_positions:
-                    curr_pair = (curr_topleft[tlbr_id].astype(np.int64), patch,
-                                 target)
+                    curr_pair = (curr_tl.astype(np.int64), patch, target)
                 else:
                     curr_pair = (patch, target)
 
                 batch.append(curr_pair)
 
-                if self._return_batches:
-                    if ((b + 1) % self._batch_size == 0
-                      or (b + 1) == len(tlbr_indices)):
-                        yield batch
-
-                        batch.clear()
-
-                else:
-                    yield batch.pop()
+            if self._return_batches:
+                yield batch
+            else:
+                yield batch.pop()
 
     def __len__(self):
         return self._dataset_size // self._batch_size

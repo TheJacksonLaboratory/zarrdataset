@@ -25,7 +25,7 @@ if __name__ == "__main__":
     num_workers = 2
 
     torch.manual_seed(777)
-    patch_sampler = zds.GridPatchSampler(patch_size, min_object_presence=0.1)
+    patch_sampler = zds.BlueNoisePatchSampler(patch_size)
 
     transform_fn = torchvision.transforms.Compose([
         zds.SelectAxes(source_axes=data_axes,
@@ -57,7 +57,6 @@ if __name__ == "__main__":
         collate_fn=zds.collate_zarr_batches_fn,
         persistent_workers=num_workers > 0)
 
-    print("Dataset size (uninitialized):", len(my_dataloader))
     for i, sample in enumerate(my_dataloader):
         sample_str = "Batched sample %i" % i
         sample_str += "".join(f" {s.shape}, {s.dtype}" for s in sample)
