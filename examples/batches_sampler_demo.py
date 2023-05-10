@@ -20,7 +20,7 @@ if __name__ == "__main__":
                  "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"]
     data_group = "0"
     data_axes = "TCZYX"
-    patch_size = 512
+    patch_size = 16
     batch_size = 5
     num_workers = 2
 

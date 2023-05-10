@@ -1,4 +1,4 @@
-from itertools import cycle, chain
+from itertools import cycle
 import math
 import random
 

@@ -121,15 +121,17 @@ class BlueNoisePatchSampler(PatchSampler):
     allow_overlap : bool
         Whether overlapping of patches is allowed or not.
     """
-    def __init__(self, patch_size, allow_overlap=True, **kwargs):
+    def __init__(self, patch_size, allow_overlap=True, chunk=1000, **kwargs):
         super(BlueNoisePatchSampler, self).__init__(patch_size)
         self._overlap = math.sqrt(2) ** (not allow_overlap)
+        self._chunk = chunk
 
     def _sampling_method(self, mask, shape):
         mask_scale =  mask.shape[-1] / shape[-1]
-
         rad = self._patch_size * mask_scale
+
         H, W = mask.shape
+        chunk = min(self._chunk * mask_scale, H, W)
 
         # If the image is smaller than the scaled patch, retrieve the full
         # image instead.
@@ -137,58 +139,37 @@ class BlueNoisePatchSampler(PatchSampler):
             sample_tls = np.array([[0, 0]], dtype=np.float32)
 
         else:
-            sample_tls = np.array(poisson_disc_samples(height=H - rad,
-                                                       width=W - rad,
-                                                       r=rad * self._overlap,
-                                                       k=30),
-                                  dtype=np.float32)
+            chunk_sample_tls = np.array(
+                poisson_disc_samples(height=chunk - rad,
+                                     width=chunk - rad,
+                                     r=rad,
+                                     k=30),
+                dtype=np.float32)
 
-        # If there are ROIs in the mask, only take sampling coordinates inside
-        # them.
-        if np.any(np.bitwise_not(mask)):
-            validsample_tls = np.zeros(len(sample_tls), dtype=bool)
+            # Upscale the mask to a size where each pixel represents a patch.
+            dwn_valid_mask = transform.resize(mask.astype(np.float32),
+                                              (round(H / chunk),
+                                               round(W / chunk)),
+                                              order=1,
+                                              mode="edge",
+                                              anti_aliasing=True)
 
-            mask_conts = measure.find_contours(np.pad(mask, 1),
-                                               fully_connected='low',
-                                               level=0.999)
+            dwn_valid_mask = dwn_valid_mask > 0.25
 
-            mask_paths = [Path(cont[:, (1, 0)] - 1) for cont in mask_conts]
+            sample_tls = []
+            for offset_y, offset_x in zip(*np.nonzero(dwn_valid_mask)):
+                sample_tls.append(chunk_sample_tls
+                                  + np.array((offset_x * chunk,
+                                              offset_y * chunk)).reshape(1, 2))
+            sample_tls = np.vstack(sample_tls)
 
-            # Check for holes in the mask
-            mask_paths_hierarchy = [[] for _ in range(len(mask_paths))]
+        toplefts = np.round(sample_tls[:, (1, 0)]
+                            / mask_scale).astype(np.int64)
 
-            for m, mask_path in enumerate(mask_paths[:-1]):
-                for n, test_mask_path in enumerate(mask_paths[m+1:]):
-                    n = n + m + 1
-                    if mask_path.contains_path(test_mask_path):
-                        mask_paths_hierarchy[n].append(m)
+        valid_samples = np.bitwise_and(
+            toplefts[:, 0] < shape[-2] - self._patch_size,
+            toplefts[:, 1] < shape[-1] - self._patch_size)
 
-                    if test_mask_path.contains_path(mask_path):
-                        mask_paths_hierarchy[m].append(n)
-
-            for mask_path in mask_paths:
-                active_samples = mask_path.contains_points(sample_tls
-                                                           + rad / 2,
-                                                           radius=rad)
-                validsample_tls[active_samples] = True
-
-            # Remove samples inside holes
-            hole_paths = [path
-                          for path, hier in zip(mask_paths,
-                                                mask_paths_hierarchy)
-                          if len(hier) % 2 != 0]
-
-            for hole_path in hole_paths:
-                inactive_samples = hole_path.contains_points(sample_tls
-                                                             + rad / 2,
-                                                             radius=rad)
-                validsample_tls[inactive_samples] = False
-
-            toplefts = sample_tls[validsample_tls]
-
-        else:
-            toplefts = sample_tls
-        
-        toplefts = np.round(toplefts[:, (1, 0)] / mask_scale).astype(np.int64)
+        toplefts = toplefts[valid_samples]
 
         return toplefts
