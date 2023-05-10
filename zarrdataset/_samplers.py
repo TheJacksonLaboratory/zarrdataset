@@ -152,18 +152,43 @@ class BlueNoisePatchSampler(PatchSampler):
                                                fully_connected='low',
                                                level=0.999)
 
-            for cont in mask_conts:
-                mask_path = Path(cont[:, (1, 0)] - 1)
-                validsample_tls = np.bitwise_or(
-                    validsample_tls,
-                    mask_path.contains_points(sample_tls + rad / 2, 
-                                              radius=rad))
+            mask_paths = [Path(cont[:, (1, 0)] - 1) for cont in mask_conts]
+
+            # Check for holes in the mask
+            mask_paths_hierarchy = [[] for _ in range(len(mask_paths))]
+
+            for m, mask_path in enumerate(mask_paths[:-1]):
+                for n, test_mask_path in enumerate(mask_paths[m+1:]):
+                    n = n + m + 1
+                    if mask_path.contains_path(test_mask_path):
+                        mask_paths_hierarchy[n].append(m)
+
+                    if test_mask_path.contains_path(mask_path):
+                        mask_paths_hierarchy[m].append(n)
+
+            for mask_path in mask_paths:
+                active_samples = mask_path.contains_points(sample_tls
+                                                           + rad / 2,
+                                                           radius=rad)
+                validsample_tls[active_samples] = True
+
+            # Remove samples inside holes
+            hole_paths = [path
+                          for path, hier in zip(mask_paths,
+                                                mask_paths_hierarchy)
+                          if len(hier) % 2 != 0]
+
+            for hole_path in hole_paths:
+                inactive_samples = hole_path.contains_points(sample_tls
+                                                             + rad / 2,
+                                                             radius=rad)
+                validsample_tls[inactive_samples] = False
 
             toplefts = sample_tls[validsample_tls]
 
         else:
             toplefts = sample_tls
-
-        toplefts = np.round(toplefts / mask_scale).astype(np.int64)
+        
+        toplefts = np.round(toplefts[:, (1, 0)] / mask_scale).astype(np.int64)
 
         return toplefts
