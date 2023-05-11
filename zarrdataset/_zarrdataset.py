@@ -74,7 +74,7 @@ class ZarrDataset(IterableDataset):
                  progress_bar=False,
                  use_dask=False,
                  return_positions=False,
-                 return_batches=False,
+                 batch_per_image=False,
                  batch_size=None,
                  **kwargs):
 
@@ -101,15 +101,15 @@ class ZarrDataset(IterableDataset):
         self._progress_bar = progress_bar
 
         self._return_positions = return_positions
-        self._return_batches = return_batches
+        self._batch_per_image = batch_per_image
 
-        if return_batches:
+        if batch_per_image:
             self._batch_size = batch_size
         else:
             self._batch_size = 1
 
-        self._arr_list = []
         self._patch_sampler = patch_sampler
+        self._arr_list = []
         self._initialized = False
         self._dataset_size = 0
 
@@ -218,37 +218,55 @@ class ZarrDataset(IterableDataset):
         # Preload the files and masks associated with them
         self._initialize()
 
-        if self._return_batches:
+        if self._batch_per_image:
             batch_size = self._batch_size
         else:
             batch_size = 1
 
-        id_pairs = [zip(cycle([im_id]),
-                        range(tls_idx, min(tls_idx + batch_size, len(tls))))
-                    for im_id, tls in enumerate(self._toplefts)
-                    for tls_idx in range(0, len(tls), batch_size)]
+        # Compute a size of the dataset.
+        n_samples_per_image = list(map(len, self._toplefts))
+        max_samples = sum(n_samples_per_image)
 
-        if self._shuffle:
-            id_pairs = random.sample(id_pairs, len(id_pairs))
+        total_samples = 0
+        n_samples = 0
+        im_id = 0
 
-        for batch_pairs in id_pairs:
-            batch = []
-            for im_id, tl_id in batch_pairs:
-                curr_tl = self._toplefts[im_id][tl_id]
+        while True:
+            if total_samples >= max_samples:
+                # When the maximum number of samples (or more) have been yielded,
+                # break the loop.
+                break
 
-                patch, target = self._getitem(im_id, curr_tl)
+            if self._shuffle:
+                if total_samples % batch_size == 0:
+                    im_id = random.randint(0, len(self._arr_list) - 1)
+                    batch_indices = random.sample(
+                        range(n_samples_per_image[im_id]),
+                        batch_size)
 
-                if self._return_positions:
-                    curr_pair = (curr_tl.astype(np.int64), patch, target)
-                else:
-                    curr_pair = (patch, target)
+                    n_samples = 0
 
-                batch.append(curr_pair)
+                tl_id = batch_indices[n_samples]
 
-            if self._return_batches:
-                yield batch
             else:
-                yield batch.pop()
+                if total_samples >= n_samples_per_image[im_id]:
+                    im_id += 1
+                    n_samples = 0
+    
+                tl_id = n_samples
+
+            curr_tl = self._toplefts[im_id][tl_id]
+            patch, target = self._getitem(im_id, curr_tl)
+
+            if self._return_positions:
+                curr_pair = (curr_tl.astype(np.int64), patch, target)
+            else:
+                curr_pair = (patch, target)
+
+            n_samples += 1
+            total_samples += 1
+
+            yield curr_pair
 
     def __len__(self):
         return self._dataset_size // self._batch_size
@@ -315,8 +333,11 @@ class LabeledZarrDataset(ZarrDataset):
 
 
 def collate_zarr_batches_fn(batch):
-    """A function to collate batches yielded by ZarrDataset-derived objects
-    when `return_batches` is True.
+    """A function to collate batches yielded by ZarrDataset-derived objects.
+
+    This collate function handles different number of outputs yielded by the
+    ZarrDataset class. An example is when retrieving positions along with
+    patches and targets.
     """
     torch_batch = [[] for _ in range(len(batch[0]))]
 
