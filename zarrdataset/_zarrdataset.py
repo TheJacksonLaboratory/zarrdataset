@@ -247,7 +247,7 @@ class ZarrDataset(IterableDataset):
                     im_id = random.randint(0, len(self._arr_list) - 1)
                     batch_indices = random.sample(
                         range(n_samples_per_image[im_id]),
-                        batch_size)
+                        min(n_samples_per_image[im_id], batch_size))
 
                     n_samples = 0
 
