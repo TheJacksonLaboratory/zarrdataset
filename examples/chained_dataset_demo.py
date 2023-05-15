@@ -21,7 +21,7 @@ if __name__ == "__main__":
     data_axes = "TCZYX"
     patch_size = 512
     batch_size = 4
-    num_workers = 4
+    num_workers = 0
 
     torch.manual_seed(777)
     patch_sampler = zds.GridPatchSampler(patch_size, min_object_presence=0.1)
@@ -37,6 +37,7 @@ if __name__ == "__main__":
                                    data_group=data_group,
                                    data_axes=data_axes,
                                    patch_sampler=patch_sampler,
+                                   return_positions=True,
                                    shuffle=True,
                                    progress_bar=True)
                    for fn in filenames]
@@ -48,8 +49,7 @@ if __name__ == "__main__":
         batch_size=batch_size,
         num_workers=num_workers,
         worker_init_fn=zds.chained_zarrdataset_worker_init,
-        collate_fn=zds.collate_zarr_batches_fn,
         persistent_workers=num_workers > 0)
 
-    for i, (x, t) in enumerate(my_dataloader):
+    for i, (p, x, t) in enumerate(my_dataloader):
         print("Sample %i" % i, x.shape, x.dtype, t.shape, t.dtype)

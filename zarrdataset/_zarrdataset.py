@@ -17,6 +17,7 @@ from ._utils import ImageLoader, connect_s3
 def zarrdataset_worker_init(worker_id):
     worker_info = torch.utils.data.get_worker_info()
     dataset_obj = worker_info.dataset
+    dataset_obj._worker_id = worker_id
 
     # Reset the random number generators in each worker.
     torch_seed = torch.initial_seed()
@@ -25,18 +26,28 @@ def zarrdataset_worker_init(worker_id):
 
     # Open a copy of the dataset on each worker.
     n_files = len(dataset_obj._filenames)
-    n_files_per_worker = int(math.ceil(n_files / worker_info.num_workers))
-    dataset_obj._filenames = \
-        dataset_obj._filenames[slice(n_files_per_worker * worker_id,
-                                     n_files_per_worker * (worker_id + 1),
-                                     None)]
-    dataset_obj._worker_id = worker_id
+    if n_files == 1:
+        # Get the topleft positions and distribute them among the workers
+        dataset_obj._initialize()
+        n_tls = len(dataset_obj._toplefts)
+
+        n_tls_per_worker = int(math.ceil(n_tls / worker_info.num_workers))
+        dataset_obj._toplefts = \
+            dataset_obj._toplefts[slice(n_tls_per_worker * worker_id,
+                                        n_tls_per_worker * (worker_id + 1),
+                                        None)]
+    else:
+        n_files_per_worker = int(math.ceil(n_files / worker_info.num_workers))
+        dataset_obj._filenames = \
+            dataset_obj._filenames[slice(n_files_per_worker * worker_id,
+                                         n_files_per_worker * (worker_id + 1),
+                                         None)]
 
 
 def chained_zarrdataset_worker_init(worker_id):
     worker_info = torch.utils.data.get_worker_info()
     dataset_obj = worker_info.dataset
-
+    
     # Reset the random number generators in each worker.
     torch_seed = torch.initial_seed()
     random.seed(torch_seed)
@@ -321,28 +332,3 @@ class LabeledZarrDataset(ZarrDataset):
             target = self._target_transform(target)
 
         return patch, target
-
-
-def collate_zarr_batches_fn(batch):
-    """A function to collate batches yielded by ZarrDataset-derived objects.
-
-    This collate function handles different number of outputs yielded by the
-    ZarrDataset class. An example is when retrieving positions along with
-    patches and targets.
-    """
-    torch_batch = [[] for _ in range(len(batch[0]))]
-
-    for element in batch:
-        for o, output in enumerate(element):
-            if isinstance(output, np.ndarray):
-                output = torch.from_numpy(output)
-            elif isinstance(output, int):
-                output = torch.LongTensor([output])
-            elif isinstance(output, float):
-                output = torch.FloatTensor([output])
-
-            torch_batch[o].append(output)
-
-    torch_batch = tuple(torch.stack(out_batch) for out_batch in torch_batch)
-
-    return torch_batch
