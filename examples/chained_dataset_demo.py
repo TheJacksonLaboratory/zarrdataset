@@ -48,6 +48,7 @@ if __name__ == "__main__":
         batch_size=batch_size,
         num_workers=num_workers,
         worker_init_fn=zds.chained_zarrdataset_worker_init,
+        collate_fn=zds.collate_zarr_batches_fn,
         persistent_workers=num_workers > 0)
 
     for i, (x, t) in enumerate(my_dataloader):

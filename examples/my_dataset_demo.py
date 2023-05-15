@@ -99,7 +99,8 @@ if __name__ == "__main__":
                                              min_object_presence=0.1)
 
     elif 'blue-noise' in args.sample_method:
-        patch_sampler = zds.BlueNoisePatchSampler(args.patch_size)
+        patch_sampler = zds.BlueNoisePatchSampler(args.patch_size,
+                                                  chunk=10 * args.patch_size)
 
     else:
         patch_sampler = None

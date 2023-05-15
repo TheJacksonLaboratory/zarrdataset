@@ -247,7 +247,6 @@ def image2array(arr_src, source_format, data_group=None, s3_obj=None,
     return arr
 
 
-
 class ImageLoader(object):
     """Image lazy loader class.
 

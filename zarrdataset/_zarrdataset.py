@@ -31,8 +31,6 @@ def zarrdataset_worker_init(worker_id):
                                      n_files_per_worker * (worker_id + 1),
                                      None)]
     dataset_obj._worker_id = worker_id
-    dataset_obj._initialize()
-
 
 
 def chained_zarrdataset_worker_init(worker_id):
@@ -56,7 +54,6 @@ def chained_zarrdataset_worker_init(worker_id):
 
     for ds in dataset_obj.datasets:
         ds._worker_id = worker_id
-        ds._initialize()
 
 
 class ZarrDataset(IterableDataset):
@@ -111,7 +108,6 @@ class ZarrDataset(IterableDataset):
         self._patch_sampler = patch_sampler
         self._arr_list = []
         self._initialized = False
-        self._dataset_size = 0
 
     def _preload_files(self, filenames, data_group="", data_axes="XYZCT",
                        mask_group=None,
@@ -160,14 +156,12 @@ class ZarrDataset(IterableDataset):
 
         z_list = np.array(z_list, dtype=object)
         toplefts = np.array(toplefts, dtype=object)
-        dataset_size = sum(map(len, toplefts))
 
-        return z_list, toplefts, dataset_size
+        return z_list, toplefts
 
     def _preload_inputs(self):
         (self._arr_list,
-         self._toplefts,
-         self._dataset_size) = self._preload_files(
+         self._toplefts) = self._preload_files(
             self._filenames,
             data_group=self._data_group,
             data_axes=self._data_axes,
@@ -268,9 +262,6 @@ class ZarrDataset(IterableDataset):
 
             yield curr_pair
 
-    def __len__(self):
-        return self._dataset_size // self._batch_size
-
 
 class LabeledZarrDataset(ZarrDataset):
     """A labeled dataset based on the zarr dataset class.
@@ -302,7 +293,7 @@ class LabeledZarrDataset(ZarrDataset):
         super()._preload_inputs()
 
         # Preload the target labels
-        self._lab_list, _, _ = self._preload_files(
+        self._lab_list, _ = self._preload_files(
             self._filenames,
             data_group=self._labels_data_group,
             data_axes=self._labels_data_axes,

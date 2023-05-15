@@ -94,8 +94,6 @@ class GridPatchSampler(PatchSampler):
             dwn_valid_mask = transform.downscale_local_mean(
                 mask, factors=(scaled_ps, scaled_ps))
 
-            dwn_valid_mask = dwn_valid_mask[:scaled_h, :scaled_w]
-
         # Retrieve patches that contain at least the requested minimum presence
         # of the masked object.
         valid_mask = dwn_valid_mask > self._min_object_presence
@@ -105,6 +103,12 @@ class GridPatchSampler(PatchSampler):
 
         # Map the positions back to the original scale of the image.
         toplefts = toplefts * self._patch_size
+
+        valid_samples = np.bitwise_and(
+            toplefts[:, 0] < shape[-2] - self._patch_size,
+            toplefts[:, 1] < shape[-1] - self._patch_size)
+
+        toplefts = toplefts[valid_samples]
 
         return toplefts
 
@@ -121,9 +125,12 @@ class BlueNoisePatchSampler(PatchSampler):
     allow_overlap : bool
         Whether overlapping of patches is allowed or not.
     """
-    def __init__(self, patch_size, allow_overlap=True, chunk=1000, **kwargs):
+    def __init__(self, patch_size, allow_overlap=True, chunk=None, **kwargs):
         super(BlueNoisePatchSampler, self).__init__(patch_size)
         self._overlap = math.sqrt(2) ** (not allow_overlap)
+        if chunk is None:
+            chunk = float("inf")
+
         self._chunk = chunk
 
     def _sampling_method(self, mask, shape):
@@ -131,45 +138,43 @@ class BlueNoisePatchSampler(PatchSampler):
         rad = self._patch_size * mask_scale
 
         H, W = mask.shape
-        chunk = min(self._chunk * mask_scale, H, W)
+        chunk_H = min(self._chunk * mask_scale, H)
+        chunk_W = min(self._chunk * mask_scale, W)
 
         # If the image is smaller than the scaled patch, retrieve the full
         # image instead.
         if H <= rad or W <= rad:
-            sample_tls = np.array([[0, 0]], dtype=np.float32)
+            toplefts = np.array([[0, 0]], dtype=np.int64)
 
         else:
             chunk_sample_tls = np.array(
-                poisson_disc_samples(height=chunk - rad,
-                                     width=chunk - rad,
+                poisson_disc_samples(height=chunk_H - rad,
+                                     width=chunk_W - rad,
                                      r=rad,
                                      k=30),
                 dtype=np.float32)
 
             # Upscale the mask to a size where each pixel represents a patch.
-            dwn_valid_mask = transform.resize(mask.astype(np.float32),
-                                              (round(H / chunk),
-                                               round(W / chunk)),
-                                              order=1,
-                                              mode="edge",
-                                              anti_aliasing=True)
-
-            dwn_valid_mask = dwn_valid_mask > 0.25
+            dwn_valid_mask = transform.downscale_local_mean(
+                mask.astype(np.float32),
+                factors=(round(chunk_H), round(chunk_W)))
 
             sample_tls = []
             for offset_y, offset_x in zip(*np.nonzero(dwn_valid_mask)):
-                sample_tls.append(chunk_sample_tls
-                                  + np.array((offset_x * chunk,
-                                              offset_y * chunk)).reshape(1, 2))
+                offset = np.array((offset_x * chunk_W,
+                                   offset_y * chunk_H)).reshape(1, 2)
+
+                sample_tls.append(chunk_sample_tls + offset)
+
             sample_tls = np.vstack(sample_tls)
 
-        toplefts = np.round(sample_tls[:, (1, 0)]
-                            / mask_scale).astype(np.int64)
+            toplefts = np.round(sample_tls[:, (1, 0)]
+                                / mask_scale).astype(np.int64)
 
-        valid_samples = np.bitwise_and(
-            toplefts[:, 0] < shape[-2] - self._patch_size,
-            toplefts[:, 1] < shape[-1] - self._patch_size)
+            valid_samples = np.bitwise_and(
+                toplefts[:, 0] < shape[-2] - self._patch_size,
+                toplefts[:, 1] < shape[-1] - self._patch_size)
 
-        toplefts = toplefts[valid_samples]
+            toplefts = toplefts[valid_samples]
 
         return toplefts

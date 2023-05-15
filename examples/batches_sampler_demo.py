@@ -20,12 +20,12 @@ if __name__ == "__main__":
                  "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"]
     data_group = "0"
     data_axes = "TCZYX"
-    patch_size = 16
-    batch_size = 5
+    patch_size = 4096
+    batch_size = 1
     num_workers = 0
 
     torch.manual_seed(777)
-    patch_sampler = zds.BlueNoisePatchSampler(patch_size)
+    patch_sampler = zds.BlueNoisePatchSampler(patch_size, chunk=float('inf'))
 
     transform_fn = torchvision.transforms.Compose([
         zds.SelectAxes(source_axes=data_axes,
