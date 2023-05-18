@@ -274,11 +274,14 @@ class ZarrDataset(IterableDataset):
                     H_ref = self._arr_lists["images"][im_id].shape[H_ax_ref]
 
                     for mode in self._arr_lists.keys():
-                        ax_img = map_axes_order(self._data_axes[mode], "Y")
-                        H_ax_img = ax_img[-1]
-                        H_img = self._arr_lists[mode][im_id].shape[H_ax_img]
+                        if "Y" in self._data_axes[mode]:
+                            ax_img = map_axes_order(self._data_axes[mode], "Y")
+                            H_ax_img = ax_img[-1]
+                            H_img = self._arr_lists[mode][im_id].shape[H_ax_img]
 
-                        scale =  H_img / H_ref
+                            scale =  H_img / H_ref
+                        else:
+                            scale =  1 / H_ref
 
                         coords = self._get_coords(
                             curr_chk_tlbr,
