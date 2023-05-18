@@ -1,10 +1,11 @@
 import math
 import numpy as np
 
-from skimage import transform, measure
-from matplotlib.path import Path
+from skimage import transform
+from scipy import interpolate
 from bridson import poisson_disc_samples
 
+from ._utils import map_axes_order
 
 
 class PatchSampler(object):
@@ -18,18 +19,24 @@ class PatchSampler(object):
     patch_size : int
         Size in pixels of the patches extracted. Only squared patches are
         supported by now.
+    chunk: tuple of ints
+        Size in pixels of the chunks the image is sub-divided before extracting
+        the patches.
     """
     def __init__(self, patch_size):
         self._patch_size = patch_size
 
-    def _sampling_method(self, *args, **kwargs):
+    def compute_patches(self, *args, **kwargs):
         raise NotImplementedError("This is a virtual class and has to be "
                                   "inherited from other class implementing the"
                                   " actual sampling method.")
 
-    def compute_toplefts(self, image):
-        """Compute the top-left and bottom-right positions that define each of
-        the possible patches that can be extracted from the image.
+    def compute_chunks(self, image):
+        """Compute the top-left positions of the chunks in which the image is
+        divided before taking patches from them.
+
+        The chunk size should match the zarr's chunk sizes to make the patch
+        extraction more efficient.
 
         Parameters
         ----------
@@ -39,16 +46,58 @@ class PatchSampler(object):
         Returns
         -------
         tl_brs : numpy.ndarray
-            An array containing the coordinates of the patches that can be
+            An array containing the coordinates of the chunks that can be
             extracted from `image`. Each row in the array has the coordinates
             in the following format.
-            (top-left y, top-left x, bottom-right y, bottom-right x)
+            (top-left y, top-left x)
         """
-        tls = self._sampling_method(image.mask, image.shape)
-        brs = tls + self._patch_size
-        tl_brs = np.hstack((tls, brs))
+        # Use the mask as base to determine the valid patches that can be
+        # retrieved from the image.
+        ax_ref_ord = map_axes_order(image.data_axes, "YX")
 
-        return tl_brs
+        H = image.shape[ax_ref_ord[-2]]
+        W = image.shape[ax_ref_ord[-1]]
+
+        chk_H = max(image.chunk_size[ax_ref_ord[-2]], self._patch_size)
+        chk_W = max(image.chunk_size[ax_ref_ord[-1]], self._patch_size)
+
+        valid_mask = transform.resize(image.mask, (round(H / chk_H),
+                                                   round(W / chk_W)),
+                                      order=0,
+                                      mode="edge",
+                                      anti_aliasing=False)
+
+        # Retrieve patches that contain at least the requested minimum presence
+        # of the masked object.
+        toplefts = np.nonzero(valid_mask)
+        toplefts = np.stack(toplefts, axis=1)
+
+        # Map the positions back to the original scale of the image.
+        toplefts[:, 0] = toplefts[:, 0] * chk_H
+        toplefts[:, 1] = toplefts[:, 1] * chk_W
+
+        bottomrights_y = np.minimum(toplefts[:, 0] + chk_H, H).reshape(-1, 1)
+        bottomrights_x = np.minimum(toplefts[:, 1] + chk_W, W).reshape(-1, 1)
+
+        toplefts = np.hstack((toplefts, bottomrights_y, bottomrights_x))
+
+        return toplefts
+
+    @staticmethod
+    def _get_chunk_mask(image, chunk_tlbr):
+        mask_roi = [slice(0, 1, None)] * (len(image.mask_data_axes) - 2)
+        mask_roi += [slice(round(chunk_tlbr[0] * image.mask_scale),
+                            round(chunk_tlbr[2] * image.mask_scale),
+                            None),
+                        slice(round(chunk_tlbr[1] * image.mask_scale),
+                            round(chunk_tlbr[3] * image.mask_scale),
+                            None)]
+        mask_roi = tuple(mask_roi[a]
+                            for a in map_axes_order(image.mask_data_axes,
+                                                    "YX"))
+
+        # To get samples only inside valid areas of the mask
+        return image.mask[mask_roi]
 
 
 class GridPatchSampler(PatchSampler):
@@ -60,55 +109,32 @@ class GridPatchSampler(PatchSampler):
     patch_size : int
         Size in pixels of the patches extracted. Only squared patches are
         supported by now.
-    min_object_presence : int
-        Minimum presence of the masked object inside each patch. Only patches
-        containing at least `min_object_presence` are retrieved.
     """
-    def __init__(self, patch_size, min_object_presence=0.1, **kwargs):
+    def __init__(self, patch_size, **kwargs):
         super(GridPatchSampler, self).__init__(patch_size)
-        self._min_object_presence = min_object_presence
 
-    def _sampling_method(self, mask, shape):
-        # Use the mask as base to determine the valid patches that can be
-        # retrieved from the image.
-        mask_scale = mask.shape[-1] / shape[-1]
-        scaled_ps = self._patch_size * mask_scale
+    def compute_patches(self, image, chunk_tlbr):
+        chk_H = chunk_tlbr[2] - chunk_tlbr[0]
+        chk_W = chunk_tlbr[3] - chunk_tlbr[1]
 
-        if scaled_ps < 1:
-            mask_scale = 1.0
-            scaled_h = shape[-2] // self._patch_size
-            scaled_w = shape[-1] // self._patch_size
+        chunk_valid_mask = self._get_chunk_mask(image, chunk_tlbr)
 
-            # Upscale the mask to a size where each pixel represents a patch.
-            dwn_valid_mask = transform.resize(mask, (scaled_h, scaled_w),
-                                              order=0,
-                                              mode="edge",
-                                              anti_aliasing=False)
+        if chk_H < self._patch_size or chk_W < self._patch_size:
+            # If the chunk area is smaller than the patch size, return an empty
+            # set of topleft positions.
+            toplefts = np.empty((0, 4), dtype=np.int64)
 
         else:
-            scaled_ps = int(math.floor(scaled_ps))
-            scaled_h = mask.shape[-2] // scaled_ps
-            scaled_w = mask.shape[-1] // scaled_ps
+            valid_mask = transform.resize(chunk_valid_mask,
+                                        (chk_H // self._patch_size,
+                                        chk_W // self._patch_size),
+                                        order=0,
+                                        mode="edge",
+                                        anti_aliasing=False)
 
-            # Downscale the mask to a size where each pixel represents a patch.
-            dwn_valid_mask = transform.downscale_local_mean(
-                mask, factors=(scaled_ps, scaled_ps))
-
-        # Retrieve patches that contain at least the requested minimum presence
-        # of the masked object.
-        valid_mask = dwn_valid_mask > self._min_object_presence
-
-        toplefts = np.nonzero(valid_mask)
-        toplefts = np.stack(toplefts, axis=1)
-
-        # Map the positions back to the original scale of the image.
-        toplefts = toplefts * self._patch_size
-
-        valid_samples = np.bitwise_and(
-            toplefts[:, 0] < shape[-2] - self._patch_size,
-            toplefts[:, 1] < shape[-1] - self._patch_size)
-
-        toplefts = toplefts[valid_samples]
+            toplefts = np.nonzero(valid_mask)
+            toplefts = np.stack(toplefts, axis=1) * self._patch_size
+            toplefts = np.hstack((toplefts, toplefts + self._patch_size))
 
         return toplefts
 
@@ -125,56 +151,62 @@ class BlueNoisePatchSampler(PatchSampler):
     allow_overlap : bool
         Whether overlapping of patches is allowed or not.
     """
-    def __init__(self, patch_size, allow_overlap=True, chunk=None, **kwargs):
+    def __init__(self, patch_size, allow_overlap=True, **kwargs):
         super(BlueNoisePatchSampler, self).__init__(patch_size)
         self._overlap = math.sqrt(2) ** (not allow_overlap)
-        if chunk is None:
-            chunk = float("inf")
 
-        self._chunk = chunk
+    def compute_patches(self, image, chunk_tlbr):
+        chk_H = chunk_tlbr[2] - chunk_tlbr[0]
+        chk_W = chunk_tlbr[3] - chunk_tlbr[1]
 
-    def _sampling_method(self, mask, shape):
-        mask_scale =  mask.shape[-1] / shape[-1]
-        rad = self._patch_size * mask_scale
+        rad = self._patch_size * self._overlap
 
-        H, W = mask.shape
-        chunk_H = min(self._chunk * mask_scale, H)
-        chunk_W = min(self._chunk * mask_scale, W)
+        if chk_H < self._patch_size or chk_W < self._patch_size:
+            # If the chunk area is smaller than the patch size, return an empty
+            # set of topleft positions.
+            toplefts = np.empty((0, 4), dtype=np.int64)
 
-        # If the image is smaller than the scaled patch, retrieve the full
-        # image instead.
-        if H <= rad or W <= rad:
-            toplefts = np.array([[0, 0]], dtype=np.int64)
+        elif chk_H <= rad or chk_W <= rad:
+            # If the chunk area is smaller than the radious of a single patch,
+            # return the position to the topleft corner of the chunk.
+            toplefts = np.array([[0, 0, self._patch_size, self._patch_size]],
+                                dtype=np.int64)
 
         else:
-            chunk_sample_tls = np.array(
-                poisson_disc_samples(height=chunk_H - rad,
-                                     width=chunk_W - rad,
-                                     r=rad,
-                                     k=30),
-                dtype=np.float32)
+            chunk_valid_mask = self._get_chunk_mask(image, chunk_tlbr)
+            chunk_valid_mask = np.pad(chunk_valid_mask, 1)
 
-            # Upscale the mask to a size where each pixel represents a patch.
-            dwn_valid_mask = transform.downscale_local_mean(
-                mask.astype(np.float32),
-                factors=(round(chunk_H), round(chunk_W)))
+            chunk_valid_mask_grid = np.meshgrid(
+                np.arange(chunk_valid_mask.shape[0]),
+                np.arange(chunk_valid_mask.shape[1]))
 
-            sample_tls = []
-            for offset_y, offset_x in zip(*np.nonzero(dwn_valid_mask)):
-                offset = np.array((offset_x * chunk_W,
-                                   offset_y * chunk_H)).reshape(1, 2)
+            chunk_tls = np.array(poisson_disc_samples(width=chk_W - rad,
+                                                      height=chk_H - rad,
+                                                      r=rad,
+                                                      k=30),
+                                 dtype=np.float32)
 
-                sample_tls.append(chunk_sample_tls + offset)
+            chunk_patches = np.hstack(
+                (chunk_tls,
+                 chunk_tls[:, :1] + self._patch_size,
+                 chunk_tls[:, 1:],
+                 chunk_tls[:, :1] + self._patch_size,
+                 chunk_tls[:, 1:] + self._patch_size,
+                 chunk_tls[:, :1],
+                 chunk_tls[:, 1:] + self._patch_size)).reshape(-1, 2)
 
-            sample_tls = np.vstack(sample_tls)
+            samples_validity = interpolate.griddata(
+                tuple(ax.flatten() for ax in chunk_valid_mask_grid),
+                chunk_valid_mask.flatten(),
+                chunk_patches * image.mask_scale + 1,
+                method='nearest'
+                ).reshape(-1, 4)
 
-            toplefts = np.round(sample_tls[:, (1, 0)]
-                                / mask_scale).astype(np.int64)
+            samples_validity = samples_validity.any(axis=1)
 
-            valid_samples = np.bitwise_and(
-                toplefts[:, 0] < shape[-2] - self._patch_size,
-                toplefts[:, 1] < shape[-1] - self._patch_size)
+            toplefts = np.round(chunk_tls[samples_validity][:, (1, 0)])
+            toplefts = toplefts.astype(np.int64).reshape(-1, 2)
 
-            toplefts = toplefts[valid_samples]
+            toplefts = np.hstack((toplefts, toplefts + self._patch_size))
 
         return toplefts

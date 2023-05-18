@@ -1,4 +1,5 @@
-from itertools import cycle
+from functools import reduce
+from itertools import repeat
 import math
 import random
 
@@ -11,7 +12,6 @@ import dask.array as da
 from tqdm import tqdm
 
 from ._utils import ImageLoader, connect_s3
-
 
 
 def zarrdataset_worker_init(worker_id):
@@ -29,16 +29,19 @@ def zarrdataset_worker_init(worker_id):
     if n_files == 1:
         # Get the topleft positions and distribute them among the workers
         dataset_obj._initialize()
-        n_tls = len(dataset_obj._toplefts)
 
+        n_tls = len(dataset_obj._toplefts["images"][0])
         n_tls_per_worker = int(math.ceil(n_tls / worker_info.num_workers))
-        dataset_obj._toplefts = \
-            dataset_obj._toplefts[slice(n_tls_per_worker * worker_id,
-                                        n_tls_per_worker * (worker_id + 1),
-                                        None)]
+
+        dataset_obj._toplefts["images"] =\
+            [dataset_obj._toplefts["images"][0][
+                slice(n_tls_per_worker * worker_id,
+                      n_tls_per_worker * (worker_id + 1),
+                      None)]]
+
     else:
         n_files_per_worker = int(math.ceil(n_files / worker_info.num_workers))
-        dataset_obj._filenames = \
+        dataset_obj._filenames =\
             dataset_obj._filenames[slice(n_files_per_worker * worker_id,
                                          n_files_per_worker * (worker_id + 1),
                                          None)]
@@ -47,7 +50,7 @@ def zarrdataset_worker_init(worker_id):
 def chained_zarrdataset_worker_init(worker_id):
     worker_info = torch.utils.data.get_worker_info()
     dataset_obj = worker_info.dataset
-    
+
     # Reset the random number generators in each worker.
     torch_seed = torch.initial_seed()
     random.seed(torch_seed)
@@ -82,8 +85,6 @@ class ZarrDataset(IterableDataset):
                  progress_bar=False,
                  use_dask=False,
                  return_positions=False,
-                 batch_per_image=False,
-                 batch_size=None,
                  **kwargs):
 
         self._worker_id = 0
@@ -97,27 +98,27 @@ class ZarrDataset(IterableDataset):
 
         self._source_format = source_format
         self._use_dask = use_dask
-        self._transform = transform
+        self._transforms = {("images", ): transform}
+        self._transforms_order = [("images", )]
+        self._output_order = ["images"]
 
-        self._data_axes = data_axes
-        self._data_group = data_group
+        self._data_axes = {"images": data_axes}
+        self._data_group = {"images": data_group}
 
-        self._mask_group = mask_group
-        self._mask_data_axes = mask_data_axes
+        self._mask_group = {"images": mask_group}
+        self._mask_data_axes = {"images": mask_data_axes}
+
+        self._compute_valid_mask = {"images": True}
+        self._arr_lists = {}
+        self._toplefts = {}
+        self._cached_chunks = {}
 
         self._shuffle = shuffle
         self._progress_bar = progress_bar
 
         self._return_positions = return_positions
-        self._batch_per_image = batch_per_image
-
-        if batch_per_image:
-            self._batch_size = batch_size
-        else:
-            self._batch_size = 1
 
         self._patch_sampler = patch_sampler
-        self._arr_list = []
         self._initialized = False
 
     def _preload_files(self, filenames, data_group="", data_axes="XYZCT",
@@ -152,10 +153,9 @@ class ZarrDataset(IterableDataset):
             # top-left and bottom-right coordinates of the valid samples that
             # can be drawn from images.
             if compute_valid_mask and self._patch_sampler is not None:
-                toplefts.append(self._patch_sampler.compute_toplefts(curr_img))
+                curr_toplefts = self._patch_sampler.compute_chunks(curr_img)
 
-            else:
-                toplefts.append([None])
+                toplefts.append(curr_toplefts)
 
             z_list.append(curr_img)
 
@@ -166,19 +166,11 @@ class ZarrDataset(IterableDataset):
             q.close()
 
         z_list = np.array(z_list, dtype=object)
-        toplefts = np.array(toplefts, dtype=object)
+
+        if len(toplefts):
+            toplefts = np.stack(toplefts)
 
         return z_list, toplefts
-
-    def _preload_inputs(self):
-        (self._arr_list,
-         self._toplefts) = self._preload_files(
-            self._filenames,
-            data_group=self._data_group,
-            data_axes=self._data_axes,
-            mask_group=self._mask_group,
-            mask_data_axes=self._mask_data_axes,
-            compute_valid_mask=True)
 
     def _initialize(self):
         if self._initialized:
@@ -188,7 +180,18 @@ class ZarrDataset(IterableDataset):
         # that bucket.
         self._s3_obj = connect_s3(self._filenames[0])
 
-        self._preload_inputs()
+        for mode in self._output_order:
+            (arr_list,
+             toplefts) = self._preload_files(
+                self._filenames,
+                data_group=self._data_group[mode],
+                data_axes=self._data_axes.get(mode, None),
+                mask_group=self._mask_group.get(mode, None),
+                mask_data_axes=self._mask_data_axes.get(mode, None),
+                compute_valid_mask=self._compute_valid_mask.get(mode, False))
+
+            self._arr_lists[mode] = arr_list
+            self._toplefts[mode] = toplefts
 
         self._initialized = True
 
@@ -208,70 +211,77 @@ class ZarrDataset(IterableDataset):
 
         return tuple(coords)
 
-    def _getitem(self, im_id, tlbr):
-        coords = self._get_coords(tlbr, self._data_axes)
-        patch = self._arr_list[im_id][coords]
+    def _getitem(self, tlbr):
+        patches = {}
 
-        if self._transform is not None:
-            patch = self._transform(patch)
+        for mode in self._output_order:
+            coords = self._get_coords(tlbr, self._data_axes[mode])
+            patches[mode] = self._cached_chunks[mode][coords]
 
-        # Returns anything as label, this is just to return a tuple of input,
-        # target that is expected for most of training pipelines.
-        return patch, 0
+        for inputs in self._transforms_order:
+            if self._transforms[inputs] is not None:
+                res = self._transforms[inputs](*tuple(patches[mode]
+                                                      for mode in inputs))
+                if not isinstance(res, tuple):
+                    res = (res, )
+
+                for mode, mode_res in zip(inputs, res):
+                    patches[mode] = mode_res
+
+        patches = tuple(patches[mode] for mode in self._output_order)
+
+        if "target" not in self._output_order:
+            # Returns anything as label, this is just to return a tuple of
+            # input, target that is expected for most of training pipelines.
+            patches = (*patches, 0)
+
+        return patches
 
     def __iter__(self):
         # Preload the files and masks associated with them
         self._initialize()
 
-        if self._batch_per_image:
-            batch_size = self._batch_size
-        else:
-            batch_size = 1
+        im_tlbrs = [list(zip(repeat(im_id), list(range(len(tlbr)))))
+                    for im_id, tlbr in enumerate(self._toplefts["images"])]
+        im_tlbrs = reduce(lambda l1, l2: l1 + l2, im_tlbrs)
 
-        # Compute a size of the dataset.
-        n_samples_per_image = list(map(len, self._toplefts))
-        max_samples = sum(n_samples_per_image)
+        if self._shuffle:
+            random.shuffle(im_tlbrs)
 
-        total_samples = 0
-        n_samples = 0
-        im_id = 0
+        n_patches = 0
 
-        while True:
-            if total_samples >= max_samples:
-                # When the maximum number of samples (or more) have been yielded,
-                # break the loop.
-                break
+        while n_patches or im_tlbrs:
+            if not n_patches:
+                im_id, chk_id = im_tlbrs.pop(0)
 
-            if self._shuffle:
-                if total_samples % batch_size == 0:
-                    im_id = random.randint(0, len(self._arr_list) - 1)
-                    batch_indices = random.sample(
-                        range(n_samples_per_image[im_id]),
-                        min(n_samples_per_image[im_id], batch_size))
+                # Cache the current chunk
+                curr_chk_tlbr = self._toplefts["images"][im_id][chk_id]
 
-                    n_samples = 0
+                top_lefts = self._patch_sampler.compute_patches(
+                    self._arr_lists["images"][im_id],
+                    self._toplefts["images"][im_id][chk_id])
 
-                tl_id = batch_indices[n_samples]
+                n_patches = len(top_lefts)
+
+                if n_patches:
+                    for mode in self._arr_lists.keys():
+                        coords = self._get_coords(curr_chk_tlbr,
+                                                self._data_axes[mode])
+
+                        self._cached_chunks[mode] = \
+                            self._arr_lists[mode][im_id][coords]
 
             else:
-                if total_samples >= n_samples_per_image[im_id]:
-                    im_id += 1
-                    n_samples = 0
-    
-                tl_id = n_samples
+                curr_tlbr = top_lefts[len(top_lefts) - n_patches]
+                patches = self._getitem(curr_tlbr)
 
-            curr_tl = self._toplefts[im_id][tl_id]
-            patch, target = self._getitem(im_id, curr_tl)
+                if self._return_positions:
+                    patches = tuple([curr_tlbr.astype(np.int64) + curr_chk_tlbr]
+                                    + list(patches))
 
-            if self._return_positions:
-                curr_pair = (curr_tl.astype(np.int64), patch, target)
-            else:
-                curr_pair = (patch, target)
+                n_patches -= 1
 
-            n_samples += 1
-            total_samples += 1
-
-            yield curr_pair
+                yield patches
 
 
 class LabeledZarrDataset(ZarrDataset):
@@ -284,51 +294,23 @@ class LabeledZarrDataset(ZarrDataset):
                  target_transform=None,
                  **kwargs):
 
+        super(LabeledZarrDataset, self).__init__(filenames, **kwargs)
+
         # Open the labels from the labels group
-        self._labels_data_group = labels_data_group
-        self._labels_data_axes = labels_data_axes
+        self._data_group["target"] = labels_data_group
+        self._data_axes["target"] = labels_data_axes
 
         # This is a transform that affects the geometry of the input, and then
         # it has to be applied to the target as well
-        self._input_target_transform = input_target_transform
+        self._transform[("images", "target")] = input_target_transform
+        self._transforms_order.append(("images", "target"))
 
         # This is a transform that only affects the target
-        self._target_transform = target_transform
+        self._transform[("target", )] = target_transform
+        self._transforms_order.append(("target",))
 
-        self._lab_list = []
+        self._output_order.append("target")
 
-        super(LabeledZarrDataset, self).__init__(filenames, **kwargs)
-
-    def _preload_inputs(self):
-        # Preload the input images
-        super()._preload_inputs()
-
-        # Preload the target labels
-        self._lab_list, _ = self._preload_files(
-            self._filenames,
-            data_group=self._labels_data_group,
-            data_axes=self._labels_data_axes,
-            mask_group=None,
-            mask_data_axes=None,
-            compute_valid_mask=False)
-
-    def _getitem(self, im_id, tlbr):
-        coords = self._get_coords(tlbr, self._data_axes)
-        patch = self._arr_list[im_id][coords]
-
-        coords = self._get_coords(tlbr, self._labels_data_axes)
-        target = self._lab_list[im_id][coords]
-
-        # Transform the input with non-spatial transforms
-        if self._transform is not None:
-            patch = self._transform(patch)
-
-        # Transform the input and target with the same spatial transforms
-        if self._input_target_transform:
-            patch, target = self._input_target_transform((patch, target))
-
-        # Transform the target with the target-only transforms
-        if self._target_transform:
-            target = self._target_transform(target)
-
-        return patch, target
+        self._arr_lists["target"] = []
+        self._compute_valid_mask["target"] = False
+        self._cached_chunks["target"] = None

@@ -253,7 +253,7 @@ class ImageLoader(object):
     Opens the zarr file, or any image that can be open by PIL, as a Dask array.
     """
     def __init__(self, filename, data_group, data_axes, mask_group=None,
-                 mask_data_axes="YX",
+                 mask_data_axes=None,
                  source_format=".zarr",
                  s3_obj=None,
                  compute_valid_mask=False,
@@ -261,66 +261,73 @@ class ImageLoader(object):
 
         # Separate the filename and any ROI passed as the name of the file
         self._filename, rois = parse_roi(filename, source_format)
+        self._s3_obj = s3_obj
+        self.mask_data_axes = mask_data_axes
+        self.data_axes = data_axes
 
-        self._arr = image2array(self._filename, source_format=source_format,
+        self._arr = image2array(self._filename, source_format=source_format,                                
                                 data_group=data_group,
                                 s3_obj=s3_obj,
                                 use_dask=use_dask)
+
         self.shape = self._arr.shape
+        if isinstance(self._arr, zarr.Array):
+            self.chunk_size = self._arr.chunks
+        elif isinstance(self._arr, da.core.Array):
+            self.chunk_size = self._arr.chunksize
 
         if len(rois) == 0:
             rois = [tuple([slice(0, s, None) for s in self.shape])]
 
         self._rois = rois
-
-        self._data_axes = data_axes
-        self._mask_group = mask_group
-        self._mask_data_axes = mask_data_axes
+        self.mask_group = mask_group
 
         if compute_valid_mask:
-            self.mask = self._get_valid_mask()
+            self.mask, self.mask_scale = self._get_valid_mask()
         else:
             self.mask = None
+            self.mask_scale = None
 
     def _get_valid_mask(self):
-        spatial_axes = map_axes_order(self._data_axes, "YX")
-        default_mask_scale = 1 / min(self.shape[spatial_axes[-1]],
-                                     self.shape[spatial_axes[-2]])
+        ax_ref_ord = map_axes_order(self.data_axes, "YX")
+        H_ax = ax_ref_ord[-2]
+        W_ax = ax_ref_ord[-1]
+
+        H = self.shape[H_ax]
+        W = self.shape[W_ax]
 
         # If the input file is stored in zarr format, try to retrieve the object
         # mask from the `mask_group`.
-        if self._mask_group is not None and ".zarr" in self._filename:
-            mask = da.from_zarr(self._filename, component=self._mask_group)
-
-            tr_ord = map_axes_order(self._mask_data_axes, "YX")
-            mask = mask.transpose(tr_ord).squeeze()
-            mask = mask.compute(scheduler="synchronous")
+        if self.mask_group is not None and ".zarr" in self._filename:
+            mask = image2array(self._filename, source_format=".zarr",
+                               data_group=self.mask_group,
+                               s3_obj=self._s3_obj,
+                               use_dask=False)
 
         else:
-            scaled_h = int(math.floor(self.shape[-2] * default_mask_scale))
-            scaled_w = int(math.floor(self.shape[-1] * default_mask_scale))
+            mask = np.ones((round(H / self.chunk_size[H_ax]),
+                            round(W / self.chunk_size[W_ax])), dtype=bool)
+            self.mask_data_axes = "YX"
 
-            mask = np.ones((scaled_h, scaled_w), dtype=bool)
+        mk_ax_ref_ord = map_axes_order(self.mask_data_axes, "Y")
+        mask_scale = mask.shape[mk_ax_ref_ord[-1]] / H
 
-        scale = mask.shape[-1] / self.shape[-1]
         roi_mask = np.zeros_like(mask, dtype=bool)
-        tr_ord = map_axes_order(self._data_axes, "YX")
 
         for roi in self._rois:
             if len(roi) >= 2:
-                roi = [roi[a] for a in tr_ord]
-                scaled_roi = (slice(int(math.ceil(roi[-2].start * scale)),
-                                    int(math.ceil(roi[-2].stop * scale)),
+                scaled_roi = (slice(round(roi[H_ax].start * mask_scale),
+                                    round(roi[H_ax].stop * mask_scale),
                                     None),
-                              slice(int(math.ceil(roi[-1].start * scale)),
-                                    int(math.ceil(roi[-1].stop * scale)),
+                              slice(round(roi[W_ax].start * mask_scale),
+                                    round(roi[W_ax].stop * mask_scale),
                                     None))
             else:
                 scaled_roi = slice(None)
 
             roi_mask[scaled_roi] = True
 
-        return np.bitwise_and(mask, roi_mask)
+        return np.bitwise_and(mask, roi_mask), mask_scale
 
     def __getitem__(self, index):
         return self._arr[index]

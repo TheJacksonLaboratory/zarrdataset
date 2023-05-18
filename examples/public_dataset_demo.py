@@ -17,14 +17,15 @@ if __name__ == "__main__":
                  "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836840.zarr",
                  "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
                  "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"]
+
     data_group = "0"
     data_axes = "TCZYX"
     patch_size = 512
-    batch_size = 4
+    batch_size = 3
     num_workers = 4
 
     torch.manual_seed(777)
-    patch_sampler = zds.GridPatchSampler(patch_size, min_object_presence=0.1)
+    patch_sampler = zds.GridPatchSampler(patch_size)
 
     transform_fn = torchvision.transforms.Compose([
         zds.SelectAxes(source_axes=data_axes,

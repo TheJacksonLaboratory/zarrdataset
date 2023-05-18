@@ -14,19 +14,18 @@ if __name__ == "__main__":
     # converted to the OME-NGFF (Zarr) format by the OME group. More examples
     # can be found at Public OME-Zarr data (Nov. 2020)
     # https://www.openmicroscopy.org/2020/11/04/zarr-data.html
-    # filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836839.zarr",
-    #              "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836840.zarr",
-    #              "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
-    #              "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"]
-    filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836839.zarr"]
+    filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836839.zarr",
+                 "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836840.zarr",
+                 "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
+                 "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"]
     data_group = "0"
     data_axes = "TCZYX"
     patch_size = 256
-    batch_size = 1
+    batch_size = 5
     num_workers = 2
 
     torch.manual_seed(777)
-    patch_sampler = zds.BlueNoisePatchSampler(patch_size, chunk=float('inf'))
+    patch_sampler = zds.BlueNoisePatchSampler(patch_size)
 
     transform_fn = torchvision.transforms.Compose([
         zds.SelectAxes(source_axes=data_axes,
@@ -43,9 +42,7 @@ if __name__ == "__main__":
                                  patch_sampler=patch_sampler,
                                  shuffle=True,
                                  progress_bar=True,
-                                 batch_per_image=True,
-                                 return_positions=True,
-                                 batch_size=batch_size)
+                                 return_positions=True)
 
     # The Dataset was set to generate batches, so here we set `batch_size` to
     # None. However, we still need to use the collate function from zarrdataset
@@ -58,6 +55,6 @@ if __name__ == "__main__":
         persistent_workers=num_workers > 0)
 
     for i, sample in enumerate(my_dataloader):
-        sample_str = "Batched sample %i" % i
+        sample_str = "Sample %i" % i
         sample_str += "".join(f" {s.shape}, {s.dtype}" for s in sample)
         print(sample_str)

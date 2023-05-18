@@ -95,8 +95,7 @@ if __name__ == "__main__":
             filenames.append(dd)
 
     if 'grid' in args.sample_method:
-        patch_sampler = zds.GridPatchSampler(args.patch_size,
-                                             min_object_presence=0.1)
+        patch_sampler = zds.GridPatchSampler(args.patch_size)
 
     elif 'blue-noise' in args.sample_method:
         patch_sampler = zds.BlueNoisePatchSampler(args.patch_size,
