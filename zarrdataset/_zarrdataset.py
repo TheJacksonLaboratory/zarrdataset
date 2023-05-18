@@ -11,7 +11,7 @@ import dask.array as da
 
 from tqdm import tqdm
 
-from ._utils import ImageLoader, connect_s3
+from ._utils import ImageLoader, connect_s3, map_axes_order
 
 
 def zarrdataset_worker_init(worker_id):
@@ -112,6 +112,7 @@ class ZarrDataset(IterableDataset):
         self._arr_lists = {}
         self._toplefts = {}
         self._cached_chunks = {}
+        self._img_scale = {}
 
         self._shuffle = shuffle
         self._progress_bar = progress_bar
@@ -195,17 +196,20 @@ class ZarrDataset(IterableDataset):
 
         self._initialized = True
 
-    def _get_coords(self, tlbr, data_axes):
+    def _get_coords(self, tlbr, data_axes, scale=1):
         if tlbr is None:
             return slice(None)
 
         tl_y, tl_x, br_y, br_x = tlbr
+
         coords = []
         for a in data_axes:
             if a == "Y":
-                coords.append(slice(tl_y, br_y, None))
+                coords.append(slice(round(tl_y * scale),
+                                    round(br_y * scale), None))
             elif a == "X":
-                coords.append(slice(tl_x, br_x, None))
+                coords.append(slice(round(tl_x * scale),
+                                    round(br_x * scale), None))
             else:
                 coords.append(slice(None))
 
@@ -215,7 +219,8 @@ class ZarrDataset(IterableDataset):
         patches = {}
 
         for mode in self._output_order:
-            coords = self._get_coords(tlbr, self._data_axes[mode])
+            coords = self._get_coords(tlbr, self._data_axes[mode],
+                                      self._img_scale[mode])
             patches[mode] = self._cached_chunks[mode][coords]
 
         for inputs in self._transforms_order:
@@ -264,9 +269,23 @@ class ZarrDataset(IterableDataset):
                 n_patches = len(top_lefts)
 
                 if n_patches:
+                    ax_ref = map_axes_order(self._data_axes["images"], "Y")
+                    H_ax_ref = ax_ref[-1]
+                    H_ref = self._arr_lists["images"][im_id].shape[H_ax_ref]
+
                     for mode in self._arr_lists.keys():
-                        coords = self._get_coords(curr_chk_tlbr,
-                                                self._data_axes[mode])
+                        ax_img = map_axes_order(self._data_axes[mode], "Y")
+                        H_ax_img = ax_img[-1]
+                        H_img = self._arr_lists[mode][im_id].shape[H_ax_img]
+
+                        scale =  H_img / H_ref
+
+                        coords = self._get_coords(
+                            curr_chk_tlbr,
+                            self._data_axes[mode],
+                            scale)
+
+                        self._img_scale[mode] = scale
 
                         self._cached_chunks[mode] = \
                             self._arr_lists[mode][im_id][coords]
@@ -276,7 +295,8 @@ class ZarrDataset(IterableDataset):
                 patches = self._getitem(curr_tlbr)
 
                 if self._return_positions:
-                    patches = tuple([curr_tlbr.astype(np.int64) + curr_chk_tlbr]
+                    patches = tuple([curr_tlbr.astype(np.int64)
+                                     + curr_chk_tlbr]
                                     + list(patches))
 
                 n_patches -= 1
@@ -289,7 +309,7 @@ class LabeledZarrDataset(ZarrDataset):
     The densely labeled targets are extracted from group "labels_data_group".
     """
     def __init__(self, filenames, labels_data_group="labels/0/0",
-                 labels_data_axes="XYC",
+                 labels_data_axes="CYX",
                  input_target_transform=None,
                  target_transform=None,
                  **kwargs):
@@ -302,11 +322,11 @@ class LabeledZarrDataset(ZarrDataset):
 
         # This is a transform that affects the geometry of the input, and then
         # it has to be applied to the target as well
-        self._transform[("images", "target")] = input_target_transform
+        self._transforms[("images", "target")] = input_target_transform
         self._transforms_order.append(("images", "target"))
 
         # This is a transform that only affects the target
-        self._transform[("target", )] = target_transform
+        self._transforms[("target", )] = target_transform
         self._transforms_order.append(("target",))
 
         self._output_order.append("target")

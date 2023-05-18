@@ -112,13 +112,20 @@ if __name__ == "__main__":
     ])
 
     if args.labels_data_group is not None:
+        targets_transform_fn = torchvision.transforms.Compose([
+            zds.SelectAxes(source_axes=args.labels_data_axes,
+                           axes_selection={"T": 0, "Z": 0, "C": 0},
+                           target_axes="YX"),
+            zds.ZarrToArray(np.int32)])
+        
         my_dataset = zds.LabeledZarrDataset(
             filenames,
             transform=transform_fn,
-            target_transform=transform_fn,
+            target_transform=targets_transform_fn,
             patch_sampler=patch_sampler,
             shuffle=True,
             progress_bar=True,
+            return_positions=True,
             **args.__dict__)
 
     else:
@@ -128,6 +135,7 @@ if __name__ == "__main__":
             patch_sampler=patch_sampler,
             shuffle=True,
             progress_bar=True,
+            return_positions=True,
             **args.__dict__)
 
     my_dataloader = DataLoader(my_dataset, batch_size=args.batch_size,
@@ -135,5 +143,5 @@ if __name__ == "__main__":
                                worker_init_fn=zds.zarrdataset_worker_init,
                                persistent_workers=args.num_workers > 0)
 
-    for i, (x, t) in enumerate(my_dataloader):
-        print("Sample %i" % i, x.shape, x.dtype, t.shape, t.dtype)
+    for i, (p, x, t) in enumerate(my_dataloader):
+        print("Sample %i" % i, p, x.shape, x.dtype, t.shape, t.dtype)
