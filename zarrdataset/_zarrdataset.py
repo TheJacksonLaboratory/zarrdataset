@@ -141,6 +141,9 @@ class ZarrDataset(IterableDataset):
                      position=self._worker_id)
 
         for fn in filenames:
+            if self._progress_bar:
+                q.set_description(f"Preloading image {fn}")
+
             curr_img = ImageLoader(fn, data_group=data_group,
                                    data_axes=data_axes,
                                    mask_group=mask_group,
@@ -155,7 +158,6 @@ class ZarrDataset(IterableDataset):
             # can be drawn from images.
             if compute_valid_mask and self._patch_sampler is not None:
                 curr_toplefts = self._patch_sampler.compute_chunks(curr_img)
-
                 toplefts.append(curr_toplefts)
 
             z_list.append(curr_img)
@@ -208,11 +210,11 @@ class ZarrDataset(IterableDataset):
         coords = []
         for a in data_axes:
             if a == "Y":
-                coords.append(slice(round(tl_y * scale),
-                                    round(br_y * scale), None))
+                coords.append(slice(int(tl_y * scale),
+                                    int(br_y * scale), None))
             elif a == "X":
-                coords.append(slice(round(tl_x * scale),
-                                    round(br_x * scale), None))
+                coords.append(slice(int(tl_x * scale),
+                                    int(br_x * scale), None))
             else:
                 coords.append(slice(None))
 
