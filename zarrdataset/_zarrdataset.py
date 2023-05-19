@@ -266,6 +266,7 @@ class ZarrDataset(IterableDataset):
 
                 # Cache the current chunk
                 curr_chk_tlbr = self._toplefts["images"][im_id][chk_id]
+                curr_chk_tlbr = curr_chk_tlbr.astype(np.int64)
 
                 top_lefts = self._patch_sampler.compute_patches(
                     self._arr_lists["images"][im_id],
