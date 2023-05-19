@@ -169,7 +169,10 @@ class ZarrDataset(IterableDataset):
         z_list = np.array(z_list, dtype=object)
 
         if len(toplefts):
-            toplefts = np.stack(toplefts)
+            # Use Numpy arrays to store the lists instead of python lists.
+            # This is beacuase when lists are too big is easier to handle them
+            # as numpy arrays.
+            toplefts = np.array(toplefts, dtype=object)
 
         return z_list, toplefts
 
