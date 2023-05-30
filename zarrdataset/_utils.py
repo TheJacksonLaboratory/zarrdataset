@@ -304,12 +304,20 @@ class ImageLoader(object):
                                s3_obj=self._s3_obj,
                                use_dask=False)
 
-            ax_ord = map_axes_order(source_axes=self.mask_data_axes,
+            sel_ax = []
+            spatial_mask_axes = ""
+            for ax in self.mask_data_axes:
+                if ax in "YX":
+                    sel_ax.append(slice(None))
+                    spatial_mask_axes += ax
+                else:
+                    sel_ax.append(0)
+            
+            mask = mask[tuple(sel_ax)]
+
+            ax_ord = map_axes_order(source_axes=spatial_mask_axes,
                                     target_axes="YX")
             mask = mask.transpose(ax_ord)
-
-            sel_ax = [[0] * (len(ax_ord) - 2) + [slice(None), slice(None)]]
-            mask = mask[sel_ax]
 
         else:
             mask = np.ones((round(H / self.chunk_size[H_ax]),

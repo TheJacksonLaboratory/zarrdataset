@@ -52,7 +52,7 @@ if __name__ == "__main__":
         batch_size=batch_size,
         num_workers=num_workers,
         worker_init_fn=zds.zarrdataset_worker_init,
-        persistent_workers=False)
+        persistent_workers=True)
 
     for i, sample in enumerate(my_dataloader):
         sample_str = "Sample %i" % i

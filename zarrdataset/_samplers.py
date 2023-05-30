@@ -1,4 +1,5 @@
 import math
+import random
 import numpy as np
 
 from skimage import transform
@@ -85,8 +86,8 @@ class PatchSampler(object):
                                       anti_aliasing=False)
 
         chunks_grid_y, chunks_grid_x = np.nonzero(valid_mask)
-        chunks_grid_y = chunks_grid_y.reshape(-1, 1)
-        chunks_grid_x = chunks_grid_x.reshape(-1, 1)
+        chunks_grid_y = chunks_grid_y.reshape(-1, 1) * im_chk_H
+        chunks_grid_x = chunks_grid_x.reshape(-1, 1) * im_chk_W
 
         chunks_grid = np.hstack(
             (chunks_grid_y, chunks_grid_x,
@@ -161,11 +162,22 @@ class BlueNoisePatchSampler(PatchSampler):
     allow_overlap : bool
         Whether overlapping of patches is allowed or not.
     """
-    def __init__(self, patch_size, **kwargs):
+    def __init__(self, patch_size, sampling_freq=8, **kwargs):
         super(BlueNoisePatchSampler, self).__init__(patch_size)
         self._base_chunk_tls = None
+        self._sampling_positions = None
+        self._sampling_freq = sampling_freq
 
     def _get_positions_array(self, chk_H, chk_W, force=False):
+        if self._sampling_positions is None:
+            sampling_pos_y, sampling_pos_x = np.meshgrid(
+                np.linspace(0, self._patch_size, self._sampling_freq),
+                np.linspace(0, self._patch_size, self._sampling_freq)
+            )
+            self._sampling_positions = np.hstack(
+                (sampling_pos_y.reshape(-1, 1),
+                 sampling_pos_x.reshape(-1, 1))).reshape(1, -1, 2)
+
         if self._base_chunk_tls is None or force:
             self._max_chk_H = max(self._max_chk_H, chk_H)
             self._max_chk_W = max(self._max_chk_W, chk_W)
@@ -192,7 +204,7 @@ class BlueNoisePatchSampler(PatchSampler):
                                                 - self._patch_size,
                                          r=self._patch_size,
                                          k=30),
-                    dtype=np.float32)
+                    dtype=np.int64)
                 self._base_chunk_tls = self._base_chunk_tls[:, (1, 0)]
 
         valid_in_chunk = np.bitwise_and(
@@ -201,14 +213,8 @@ class BlueNoisePatchSampler(PatchSampler):
 
         base_chunk_tls = self._base_chunk_tls[valid_in_chunk]
 
-        base_chunk_patches = np.hstack(
-                (base_chunk_tls,
-                 base_chunk_tls[:, :1] + self._patch_size,
-                 base_chunk_tls[:, 1:],
-                 base_chunk_tls[:, :1] + self._patch_size,
-                 base_chunk_tls[:, 1:] + self._patch_size,
-                 base_chunk_tls[:, :1],
-                 base_chunk_tls[:, 1:] + self._patch_size))
+        base_chunk_patches = (base_chunk_tls[:, None, :]
+                              + self._sampling_positions)
 
         base_chunk_patches = base_chunk_patches.reshape(-1, 2)
 
@@ -229,18 +235,23 @@ class BlueNoisePatchSampler(PatchSampler):
                                                         chk_W=chk_W,
                                                         force=False)
             chunk_valid_mask = self._get_chunk_mask(image, chunk_tlbr)
-            chunk_valid_mask = np.pad(chunk_valid_mask, 1)
 
             chunk_valid_mask_grid = np.meshgrid(
-                np.linspace(-1, 2, chunk_valid_mask.shape[0]),
-                np.linspace(-1, 2, chunk_valid_mask.shape[1]))
+                [-1]
+                + list(np.linspace(0, chk_H - 1, chunk_valid_mask.shape[0]))
+                + [chk_H],
+                [-1]
+                + list(np.linspace(0, chk_W - 1, chunk_valid_mask.shape[1]))
+                + [chk_W])
+
+            chunk_valid_mask = np.pad(chunk_valid_mask, 1)
  
             samples_validity = interpolate.griddata(
                 tuple(ax.flatten() for ax in chunk_valid_mask_grid),
                 chunk_valid_mask.flatten(),
-                chunk_patches * image.mask_scale,
+                chunk_patches,
                 method='nearest'
-                ).reshape(-1, 4)
+                ).reshape(-1, self._sampling_freq ** 2)
 
             samples_validity = samples_validity.any(axis=1)
 
