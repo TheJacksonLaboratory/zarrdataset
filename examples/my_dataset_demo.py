@@ -73,6 +73,11 @@ if __name__ == "__main__":
                         help="Patches sampling method.",
                         choices=["grid", "blue-noise", "none"],
                         default="grid")
+    parser.add_argument("-dsc", "--draw-same-chunk", dest="draw_same_chunk",
+                        action="store_true",
+                        help="Draw samples from the same chunk until all"
+                             "possible patches have been extracted.",
+                        default=False)
 
     args = parser.parse_args()
 

@@ -63,33 +63,36 @@ class PatchSampler(object):
         H = image.shape[ax_ref_ord[-2]]
         W = image.shape[ax_ref_ord[-1]]
 
-        chk_H = max(image.chunk_size[ax_ref_ord[-2]], self._patch_size)
-        chk_W = max(image.chunk_size[ax_ref_ord[-1]], self._patch_size)
+        im_chk_H = image.chunk_size[ax_ref_ord[-2]]
+        im_chk_W = image.chunk_size[ax_ref_ord[-1]]
 
-        self._max_chk_H = max(self._max_chk_H, chk_H)
-        self._max_chk_W = max(self._max_chk_W, chk_W)
+        self._max_chk_H = max(self._max_chk_H, im_chk_H)
+        self._max_chk_W = max(self._max_chk_W, im_chk_W)
 
-        valid_mask = transform.resize(image.mask, (round(H / chk_H),
-                                                   round(W / chk_W)),
+        if self._patch_size >= im_chk_H:
+            scaled_H = H // self._patch_size
+        else:
+            scaled_H = round(H / im_chk_H)
+
+        if self._patch_size >= im_chk_W:
+            scaled_W = W // self._patch_size
+        else:
+            scaled_W = round(W / im_chk_W)
+
+        valid_mask = transform.resize(image.mask, (scaled_H, scaled_W),
                                       order=0,
                                       mode="edge",
                                       anti_aliasing=False)
 
-        # Retrieve patches that contain at least the requested minimum presence
-        # of the masked object.
-        toplefts = np.nonzero(valid_mask)
-        toplefts = np.stack(toplefts, axis=1)
+        chunks_grid_y, chunks_grid_x = np.nonzero(valid_mask)
+        chunks_grid_y = chunks_grid_y.reshape(-1, 1)
+        chunks_grid_x = chunks_grid_x.reshape(-1, 1)
 
-        # Map the positions back to the original scale of the image.
-        toplefts[:, 0] = toplefts[:, 0] * chk_H
-        toplefts[:, 1] = toplefts[:, 1] * chk_W
+        chunks_grid = np.hstack(
+            (chunks_grid_y, chunks_grid_x,
+             chunks_grid_y + im_chk_H, chunks_grid_x + im_chk_W))
 
-        bottomrights_y = np.minimum(toplefts[:, 0] + chk_H, H).reshape(-1, 1)
-        bottomrights_x = np.minimum(toplefts[:, 1] + chk_W, W).reshape(-1, 1)
-
-        toplefts = np.hstack((toplefts, bottomrights_y, bottomrights_x))
-
-        return toplefts
+        return chunks_grid
 
     @staticmethod
     def _get_chunk_mask(image, chunk_tlbr):
@@ -160,20 +163,20 @@ class BlueNoisePatchSampler(PatchSampler):
     """
     def __init__(self, patch_size, **kwargs):
         super(BlueNoisePatchSampler, self).__init__(patch_size)
-        self._base_chunk_patches = None
+        self._base_chunk_tls = None
 
     def _get_positions_array(self, chk_H, chk_W, force=False):
-        if self._base_chunk_patches is None or force:
+        if self._base_chunk_tls is None or force:
             self._max_chk_H = max(self._max_chk_H, chk_H)
             self._max_chk_W = max(self._max_chk_W, chk_W)
 
             if (self._max_chk_H < self._patch_size
-            or self._max_chk_W < self._patch_size):
+              or self._max_chk_W < self._patch_size):
                 self._base_chunk_tls = None
-                return
+                return None, None
 
             elif (self._max_chk_H == self._patch_size
-            or self._max_chk_W == self._patch_size):
+              or self._max_chk_W == self._patch_size):
                 grid_y = np.arange(0, self._max_chk_H, self._patch_size,
                                 dtype=np.int64)
                 grid_x = np.arange(0, self._max_chk_W, self._patch_size,
@@ -193,8 +196,8 @@ class BlueNoisePatchSampler(PatchSampler):
                 self._base_chunk_tls = self._base_chunk_tls[:, (1, 0)]
 
         valid_in_chunk = np.bitwise_and(
-            self._base_chunk_tls[:, 0] + self._patch_size < chk_H,
-            self._base_chunk_tls[:, 1] + self._patch_size < chk_W)
+            self._base_chunk_tls[:, 0] + self._patch_size <= chk_H,
+            self._base_chunk_tls[:, 1] + self._patch_size <= chk_W)
 
         base_chunk_tls = self._base_chunk_tls[valid_in_chunk]
 
@@ -231,7 +234,7 @@ class BlueNoisePatchSampler(PatchSampler):
             chunk_valid_mask_grid = np.meshgrid(
                 np.linspace(-1, 2, chunk_valid_mask.shape[0]),
                 np.linspace(-1, 2, chunk_valid_mask.shape[1]))
-
+ 
             samples_validity = interpolate.griddata(
                 tuple(ax.flatten() for ax in chunk_valid_mask_grid),
                 chunk_valid_mask.flatten(),

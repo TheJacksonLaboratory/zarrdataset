@@ -85,7 +85,7 @@ class ZarrDataset(IterableDataset):
                  progress_bar=False,
                  use_dask=False,
                  return_positions=False,
-                 complete_chunks=False,
+                 draw_same_chunk=False,
                  **kwargs):
 
         self._worker_id = 0
@@ -119,7 +119,7 @@ class ZarrDataset(IterableDataset):
         self._progress_bar = progress_bar
 
         self._return_positions = return_positions
-        self._complete_chunks = complete_chunks
+        self._draw_same_chunk = draw_same_chunk
 
         self._patch_sampler = patch_sampler
         self._initialized = False
@@ -274,10 +274,6 @@ class ZarrDataset(IterableDataset):
             self._cached_chunks[mode] = \
                 self._arr_lists[mode][im_id][coords]
 
-        self._curr_patch_toplefts = self._patch_sampler.compute_patches(
-                self._arr_lists["images"][im_id],
-                chunk_tlbr)
-
     def __iter__(self):
         # Preload the files and masks associated with them
         self._initialize()
@@ -288,7 +284,7 @@ class ZarrDataset(IterableDataset):
 
         # When chunks must be depleted before moving to the next chunk, shuffle
         # all before hand.
-        if self._shuffle and self._complete_chunks:
+        if self._shuffle and self._draw_same_chunk:
             random.shuffle(samples)
 
         prev_im_id = -1
@@ -298,7 +294,7 @@ class ZarrDataset(IterableDataset):
         while samples:
             # When chunks can be sampled even when these are not depleted,
             # shuffle here.
-            if self._shuffle and not self._complete_chunks:
+            if self._shuffle and not self._draw_same_chunk:
                 curr_chk = random.randrange(0, len(samples))
 
             im_id = samples[curr_chk][0]
@@ -306,9 +302,9 @@ class ZarrDataset(IterableDataset):
 
             chunk_tlbr = self._toplefts["images"][im_id][chk_id]
 
-            # If this chunk is different from the cached one, chacnge the
-            # cached for this one.
-            if prev_im_id != im_id and prev_chk_id != chk_id:
+            # If this chunk is different from the cached one, change the
+            # cached chunk for this one.
+            if prev_im_id != im_id or prev_chk_id != chk_id:
                 prev_im_id = im_id
                 prev_chk_id = chk_id
 
@@ -324,11 +320,9 @@ class ZarrDataset(IterableDataset):
             if samples[curr_chk][2] is None:
                 samples[curr_chk][2] = len(patches_tls)
                 samples[curr_chk][3] = 0
-                curr_patch = 0
 
-            elif self._shuffle:
+            if self._shuffle:
                 curr_patch = random.randrange(0, samples[curr_chk][2])
-
             else:
                 curr_patch = samples[curr_chk][3]
 
