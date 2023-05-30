@@ -252,7 +252,7 @@ class ImageLoader(object):
 
     Opens the zarr file, or any image that can be open by PIL, as a Dask array.
     """
-    def __init__(self, filename, data_group, data_axes, mask_group=None,
+    def __init__(self, filename, data_group, data_axes, mask_data_group=None,
                  mask_data_axes=None,
                  source_format=".zarr",
                  s3_obj=None,
@@ -280,7 +280,7 @@ class ImageLoader(object):
             rois = [tuple([slice(0, s, None) for s in self.shape])]
 
         self._rois = rois
-        self.mask_group = mask_group
+        self.mask_data_group = mask_data_group
 
         if compute_valid_mask:
             self.mask, self.mask_scale = self._get_valid_mask()
@@ -297,10 +297,10 @@ class ImageLoader(object):
         W = self.shape[W_ax]
 
         # If the input file is stored in zarr format, try to retrieve the object
-        # mask from the `mask_group`.
-        if self.mask_group is not None and ".zarr" in self._filename:
+        # mask from the `mask_data_group`.
+        if self.mask_data_group is not None and ".zarr" in self._filename:
             mask = image2array(self._filename, source_format=".zarr",
-                               data_group=self.mask_group,
+                               data_group=self.mask_data_group,
                                s3_obj=self._s3_obj,
                                use_dask=False)
 

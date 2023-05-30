@@ -77,14 +77,15 @@ class ZarrDataset(IterableDataset):
     """
     def __init__(self, filenames, source_format=".zarr", data_group="",
                  data_axes="XYZCT",
-                 mask_group=None,
+                 mask_data_group=None,
                  mask_data_axes=None,
                  transform=None,
-                 patch_sampler=False,
+                 patch_sampler=None,
                  shuffle=False,
                  progress_bar=False,
                  use_dask=False,
                  return_positions=False,
+                 complete_chunks=False,
                  **kwargs):
 
         self._worker_id = 0
@@ -105,7 +106,7 @@ class ZarrDataset(IterableDataset):
         self._data_axes = {"images": data_axes}
         self._data_group = {"images": data_group}
 
-        self._mask_group = {"images": mask_group}
+        self._mask_data_group = {"images": mask_data_group}
         self._mask_data_axes = {"images": mask_data_axes}
 
         self._compute_valid_mask = {"images": True}
@@ -118,19 +119,20 @@ class ZarrDataset(IterableDataset):
         self._progress_bar = progress_bar
 
         self._return_positions = return_positions
+        self._complete_chunks = complete_chunks
 
         self._patch_sampler = patch_sampler
         self._initialized = False
 
     def _preload_files(self, filenames, data_group="", data_axes="XYZCT",
-                       mask_group=None,
+                       mask_data_group=None,
                        mask_data_axes=None,
                        compute_valid_mask=False):
         """Open a connection to the zarr file using Dask for lazy loading.
 
         If the mask group is passed, that group within each zarr is used to
-        determine the valid regions that can be sampled. If None is passed, that
-        means that the full image can be sampled.
+        determine the valid regions that can be sampled. If None is passed,
+        that means that the full image can be sampled.
         """
         z_list = []
         toplefts = []
@@ -146,7 +148,7 @@ class ZarrDataset(IterableDataset):
 
             curr_img = ImageLoader(fn, data_group=data_group,
                                    data_axes=data_axes,
-                                   mask_group=mask_group,
+                                   mask_data_group=mask_data_group,
                                    mask_data_axes=mask_data_axes,
                                    source_format=self._source_format,
                                    s3_obj=self._s3_obj,
@@ -192,7 +194,7 @@ class ZarrDataset(IterableDataset):
                 self._filenames,
                 data_group=self._data_group[mode],
                 data_axes=self._data_axes.get(mode, None),
-                mask_group=self._mask_group.get(mode, None),
+                mask_data_group=self._mask_data_group.get(mode, None),
                 mask_data_axes=self._mask_data_axes.get(mode, None),
                 compute_valid_mask=self._compute_valid_mask.get(mode, False))
 
@@ -247,70 +249,104 @@ class ZarrDataset(IterableDataset):
 
         return patches
 
+    def _cache_chunk(self, im_id, chunk_tlbr):
+        ax_ref = map_axes_order(self._data_axes["images"], "Y")
+        H_ax_ref = ax_ref[-1]
+        H_ref = self._arr_lists["images"][im_id].shape[H_ax_ref]
+
+        for mode in self._arr_lists.keys():
+            if "Y" in self._data_axes[mode]:
+                ax_img = map_axes_order(self._data_axes[mode], "Y")
+                H_ax_img = ax_img[-1]
+                H_img = self._arr_lists[mode][im_id].shape[H_ax_img]
+
+                scale =  H_img / H_ref
+            else:
+                scale =  1 / H_ref
+
+            coords = self._get_coords(
+                chunk_tlbr,
+                self._data_axes[mode],
+                scale)
+
+            self._img_scale[mode] = scale
+
+            self._cached_chunks[mode] = \
+                self._arr_lists[mode][im_id][coords]
+
+        self._curr_patch_toplefts = self._patch_sampler.compute_patches(
+                self._arr_lists["images"][im_id],
+                chunk_tlbr)
+
     def __iter__(self):
         # Preload the files and masks associated with them
         self._initialize()
 
-        im_tlbrs = [list(zip(repeat(im_id), list(range(len(tlbr)))))
-                    for im_id, tlbr in enumerate(self._toplefts["images"])]
-        im_tlbrs = reduce(lambda l1, l2: l1 + l2, im_tlbrs)
+        samples = [[im_id, chk_id, None, None]
+                   for im_id in range(len(self._arr_lists["images"]))
+                   for chk_id in range(len(self._toplefts["images"][im_id]))]
 
-        if self._shuffle:
-            random.shuffle(im_tlbrs)
+        # When chunks must be depleted before moving to the next chunk, shuffle
+        # all before hand.
+        if self._shuffle and self._complete_chunks:
+            random.shuffle(samples)
 
-        n_patches = 0
+        prev_im_id = -1
+        prev_chk_id = -1
+        curr_chk = 0
 
-        while n_patches or im_tlbrs:
-            if not n_patches:
-                im_id, chk_id = im_tlbrs.pop(0)
+        while samples:
+            # When chunks can be sampled even when these are not depleted,
+            # shuffle here.
+            if self._shuffle and not self._complete_chunks:
+                curr_chk = random.randrange(0, len(samples))
 
-                # Cache the current chunk
-                curr_chk_tlbr = self._toplefts["images"][im_id][chk_id]
-                curr_chk_tlbr = curr_chk_tlbr.astype(np.int64)
+            im_id = samples[curr_chk][0]
+            chk_id = samples[curr_chk][1]
 
-                top_lefts = self._patch_sampler.compute_patches(
+            chunk_tlbr = self._toplefts["images"][im_id][chk_id]
+
+            # If this chunk is different from the cached one, chacnge the
+            # cached for this one.
+            if prev_im_id != im_id and prev_chk_id != chk_id:
+                prev_im_id = im_id
+                prev_chk_id = chk_id
+
+                self._cache_chunk(im_id, chunk_tlbr)
+
+                patches_tls = self._patch_sampler.compute_patches(
                     self._arr_lists["images"][im_id],
-                    self._toplefts["images"][im_id][chk_id])
+                    chunk_tlbr
+                )
 
-                n_patches = len(top_lefts)
+            # Initialize the count of top-left positions for patches inside
+            # this chunk.
+            if samples[curr_chk][2] is None:
+                samples[curr_chk][2] = len(patches_tls)
+                samples[curr_chk][3] = 0
+                curr_patch = 0
 
-                if n_patches:
-                    ax_ref = map_axes_order(self._data_axes["images"], "Y")
-                    H_ax_ref = ax_ref[-1]
-                    H_ref = self._arr_lists["images"][im_id].shape[H_ax_ref]
-
-                    for mode in self._arr_lists.keys():
-                        if "Y" in self._data_axes[mode]:
-                            ax_img = map_axes_order(self._data_axes[mode], "Y")
-                            H_ax_img = ax_img[-1]
-                            H_img = self._arr_lists[mode][im_id].shape[H_ax_img]
-
-                            scale =  H_img / H_ref
-                        else:
-                            scale =  1 / H_ref
-
-                        coords = self._get_coords(
-                            curr_chk_tlbr,
-                            self._data_axes[mode],
-                            scale)
-
-                        self._img_scale[mode] = scale
-
-                        self._cached_chunks[mode] = \
-                            self._arr_lists[mode][im_id][coords]
+            elif self._shuffle:
+                curr_patch = random.randrange(0, samples[curr_chk][2])
 
             else:
-                curr_tlbr = top_lefts[len(top_lefts) - n_patches]
-                patches = self._getitem(curr_tlbr)
+                curr_patch = samples[curr_chk][3]
 
-                if self._return_positions:
-                    patches = tuple([curr_tlbr.astype(np.int64)
-                                     + curr_chk_tlbr]
-                                    + list(patches))
+            samples[curr_chk][3] = samples[curr_chk][3] + 1
 
-                n_patches -= 1
+            # When all possible patches have been extracted from the current
+            # chunk, remove that chunk from the list of samples.
+            if samples[curr_chk][3] == samples[curr_chk][2]:
+                samples.pop(curr_chk)
 
-                yield patches
+            curr_tlbr = patches_tls[curr_patch]
+            patches = self._getitem(curr_tlbr)
+
+            if self._return_positions:
+                patches = tuple([curr_tlbr + chunk_tlbr.astype(np.int64)]
+                                + list(patches))
+
+            yield patches
 
 
 class LabeledZarrDataset(ZarrDataset):

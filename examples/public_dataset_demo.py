@@ -22,7 +22,7 @@ if __name__ == "__main__":
     data_axes = "TCZYX"
     patch_size = 512
     batch_size = 3
-    num_workers = 4
+    num_workers = 0
 
     torch.manual_seed(777)
     patch_sampler = zds.GridPatchSampler(patch_size)

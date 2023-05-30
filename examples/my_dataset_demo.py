@@ -43,7 +43,7 @@ if __name__ == "__main__":
                              ". The default order is the given by the OME "
                              "standard.",
                         default="XYZCT")
-    parser.add_argument("-mdg", "--mask-group", dest="mask_group",
+    parser.add_argument("-mdg", "--mask-group", dest="mask_data_group",
                         type=str,
                         help="Group within the zarr file where the masks are "
                              "stored. If not set, a simplified mask is "
