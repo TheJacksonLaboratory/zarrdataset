@@ -240,12 +240,12 @@ class ZarrDataset(IterableDataset):
                 for mode, mode_res in zip(inputs, res):
                     patches[mode] = mode_res
 
-        patches = tuple(patches[mode] for mode in self._output_order)
+        patches = [patches[mode] for mode in self._output_order]
 
         if "target" not in self._output_order:
             # Returns anything as label, this is just to return a tuple of
             # input, target that is expected for most of training pipelines.
-            patches = (*patches, 0)
+            patches.append(0)
 
         return patches
 
@@ -341,10 +341,9 @@ class ZarrDataset(IterableDataset):
             patches = self._getitem(curr_tlbr)
 
             if self._return_positions:
-                patches = tuple([curr_tlbr + chunk_tlbr.astype(np.int64)]
-                                + list(patches))
+                patches = [curr_tlbr + chunk_tlbr.astype(np.int64)] + patches
 
-            yield patches
+            yield tuple(patches)
 
 
 class LabeledZarrDataset(ZarrDataset):

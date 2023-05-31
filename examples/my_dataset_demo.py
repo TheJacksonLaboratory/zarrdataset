@@ -113,7 +113,7 @@ if __name__ == "__main__":
         zds.SelectAxes(source_axes=args.data_axes,
                        axes_selection={"T": 0, "Z": 0},
                        target_axes="CYX"),
-        zds.ZarrToArray(np.int32),
+        torchvision.transforms.ToTensor()
     ])
 
     if args.labels_data_group is not None:
