@@ -308,12 +308,16 @@ class ZarrDataset(IterableDataset):
                 prev_im_id = im_id
                 prev_chk_id = chk_id
 
-                self._cache_chunk(im_id, chunk_tlbr)
-
                 patches_tls = self._patch_sampler.compute_patches(
                     self._arr_lists["images"][im_id],
                     chunk_tlbr
                 )
+
+                if not len(patches_tls):
+                    samples.pop(curr_chk)
+                    continue
+
+                self._cache_chunk(im_id, chunk_tlbr)
 
             # Initialize the count of top-left positions for patches inside
             # this chunk.
