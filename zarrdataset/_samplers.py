@@ -71,19 +71,18 @@ class PatchSampler(object):
         self._max_chk_W = max(self._max_chk_W, im_chk_W)
 
         if self._patch_size >= im_chk_H:
-            scaled_H = H // self._patch_size
-        else:
-            scaled_H = round(H / im_chk_H)
-
+            im_chk_H = self._patch_size
+        
         if self._patch_size >= im_chk_W:
-            scaled_W = W // self._patch_size
-        else:
-            scaled_W = round(W / im_chk_W)
+            im_chk_W = self._patch_size
 
-        valid_mask = transform.resize(image.mask, (scaled_H, scaled_W),
-                                      order=0,
-                                      mode="edge",
-                                      anti_aliasing=False)
+        scaled_H = round(im_chk_H * image.mask_scale)
+        scaled_W = round(im_chk_W * image.mask_scale)
+
+        valid_mask = transform.downscale_local_mean(image.mask, 
+                                                    factors=(scaled_H,
+                                                             scaled_W),
+                                                    cval=0)
 
         chunks_grid_y, chunks_grid_x = np.nonzero(valid_mask)
         chunks_grid_y = chunks_grid_y.reshape(-1, 1) * im_chk_H

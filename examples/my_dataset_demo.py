@@ -112,7 +112,7 @@ if __name__ == "__main__":
     transform_fn = torchvision.transforms.Compose([
         zds.SelectAxes(source_axes=args.data_axes,
                        axes_selection={"T": 0, "Z": 0},
-                       target_axes="CYX"),
+                       target_axes="YXC"),
         torchvision.transforms.ToTensor()
     ])
 
