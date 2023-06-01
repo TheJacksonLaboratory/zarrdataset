@@ -92,6 +92,9 @@ class PatchSampler(object):
             (chunks_grid_y, chunks_grid_x,
              chunks_grid_y + im_chk_H, chunks_grid_x + im_chk_W))
 
+        chunks_grid[:, 2] = np.minimum(chunks_grid[:, 2], H)
+        chunks_grid[:, 3] = np.minimum(chunks_grid[:, 3], W)
+
         return chunks_grid
 
     @staticmethod

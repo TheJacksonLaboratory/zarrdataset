@@ -113,15 +113,16 @@ if __name__ == "__main__":
         zds.SelectAxes(source_axes=args.data_axes,
                        axes_selection={"T": 0, "Z": 0},
                        target_axes="YXC"),
+        zds.ZarrToArray(dtype=np.uint8),
         torchvision.transforms.ToTensor()
     ])
 
     if args.labels_data_group is not None:
         targets_transform_fn = torchvision.transforms.Compose([
             zds.SelectAxes(source_axes=args.labels_data_axes,
-                           axes_selection={"T": 0, "Z": 0, "C": 0},
-                           target_axes="YX"),
-            zds.ZarrToArray(np.int32)])
+                           axes_selection={"T": 0, "Z": 0, "Y": 0, "X": 0},
+                           target_axes="C"),
+            zds.ZarrToArray(np.int64)])
         
         my_dataset = zds.LabeledZarrDataset(
             filenames,
@@ -146,6 +147,7 @@ if __name__ == "__main__":
     my_dataloader = DataLoader(my_dataset, batch_size=args.batch_size,
                                num_workers=args.num_workers,
                                worker_init_fn=zds.zarrdataset_worker_init,
+                               pin_memory=True,
                                persistent_workers=args.num_workers > 0)
 
     for i, (p, x, t) in enumerate(my_dataloader):
