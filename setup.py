@@ -18,7 +18,6 @@ setuptools.setup(
     url="https://github.com/TheJacksonLaboratory/zarrdataset",
     packages=setuptools.find_packages(),
     install_requires=[
-        'torch>=1.8.0',
         'requests>=2.28.2',
         'aiohttp>=3.8.3',
         'boto3>=1.26.29',
