@@ -1,73 +1,82 @@
-from functools import reduce
-from itertools import repeat
 import math
 import random
 
 import numpy as np
 
-import torch
-from torch.utils.data import IterableDataset
-import dask.array as da
+try:
+    import torch
+    from torch.utils.data import IterableDataset
+
+    def zarrdataset_worker_init(worker_id):
+        worker_info = torch.utils.data.get_worker_info()
+        dataset_obj = worker_info.dataset
+        dataset_obj._worker_id = worker_id
+
+        # Reset the random number generators in each worker.
+        torch_seed = torch.initial_seed()
+        random.seed(torch_seed)
+        np.random.seed(torch_seed % (2**32 - 1))
+
+        # Open a copy of the dataset on each worker.
+        n_files = len(dataset_obj._filenames)
+        if n_files == 1:
+            # Get the topleft positions and distribute them among the workers
+            dataset_obj._initialize()
+
+            n_tls = len(dataset_obj._toplefts["images"][0])
+            n_tls_per_worker = int(math.ceil(n_tls / worker_info.num_workers))
+
+            dataset_obj._toplefts["images"] =\
+                [dataset_obj._toplefts["images"][0][
+                    slice(n_tls_per_worker * worker_id,
+                        n_tls_per_worker * (worker_id + 1),
+                        None)]]
+
+        else:
+            n_files_per_worker = int(math.ceil(n_files / worker_info.num_workers))
+            dataset_obj._filenames =\
+                dataset_obj._filenames[slice(n_files_per_worker * worker_id,
+                                            n_files_per_worker * (worker_id + 1),
+                                            None)]
+
+
+    def chained_zarrdataset_worker_init(worker_id):
+        worker_info = torch.utils.data.get_worker_info()
+        dataset_obj = worker_info.dataset
+
+        # Reset the random number generators in each worker.
+        torch_seed = torch.initial_seed()
+        random.seed(torch_seed)
+        np.random.seed(torch_seed % (2**32 - 1))
+
+        # Open a copy of the dataset on each worker.
+        n_datasets = len(dataset_obj.datasets)
+        n_datasets_per_worker = int(math.ceil(n_datasets
+                                            / worker_info.num_workers))
+
+        dataset_obj.datasets = \
+            dataset_obj.datasets[slice(n_datasets_per_worker * worker_id,
+                                    n_datasets_per_worker * (worker_id + 1),
+                                    None)]
+
+        for ds in dataset_obj.datasets:
+            ds._worker_id = worker_id
+            
+except ModuleNotFoundError:
+    import logging
+    logging.warning('PyTorch is not installed, the ZarrDataset class will '
+                    'still work as a python iterator')
+    IterableDataset = object
+
+    def zarrdataset_worker_init(*args):
+        pass
+
+    def chained_zarrdataset_worker_init(*args):
+        pass
 
 from tqdm import tqdm
 
 from ._utils import ImageLoader, connect_s3, map_axes_order
-
-
-def zarrdataset_worker_init(worker_id):
-    worker_info = torch.utils.data.get_worker_info()
-    dataset_obj = worker_info.dataset
-    dataset_obj._worker_id = worker_id
-
-    # Reset the random number generators in each worker.
-    torch_seed = torch.initial_seed()
-    random.seed(torch_seed)
-    np.random.seed(torch_seed % (2**32 - 1))
-
-    # Open a copy of the dataset on each worker.
-    n_files = len(dataset_obj._filenames)
-    if n_files == 1:
-        # Get the topleft positions and distribute them among the workers
-        dataset_obj._initialize()
-
-        n_tls = len(dataset_obj._toplefts["images"][0])
-        n_tls_per_worker = int(math.ceil(n_tls / worker_info.num_workers))
-
-        dataset_obj._toplefts["images"] =\
-            [dataset_obj._toplefts["images"][0][
-                slice(n_tls_per_worker * worker_id,
-                      n_tls_per_worker * (worker_id + 1),
-                      None)]]
-
-    else:
-        n_files_per_worker = int(math.ceil(n_files / worker_info.num_workers))
-        dataset_obj._filenames =\
-            dataset_obj._filenames[slice(n_files_per_worker * worker_id,
-                                         n_files_per_worker * (worker_id + 1),
-                                         None)]
-
-
-def chained_zarrdataset_worker_init(worker_id):
-    worker_info = torch.utils.data.get_worker_info()
-    dataset_obj = worker_info.dataset
-
-    # Reset the random number generators in each worker.
-    torch_seed = torch.initial_seed()
-    random.seed(torch_seed)
-    np.random.seed(torch_seed % (2**32 - 1))
-
-    # Open a copy of the dataset on each worker.
-    n_datasets = len(dataset_obj.datasets)
-    n_datasets_per_worker = int(math.ceil(n_datasets
-                                          / worker_info.num_workers))
-
-    dataset_obj.datasets = \
-        dataset_obj.datasets[slice(n_datasets_per_worker * worker_id,
-                                   n_datasets_per_worker * (worker_id + 1),
-                                   None)]
-
-    for ds in dataset_obj.datasets:
-        ds._worker_id = worker_id
 
 
 class ZarrDataset(IterableDataset):
