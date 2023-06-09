@@ -94,6 +94,7 @@ class ZarrDataset(IterableDataset):
                  progress_bar=False,
                  use_dask=False,
                  return_positions=False,
+                 return_any_label=True,
                  draw_same_chunk=False,
                  **kwargs):
 
@@ -128,6 +129,7 @@ class ZarrDataset(IterableDataset):
         self._progress_bar = progress_bar
 
         self._return_positions = return_positions
+        self._return_any_label = return_any_label
         self._draw_same_chunk = draw_same_chunk
 
         self._patch_sampler = patch_sampler
@@ -170,6 +172,20 @@ class ZarrDataset(IterableDataset):
             if compute_valid_mask and self._patch_sampler is not None:
                 curr_toplefts = self._patch_sampler.compute_chunks(curr_img)
                 toplefts.append(curr_toplefts)
+            else:
+                ax_ref_ord = map_axes_order(curr_img.data_axes, "YX")
+
+                if "Y" in curr_img.data_axes:
+                    H = curr_img.shape[ax_ref_ord[-2]]
+                else:
+                    H = 1
+
+                if "X" in curr_img.data_axes:
+                    W = curr_img.shape[ax_ref_ord[-1]]
+                else:
+                    W = 1
+
+                toplefts.append(np.array([[0, 0, H, W]], dtype=np.int64))
 
             z_list.append(curr_img)
 
@@ -251,7 +267,7 @@ class ZarrDataset(IterableDataset):
 
         patches = [patches[mode] for mode in self._output_order]
 
-        if "target" not in self._output_order:
+        if "target" not in self._output_order and self._return_any_label:
             # Returns anything as label, this is just to return a tuple of
             # input, target that is expected for most of training pipelines.
             patches.append(0)
@@ -310,6 +326,7 @@ class ZarrDataset(IterableDataset):
             chk_id = samples[curr_chk][1]
 
             chunk_tlbr = self._toplefts["images"][im_id][chk_id]
+            chunk_tlbr = chunk_tlbr.astype(np.int64)
 
             # If this chunk is different from the cached one, change the
             # cached chunk for this one.
@@ -317,10 +334,14 @@ class ZarrDataset(IterableDataset):
                 prev_im_id = im_id
                 prev_chk_id = chk_id
 
-                patches_tls = self._patch_sampler.compute_patches(
-                    self._arr_lists["images"][im_id],
-                    chunk_tlbr
-                )
+                if self._patch_sampler is not None:
+                    patches_tls = self._patch_sampler.compute_patches(
+                        self._arr_lists["images"][im_id],
+                        chunk_tlbr
+                    )
+
+                else:
+                    patches_tls = [chunk_tlbr]
 
                 if not len(patches_tls):
                     samples.pop(curr_chk)
@@ -352,7 +373,12 @@ class ZarrDataset(IterableDataset):
             if self._return_positions:
                 patches = [curr_tlbr + chunk_tlbr.astype(np.int64)] + patches
 
-            yield tuple(patches)
+            if len(patches) > 1:
+                patches = tuple(patches)
+            else:
+                patches = patches[0]
+
+            yield patches
 
 
 class LabeledZarrDataset(ZarrDataset):
@@ -365,6 +391,7 @@ class LabeledZarrDataset(ZarrDataset):
                  target_transform=None,
                  **kwargs):
 
+        kwargs["return_any_label"] = False
         super(LabeledZarrDataset, self).__init__(filenames, **kwargs)
 
         # Open the labels from the labels group

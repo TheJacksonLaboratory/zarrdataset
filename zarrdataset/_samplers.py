@@ -59,23 +59,31 @@ class PatchSampler(object):
         # retrieved from the image.
         ax_ref_ord = map_axes_order(image.data_axes, "YX")
 
-        H = image.shape[ax_ref_ord[-2]]
-        W = image.shape[ax_ref_ord[-1]]
+        if "Y" in image.data_axes:
+            H = image.shape[ax_ref_ord[-2]]
+            im_chk_H = image.chunk_size[ax_ref_ord[-2]]
+        else:
+            H = 1
+            im_chk_H = 1
 
-        im_chk_H = image.chunk_size[ax_ref_ord[-2]]
-        im_chk_W = image.chunk_size[ax_ref_ord[-1]]
+        if "X" in image.data_axes:
+            W = image.shape[ax_ref_ord[-1]]
+            im_chk_W = image.chunk_size[ax_ref_ord[-1]]
+        else:
+            W = 1
+            im_chk_W = 1
 
-        self._max_chk_H = max(self._max_chk_H, im_chk_H)
-        self._max_chk_W = max(self._max_chk_W, im_chk_W)
+        self._max_chk_H = min(max(self._max_chk_H, im_chk_H), H)
+        self._max_chk_W = min(max(self._max_chk_W, im_chk_W), W)
 
         if self._patch_size >= im_chk_H:
-            im_chk_H = self._patch_size
+            im_chk_H = min(self._patch_size, H)
         
         if self._patch_size >= im_chk_W:
-            im_chk_W = self._patch_size
+            im_chk_W = min(self._patch_size, W)
 
-        scaled_H = round(im_chk_H * image.mask_scale)
-        scaled_W = round(im_chk_W * image.mask_scale)
+        scaled_H = max(1, round(im_chk_H * image.mask_scale[0]))
+        scaled_W = max(1, round(im_chk_W * image.mask_scale[1]))
 
         valid_mask = transform.downscale_local_mean(image.mask, 
                                                     factors=(scaled_H,
@@ -98,11 +106,11 @@ class PatchSampler(object):
     @staticmethod
     def _get_chunk_mask(image, chunk_tlbr):
         mask_roi = [slice(0, 1, None)] * (len(image.mask_data_axes) - 2)
-        mask_roi += [slice(round(chunk_tlbr[0] * image.mask_scale),
-                           round(chunk_tlbr[2] * image.mask_scale),
+        mask_roi += [slice(round(chunk_tlbr[0] * image.mask_scale[0]),
+                           round(chunk_tlbr[2] * image.mask_scale[0]),
                            None),
-                     slice(round(chunk_tlbr[1] * image.mask_scale),
-                           round(chunk_tlbr[3] * image.mask_scale),
+                     slice(round(chunk_tlbr[1] * image.mask_scale[1]),
+                           round(chunk_tlbr[3] * image.mask_scale[1]),
                            None)]
         mask_roi = tuple(mask_roi[a]
                          for a in map_axes_order(image.mask_data_axes, "YX"))
@@ -227,7 +235,12 @@ class BlueNoisePatchSampler(PatchSampler):
         if chk_H < self._patch_size or chk_W < self._patch_size:
             # If the chunk area is smaller than the patch size, return an empty
             # set of topleft positions.
-            toplefts = np.empty((0, 4), dtype=np.int64)
+            return np.empty((0, 4), dtype=np.int64)
+
+        elif chk_H == self._patch_size and chk_W == self._patch_size:
+            # If the chunk area is smaller than the patch size, return an empty
+            # set of topleft positions.
+            toplefts = np.zeros((1, 2), dtype=np.int64)
 
         else:
             (chunk_tls,
@@ -258,6 +271,6 @@ class BlueNoisePatchSampler(PatchSampler):
             toplefts = np.round(chunk_tls[samples_validity])
             toplefts = toplefts.astype(np.int64).reshape(-1, 2)
 
-            toplefts = np.hstack((toplefts, toplefts + self._patch_size))
+        toplefts = np.hstack((toplefts, toplefts + self._patch_size))
 
         return toplefts

@@ -95,6 +95,8 @@ def map_axes_order(source_axes, target_axes="YX"):
     The axes must be passed as a string in format `XYZ`, and cannot be appear
     more than once.
     """
+    # Take only existing axes of the image
+    target_axes = [t_ax for t_ax in target_axes if t_ax in source_axes]
     unused_axes = list(set(source_axes) - set(target_axes))
     transpose_order = [source_axes.index(a)
                        for a in unused_axes + list(target_axes)]
@@ -290,11 +292,24 @@ class ImageLoader(object):
 
     def _get_valid_mask(self):
         ax_ref_ord = map_axes_order(self.data_axes, "YX")
-        H_ax = ax_ref_ord[-2]
-        W_ax = ax_ref_ord[-1]
 
-        H = self.shape[H_ax]
-        W = self.shape[W_ax]
+        if "Y" in self.data_axes:
+            H_ax = ax_ref_ord[-2]
+            H = self.shape[H_ax]
+            H_chk = self.chunk_size[H_ax]
+
+        else:
+            H = 1
+            H_chk = 1
+
+        if "X" in self.data_axes:
+            W_ax = ax_ref_ord[-1]
+            W = self.shape[W_ax]
+            W_chk = self.chunk_size[W_ax]
+
+        else:
+            W = 1
+            W_chk = 1
 
         # If the input file is stored in zarr format, try to retrieve the object
         # mask from the `mask_data_group`.
@@ -320,28 +335,28 @@ class ImageLoader(object):
             mask = mask.transpose(ax_ord)
 
         else:
-            mask = np.ones((round(H / self.chunk_size[H_ax]),
-                            round(W / self.chunk_size[W_ax])), dtype=bool)
+            mask = np.ones((round(H / H_chk), round(W / W_chk)), dtype=bool)
             self.mask_data_axes = "YX"
 
-        mask_scale = mask.shape[0] / H
+        mask_scale_H = mask.shape[0] / H
+        mask_scale_W = mask.shape[1] / W
 
         roi_mask = np.zeros_like(mask, dtype=bool)
 
         for roi in self._rois:
             if len(roi) >= 2:
-                scaled_roi = (slice(round(roi[H_ax].start * mask_scale),
-                                    round(roi[H_ax].stop * mask_scale),
+                scaled_roi = (slice(round(roi[H_ax].start * mask_scale_H),
+                                    round(roi[H_ax].stop * mask_scale_H),
                                     None),
-                              slice(round(roi[W_ax].start * mask_scale),
-                                    round(roi[W_ax].stop * mask_scale),
+                              slice(round(roi[W_ax].start * mask_scale_W),
+                                    round(roi[W_ax].stop * mask_scale_W),
                                     None))
             else:
                 scaled_roi = slice(None)
 
             roi_mask[scaled_roi] = True
 
-        return np.bitwise_and(mask, roi_mask), mask_scale
+        return np.bitwise_and(mask, roi_mask), (mask_scale_H, mask_scale_W)
 
     def __getitem__(self, index):
         return self._arr[index]

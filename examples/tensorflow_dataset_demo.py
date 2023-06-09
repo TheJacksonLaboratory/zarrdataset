@@ -38,20 +38,20 @@ try:
                                     data_group=data_group,
                                     data_axes=data_axes,
                                     patch_sampler=patch_sampler,
+                                    return_any_label=False,
                                     draw_same_chunk=True,
                                     shuffle=True,
                                     progress_bar=True)
 
         my_dataloader = tf.data.Dataset.from_generator(
             my_dataset.__iter__,
-            output_signature=(
-                tf.TensorSpec(shape=(4, None, None), dtype=tf.float32),
-                tf.TensorSpec(shape=(), dtype=tf.int32)))
+            output_signature=tf.TensorSpec(shape=(4, None, None),
+                                           dtype=tf.float32))
 
         batched_dataset = my_dataloader.batch(batch_size)
 
-        for i, (x, t) in enumerate(batched_dataset):
-            print("Sample %i" % i, x.shape, x.dtype, t.shape, t.dtype)
+        for i, x in enumerate(my_dataset):
+            print("Sample %i" % i, x.shape, x.dtype)
 
 
 except ModuleNotFoundError:
