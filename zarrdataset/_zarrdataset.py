@@ -326,7 +326,7 @@ class ZarrDataset(IterableDataset):
             chk_id = samples[curr_chk][1]
 
             chunk_tlbr = self._toplefts["images"][im_id][chk_id]
-            chunk_tlbr = chunk_tlbr.astype(np.int64)
+            chunk_tlbr =chunk_tlbr.astype(np.int64)
 
             # If this chunk is different from the cached one, change the
             # cached chunk for this one.
@@ -367,11 +367,16 @@ class ZarrDataset(IterableDataset):
             if samples[curr_chk][3] == samples[curr_chk][2]:
                 samples.pop(curr_chk)
 
-            curr_tlbr = patches_tls[curr_patch]
-            patches = self._getitem(curr_tlbr)
+            patch_tlbr = patches_tls[curr_patch]
+            patches = self._getitem(patch_tlbr)
 
             if self._return_positions:
-                patches = [curr_tlbr + chunk_tlbr.astype(np.int64)] + patches
+                pos = patch_tlbr
+                pos[0] += chunk_tlbr[0]
+                pos[1] += chunk_tlbr[1]
+                pos[2] += chunk_tlbr[0]
+                pos[3] += chunk_tlbr[1]
+                patches = [pos] + patches
 
             if len(patches) > 1:
                 patches = tuple(patches)
