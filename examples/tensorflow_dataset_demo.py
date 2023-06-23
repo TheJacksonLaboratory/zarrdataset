@@ -18,13 +18,14 @@ try:
         print("Zarr-based data loader demo")
         # These are images from the Image Data Resource (IDR) 
         # https://idr.openmicroscopy.org/ that are publicly available and were 
-        # converted to the OME-NGFF (Zarr) format by the OME group. More examples
-        # can be found at Public OME-Zarr data (Nov. 2020)
+        # converted to the OME-NGFF (Zarr) format by the OME group. More
+        # examples can be found at Public OME-Zarr data (Nov. 2020)
         # https://www.openmicroscopy.org/2020/11/04/zarr-data.html
-        filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836839.zarr",
-                    "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836840.zarr",
-                    "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
-                    "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"]
+        filenames = [
+            "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836839.zarr",
+            "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836840.zarr",
+            "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
+            "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"]
 
         data_group = "0"
         data_axes = "TCZYX"

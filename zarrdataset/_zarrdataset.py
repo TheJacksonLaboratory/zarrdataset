@@ -81,7 +81,7 @@ try:
 
         for ds in dataset_obj.datasets:
             ds._worker_id = worker_id
-            
+
 except ModuleNotFoundError:
     import logging
     logging.warning('PyTorch is not installed, the ZarrDataset class will '
@@ -112,6 +112,7 @@ class ZarrDataset(IterableDataset):
                  return_positions=False,
                  return_any_label=True,
                  draw_same_chunk=False,
+                 force_compute_valid_mask=False,
                  **kwargs):
 
         self._worker_id = 0
@@ -135,7 +136,10 @@ class ZarrDataset(IterableDataset):
         self._mask_data_group = {"images": mask_data_group}
         self._mask_data_axes = {"images": mask_data_axes}
 
-        self._compute_valid_mask = {"images": True}
+        self._compute_valid_mask = {
+            "images": force_compute_valid_mask or mask_data_group is not None
+        }
+
         self._arr_lists = {}
         self._toplefts = {}
         self._cached_chunks = {}

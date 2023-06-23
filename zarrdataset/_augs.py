@@ -1,5 +1,5 @@
 import numpy as np
-from ._utils import map_axes_order
+from ._utils import map_axes_order, select_axes
 
 
 class ZarrToArray(object):
@@ -107,28 +107,14 @@ class SelectAxes(object):
         self._target_axes = target_axes
         self._axes_selection = axes_selection
 
-        sel_slices = []
-        source_axes = list(source_axes)
-        for ax in self._source_axes:
-            idx = axes_selection.get(ax, None)
+        (sel_slices,
+         source_axes) = select_axes(self._source_axes, self._axes_selection)
 
-            if idx is None:
-                sel_slices.append(slice(None))
-
-            else:
-                # If a single index in the current axis is selected, remove it
-                # from the set of axes that have to be permuted to match
-                # `target_axes`.
-                sel_slices.append(idx)
-                source_axes.remove(ax)
-
-        source_axes = "".join(source_axes)
         new_axes = "".join(set(target_axes) - set(self._source_axes))
-
         source_axes = new_axes + source_axes
-        self._permute_order = map_axes_order(source_axes, target_axes)
 
-        self._sel_slices = tuple([None] * len(new_axes) + sel_slices)
+        self._permute_order = map_axes_order(source_axes, target_axes)
+        self._sel_slices = tuple([None] * len(new_axes) + list(sel_slices))
 
     def __call__(self, pic) -> np.ndarray:
         """Permute the axes of pic to match `target_axes`.

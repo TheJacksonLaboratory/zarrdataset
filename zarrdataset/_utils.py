@@ -10,6 +10,8 @@ from PIL import Image
 import boto3
 from io import BytesIO
 
+from skimage import morphology, color, filters, transform
+
 
 def parse_roi(filename, source_format):
     """Parse the filename and ROIs from `filename`.
@@ -104,6 +106,53 @@ def map_axes_order(source_axes, target_axes="YX"):
     return transpose_order
 
 
+def select_axes(source_axes, axes_selection):
+    """Get a sliced selection of axes from a zarr array.
+
+    Parameters
+    ----------
+    source_axes : str
+        Ordered set of axes on the original array.
+    axes_selection : dict
+        A relationship of what index to take from each specified axes.
+        Unspecified axes are fully retrieved.
+
+    Returns
+    -------
+    sel_slices : tuple of slices
+        A tuple of slices that can be used to select the indices of the
+        specified axes from an array.
+    unfixed_axes : str
+        A string with the ordered set of remaining axes of the array.
+
+    Notes
+    -----
+    The axes must be passed as a string in format `XYZ`, and cannot be appear
+    more than once.
+    """
+    sel_slices = []
+    unfixed_axes = list(source_axes)
+
+    for ax in source_axes:
+        idx = axes_selection.get(ax, None)
+
+        if idx is None:
+            sel_slices.append(slice(None))
+
+        else:
+            # Remove this axis from the set of axes that the array has after
+            # fixing this to index `idx`.
+            unfixed_axes.remove(ax)
+            sel_slices.append(idx)
+
+    # These are the new set of data_axes of the array after fixing some axes to
+    # the specified indices.
+    unfixed_axes = "".join(unfixed_axes)
+    sel_slices = tuple(sel_slices)
+
+    return sel_slices, unfixed_axes
+
+
 def connect_s3(filename_sample):
     """Stablish a connection with a S3 bucket.
 
@@ -169,6 +218,26 @@ def load_image(filename, s3_obj=None):
     return im
 
 
+def isconsolidated(arr_src):
+    """Check if the zarr file is consolidated so it is faster to open.
+
+    Parameters
+    ----------
+    arr_src : str, zarr.Group, or zarr.Array
+        The image filename, or zarr object, to be checked.
+    """
+    is_consolidated = False
+
+    # TODO: Add more protocols to check, like gcp and s3
+    if "http" in arr_src or "https" in arr_src:
+        response = requests.get(arr_src + "/.zmetadata")
+        is_consolidated = response.status_code == 200
+    else:
+        is_consolidated = os.path.exists(os.path.join(arr_src, ".zmetadata"))
+
+    return is_consolidated
+
+
 def image2array(arr_src, source_format, data_group=None, s3_obj=None,
                 use_dask=False):
     """Open images stored in zarr format or any image format that can be opened
@@ -213,17 +282,7 @@ def image2array(arr_src, source_format, data_group=None, s3_obj=None,
         if use_dask:
             arr = da.from_zarr(arr_src, component=data_group)
         else:
-            # Check if the zarr file is consolidated so it is faster to open.
-            is_consolidated = False
-
-            if "http" in arr_src:
-                response = requests.get(arr_src + "/.zmetadata")
-                is_consolidated = response.status_code == 200
-            else:
-                is_consolidated = os.path.exists(os.path.join(arr_src,
-                                                              ".zmetadata"))
-
-            if is_consolidated:
+            if isconsolidated(arr_src):
                 arr = zarr.open_consolidated(arr_src, mode="r")[data_group]
             else:
                 arr = zarr.open(arr_src, mode="r")[data_group]
@@ -249,6 +308,75 @@ def image2array(arr_src, source_format, data_group=None, s3_obj=None,
     return arr
 
 
+def compute_tissue_mask(filename, data_group, data_axes):
+    # TODO: Make this function something customizable by the user
+
+    # Find the closest to 1:16 of the highest resolution image in the zarr file
+    if isconsolidated(filename):
+        arr = zarr.open_consolidated(filename, mode="r")
+    else:
+        arr = zarr.open(filename, mode="r")
+
+    group_root = "/".join(data_group.split("/")[:-1])
+    group_keys = list(arr[group_root].group_keys())
+
+    if len(group_keys) == 0:
+        # If it was not possible to load the group keys, carry out a full
+        # search for them.
+        last_key = 0
+        while True:
+            last_key = last_key + 1
+            if arr[group_root].get(str(last_key), None) is not None:
+
+                group_keys.append(str(last_key))
+            else:
+                break
+
+    ax_ref_ord = map_axes_order(data_axes, "CYX")
+    H_ax = ax_ref_ord[-2]
+    W_ax = ax_ref_ord[-1]
+
+    H_max = arr["%s/%i" % (group_root, 0)].shape[H_ax]
+    W_max = arr["%s/%i" % (group_root, 0)].shape[W_ax]
+
+    all_Hs = [arr["%s/%s" % (group_root, gk)].shape[H_ax] for gk in group_keys]
+    closest_group = min(zip(map(lambda H: math.fabs(H - H_max / 16), all_Hs),
+                            group_keys))[1]
+
+    # Use that reference image as base to compute the tissue mask.
+    base_wsi = da.from_zarr(filename, component="%s/%s" % (group_root,
+                                                           closest_group))
+
+    # Reorder the base image axes to have an order of YXC, and fix the
+    # remaining axes.
+    # TODO: Consider cases of different number of dimensions.
+    (sel_slices,
+     unfixed_axes) = select_axes(data_axes, axes_selection={"T": 0, "Z": 0})
+    permute_order = map_axes_order(unfixed_axes, "YXC")    
+    base_wsi = base_wsi[sel_slices]
+    base_wsi = base_wsi.transpose(permute_order)
+    base_wsi = base_wsi.rechunk((2048, 2048, 3))
+
+    scaled_wsi = base_wsi.map_blocks(transform.resize,
+                                     output_shape=(H_max // 16, W_max // 16),
+                                     dtype=np.uint8,
+                                     meta=np.empty((), dtype=np.uint8))
+
+    scaled_wsi = scaled_wsi.compute()
+
+    gray = color.rgb2gray(scaled_wsi)
+    thresh = filters.threshold_otsu(gray)
+    mask = gray > thresh
+
+    mask = morphology.remove_small_objects(mask==0, min_size=16 * 16,
+                                           connectivity=2)
+    mask = morphology.remove_small_holes(mask, area_threshold=128 * 128)
+
+    mask = morphology.binary_dilation(mask, morphology.disk(16))
+
+    return mask
+
+
 class ImageLoader(object):
     """Image lazy loader class.
 
@@ -266,10 +394,12 @@ class ImageLoader(object):
         self._s3_obj = s3_obj
         self.mask_data_axes = mask_data_axes
         self.data_axes = data_axes
+        self.data_group = data_group
+        self.mask_data_group = mask_data_group
 
-        self._arr = image2array(self._filename, source_format=source_format,                                
-                                data_group=data_group,
-                                s3_obj=s3_obj,
+        self._arr = image2array(self._filename, source_format=source_format,
+                                data_group=self.data_group,
+                                s3_obj=self._s3_obj,
                                 use_dask=use_dask)
 
         self.shape = self._arr.shape
@@ -282,7 +412,6 @@ class ImageLoader(object):
             rois = [tuple([slice(0, s, None) for s in self.shape])]
 
         self._rois = rois
-        self.mask_data_group = mask_data_group
 
         if compute_valid_mask:
             self.mask, self.mask_scale = self._get_valid_mask()
@@ -311,13 +440,21 @@ class ImageLoader(object):
             W = 1
             W_chk = 1
 
-        # If the input file is stored in zarr format, try to retrieve the object
-        # mask from the `mask_data_group`.
-        if self.mask_data_group is not None and ".zarr" in self._filename:
-            mask = image2array(self._filename, source_format=".zarr",
-                               data_group=self.mask_data_group,
-                               s3_obj=self._s3_obj,
-                               use_dask=False)
+        if ".zarr" in self._filename:
+            if self.mask_data_group is not None:
+                # If the input file is stored in zarr format, try to retrieve
+                # the object mask from the `mask_data_group`.
+                mask = image2array(self._filename, source_format=".zarr",
+                                   data_group=self.mask_data_group,
+                                   s3_obj=self._s3_obj,
+                                   use_dask=False)
+            else:
+                # Get the closest image to 1:16 of the highest resolution image
+                # and compute the tissue mask on that.
+                mask = compute_tissue_mask(self._filename,
+                                           data_group=self.data_group,
+                                           data_axes=self.data_axes)
+                self.mask_data_axes = "YX"
 
             sel_ax = []
             spatial_mask_axes = ""
