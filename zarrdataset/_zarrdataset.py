@@ -3,6 +3,26 @@ import random
 
 import numpy as np
 
+from ._utils import ImageLoader, connect_s3, map_axes_order
+
+try:
+    from tqdm import tqdm
+except ModuleNotFoundError:
+    # This removes the dependency on tqdm when it is not installed
+    class tqdm(object):
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def update(self, *args, **kwargs):
+            pass
+
+        def set_description(self, *args, **kwargs):
+            pass
+
+        def close(self, *args, **kwargs):
+            pass
+
+
 try:
     import torch
     from torch.utils.data import IterableDataset
@@ -73,10 +93,6 @@ except ModuleNotFoundError:
 
     def chained_zarrdataset_worker_init(*args):
         pass
-
-from tqdm import tqdm
-
-from ._utils import ImageLoader, connect_s3, map_axes_order
 
 
 class ZarrDataset(IterableDataset):
