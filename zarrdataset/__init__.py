@@ -10,7 +10,6 @@ from ._samplers import (PatchSampler,
 from ._utils import (parse_roi,
                      map_axes_order,
                      connect_s3,
-                     load_image,
                      image2array,
                      ImageLoader)
 
@@ -31,6 +30,5 @@ __all__ = ['ZarrDataset',
            'parse_roi',
            'map_axes_order',
            'connect_s3',
-           'load_image',
            'image2array',
            'ImageLoader']

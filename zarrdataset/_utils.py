@@ -5,6 +5,7 @@ import numpy as np
 import dask
 import dask.array as da
 
+from urllib.parse import urlparse
 import requests
 from PIL import Image
 import boto3
@@ -12,8 +13,15 @@ from io import BytesIO
 
 from skimage import morphology, color, filters, transform
 
+try:
+    import tifffile
+    TIFFFILE_SUPPORT=True
 
-def parse_roi(filename, source_format):
+except ModuleNotFoundError:
+    TIFFFILE_SUPPORT=False
+
+
+def parse_roi(filename):
     """Parse the filename and ROIs from `filename`.
 
     The filename and ROIs must be separated by a semicolon (;).
@@ -25,8 +33,6 @@ def parse_roi(filename, source_format):
     filename : str
         Path to the image. If the string does not contain any ROI in the format
         specified, the same filename is returned.
-    source_format : str
-        Format of the input file.
 
     Returns
     -------
@@ -41,18 +47,20 @@ def parse_roi(filename, source_format):
     Coordinates and lenghts are expected for each one of the axis in the image.
     The following is an exaple of a ROI defined for a test file in zarr format.
 
-    test_file.zarr;(0, 10, 0, 0, 0):(10, 10, 1, 1, 1)
+    test_file.zarr;(0, 12, 0, 0, 0):(10, 10, 1, 1, 1)
 
     This will parse a ROI from `test_file.zarr` from indices 0 to 10 in the
-    first axis, indices from 10 to 20 in the second axis, and indices from 0 to
+    first axis, indices from 12 to 22 in the second axis, and indices from 0 to
     1 in the third, fourth, and fifth axes.
     """
     rois = []
     if isinstance(filename, str):
-        split_pos = filename.lower().find(source_format)
-        rois_str = filename[split_pos + len(source_format):]
-        fn = filename[:split_pos + len(source_format)]
-        rois_str = rois_str.split(";")[1:]
+        fn_rois_str = filename.split(";")
+        if len(fn_rois_str) == 2:
+            fn, rois_str = fn_rois_str
+        else:
+            fn = fn_rois_str[0]
+            rois_str = []
 
         # Create a tuple of slices to define each ROI.
         for roi in rois_str:
@@ -170,52 +178,20 @@ def connect_s3(filename_sample):
     """
     if (filename_sample.startswith("s3")
        or filename_sample.startswith("http")):
-        endpoint = "/".join(filename_sample.split("/")[:3])
-        s3_obj = dict(bucket_name=filename_sample.split("/")[3],
-                      s3=boto3.client("s3", aws_access_key_id="",
-                                      aws_secret_access_key="",
-                                      region_name="us-east-2",
-                                      endpoint_url=endpoint))
+        protocol = filename_sample.split(":")[0]
+        endpoint = protocol + "://" + urlparse(filename_sample).netloc
+        s3_obj = dict(
+            bucket_name=filename_sample.split(endpoint)[1].split("/")[1],
+            s3=boto3.client("s3", aws_access_key_id="",
+                            aws_secret_access_key="",
+                            region_name="us-east-2",
+                            endpoint_url=endpoint))
 
         s3_obj["s3"]._request_signer.sign = (lambda *args, **kwargs: None)
     else:
         s3_obj = None
         
     return s3_obj
-
-
-def load_image(filename, s3_obj=None):
-    """Load an image stored locally or from a S3 bucket.
-
-    Parameters
-    ----------
-    filename : str
-        The image's filename.
-    s3_obj : dict or None
-        A dictionary containing the bucket name and a boto3 client connection
-        to a S3 bucket, or None if the file is stored locally.
-
-    Returns
-    -------
-    im : PIL.Image.Image
-        The opened image object.
-
-    Notes
-    -----
-    Only images with formats supported by PIL Image loader can be opened with
-    this function.    
-    """
-    if s3_obj is not None:
-        # Remove the end-point from the file name
-        filename = "/".join(filename.split("/")[4:])
-        im_bytes = s3_obj["s3"].get_object(Bucket=s3_obj["bucket_name"],
-                                           Key=filename)["Body"].read()
-        im = Image.open(BytesIO(im_bytes))
-
-    else:
-        im = Image.open(filename, mode="r")
-
-    return im
 
 
 def isconsolidated(arr_src):
@@ -238,7 +214,7 @@ def isconsolidated(arr_src):
     return is_consolidated
 
 
-def image2array(arr_src, source_format, data_group=None, s3_obj=None,
+def image2array(arr_src, data_group=None, s3_obj=None,
                 use_dask=False):
     """Open images stored in zarr format or any image format that can be opened
     by PIL as an array.
@@ -271,14 +247,24 @@ def image2array(arr_src, source_format, data_group=None, s3_obj=None,
         else:
             arr = arr_src[data_group]
 
-    elif isinstance(arr_src, zarr.Array):
+        return arr, None
+
+    if isinstance(arr_src, zarr.Array):
         # The array was already open from a zarr file
         if use_dask:
             arr = da.from_zarr(arr_src)
         else:
             arr = arr_src
 
-    elif isinstance(arr_src, str) and ".zarr" in source_format:
+        return arr, None
+
+    if isinstance(arr_src, str):
+        source_format = os.path.basename(arr_src).split(".")[-1]
+    else:
+        raise ValueError(
+            f"The file/object {arr_src} cannot be opened as a zarr/dask array")
+
+    if "zarr" in source_format:
         if use_dask:
             arr = da.from_zarr(arr_src, component=data_group)
         else:
@@ -287,25 +273,52 @@ def image2array(arr_src, source_format, data_group=None, s3_obj=None,
             else:
                 arr = zarr.open(arr_src, mode="r")[data_group]
 
-    elif (isinstance(arr_src, str) and ".zarr" not in source_format):
-        # If the input is a path to an image stored in a format
-        # supported by PIL, open it and use it as a numpy array.
-        im = load_image(arr_src, s3_obj=s3_obj)
-        channels = len(im.getbands())
-        if use_dask:
-            arr = da.from_delayed(dask.delayed(np.array)(im),
-                                  shape=(im.size[1], im.size[0], channels),
-                                  dtype=np.uint8)
-        else:
-            arr = zarr.array(data=np.array(im),
-                             shape=(im.size[1], im.size[0], channels),
-                             dtype=np.uint8,
-                             chunks=True)
-    else:
-        raise ValueError(
-            f"The file/object {arr_src} cannot be opened as a zarr/dask array")
+        return arr, None
 
-    return arr
+    if TIFFFILE_SUPPORT:
+        # Try first to open the input file with tifffile (if installed).
+        # If that fails, try to open it with PIL.
+        try:
+            store = tifffile.imread(arr_src, aszarr=True,
+                                    key=int(data_group))
+            if use_dask:
+                arr = da.from_zarr(store)
+            else:
+                arr = zarr.open(store, mode='r')
+
+            return arr, store
+
+        except tifffile.tifffile.TiffFileError:
+            pass
+
+    # If the input is a path to an image stored in a format
+    # supported by PIL, open it and use it as a numpy array.
+    if s3_obj is not None:
+        # The image is stored in a S3 bucket
+        filename = arr_src.split(s3_obj["endpoint"]
+                                    + "/"
+                                    + s3_obj["bucket_name"])[1][1:]
+        im_bytes = s3_obj["s3"].get_object(Bucket=s3_obj["bucket_name"],
+                                            Key=filename)["Body"].read()
+        store = Image.open(BytesIO(im_bytes))
+
+    else:
+        # The image is stored locally
+        store = Image.open(arr_src, mode="r")
+
+    channels = len(store.getbands())
+    height = store.size[1]
+    width = store.size[0]
+    if use_dask:
+        arr = da.from_delayed(dask.delayed(np.array)(store),
+                                shape=(height, width, channels),
+                                dtype=np.uint8)
+    else:
+        arr = zarr.array(data=np.array(store),
+                            shape=(height, width, channels),
+                            dtype=np.uint8,
+                            chunks=True)
+    return arr, store
 
 
 def compute_tissue_mask(filename, data_group, data_axes):
@@ -380,27 +393,28 @@ def compute_tissue_mask(filename, data_group, data_axes):
 class ImageLoader(object):
     """Image lazy loader class.
 
-    Opens the zarr file, or any image that can be open by PIL, as a Dask array.
+    Opens the zarr file, or any image that can be open by TiffFile or PIL, as a
+    Dask array.
     """
     def __init__(self, filename, data_group, data_axes, mask_data_group=None,
                  mask_data_axes=None,
-                 source_format=".zarr",
                  s3_obj=None,
                  compute_valid_mask=False,
                  use_dask=False):
 
         # Separate the filename and any ROI passed as the name of the file
-        self._filename, rois = parse_roi(filename, source_format)
+        self._filename, rois = parse_roi(filename)
         self._s3_obj = s3_obj
         self.mask_data_axes = mask_data_axes
         self.data_axes = data_axes
         self.data_group = data_group
         self.mask_data_group = mask_data_group
 
-        self._arr = image2array(self._filename, source_format=source_format,
-                                data_group=self.data_group,
-                                s3_obj=self._s3_obj,
-                                use_dask=use_dask)
+        (self._arr,
+         self._store) = image2array(self._filename,
+                                    data_group=self.data_group,
+                                    s3_obj=self._s3_obj,
+                                    use_dask=use_dask)
 
         self.shape = self._arr.shape
         if isinstance(self._arr, zarr.Array):
@@ -414,9 +428,12 @@ class ImageLoader(object):
         self._rois = rois
 
         if compute_valid_mask:
-            self.mask, self.mask_scale = self._get_valid_mask()
+            (self.mask,
+             self._mask_store,
+             self.mask_scale) = self._get_valid_mask()
         else:
             self.mask = None
+            self._mask_store = None
             self.mask_scale = None
 
     def _get_valid_mask(self):
@@ -440,14 +457,17 @@ class ImageLoader(object):
             W = 1
             W_chk = 1
 
+        mask_store = None
         if ".zarr" in self._filename:
             if self.mask_data_group is not None:
                 # If the input file is stored in zarr format, try to retrieve
                 # the object mask from the `mask_data_group`.
-                mask = image2array(self._filename, source_format=".zarr",
-                                   data_group=self.mask_data_group,
-                                   s3_obj=self._s3_obj,
-                                   use_dask=False)
+                (mask,
+                 mask_store) = image2array(self._filename,
+                                           source_format=".zarr",
+                                           data_group=self.mask_data_group,
+                                           s3_obj=self._s3_obj,
+                                           use_dask=False)
             else:
                 # Get the closest image to 1:16 of the highest resolution image
                 # and compute the tissue mask on that.
@@ -493,7 +513,17 @@ class ImageLoader(object):
 
             roi_mask[scaled_roi] = True
 
-        return np.bitwise_and(mask, roi_mask), (mask_scale_H, mask_scale_W)
+        mask = np.bitwise_and(mask, roi_mask)
+
+        return mask, mask_store, (mask_scale_H, mask_scale_W)
 
     def __getitem__(self, index):
         return self._arr[index]
+
+    def __del__(self):
+        # Close the connection to the image file 
+        if self._store is not None:
+            self._store.close()
+
+        if self._mask_store is not None:
+            self._mask_store.close()

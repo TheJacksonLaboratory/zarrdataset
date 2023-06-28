@@ -181,7 +181,6 @@ class ZarrDataset(IterableDataset):
                                    data_axes=data_axes,
                                    mask_data_group=mask_data_group,
                                    mask_data_axes=mask_data_axes,
-                                   source_format=self._source_format,
                                    s3_obj=self._s3_obj,
                                    compute_valid_mask=compute_valid_mask,
                                    use_dask=self._use_dask)
