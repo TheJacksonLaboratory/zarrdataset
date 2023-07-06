@@ -223,9 +223,6 @@ def image2array(arr_src, data_group=None, s3_obj=None,
     ----------
     arr_src : str, zarr.Group, or zarr.Array
         The image filename, or zarr object, to be loaded as a dask array.
-    source_format : str
-        The source format of the image to determine whether it is a zarr file
-        or not.
     data_group : src or None
         The group within the zarr file from where the array is loaded. This is
         used only when the input file is a zarr object.
@@ -461,7 +458,6 @@ class ImageLoader(object):
                     # the object mask from the `mask_data_group`.
                     (mask,
                     mask_store) = image2array(self._filename,
-                                              source_format=".zarr",
                                               data_group=self.mask_data_group,
                                               s3_obj=self._s3_obj,
                                               use_dask=False)
