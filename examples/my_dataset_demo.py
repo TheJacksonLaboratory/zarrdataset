@@ -14,12 +14,6 @@ try:
                             type=str,
                             help="Directory where the images are stored",
                             default=".")
-        parser.add_argument("-sf", "--source-format", dest="source_format",
-                            type=str,
-                            help="Format of the images to be used as dataset. "
-                                "If non-zarr images are used, these must be able "
-                                "to be open by PIL",
-                            default=".zarr")
         parser.add_argument("-dg", "--data-group", dest="data_group",
                             type=str,
                             help="Group within the zarr file to be used as input",

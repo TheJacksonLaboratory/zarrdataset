@@ -23,7 +23,7 @@ try:
 
         data_group = "0"
         data_axes = "TCZYX"
-        patch_size = 4096
+        patch_size = 1024
         batch_size = 4
         num_workers = 4
 
@@ -43,7 +43,7 @@ try:
                                      patch_sampler=patch_sampler,
                                      shuffle=True,
                                      progress_bar=True,
-                                     force_compute_valid_mask=True)
+                                     force_compute_valid_mask=False)
 
         my_dataloader = DataLoader(my_dataset, batch_size=batch_size,
                                    num_workers=num_workers,

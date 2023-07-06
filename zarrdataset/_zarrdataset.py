@@ -100,8 +100,7 @@ class ZarrDataset(IterableDataset):
 
     Only two-dimensional (+color channels) data is supported by now.
     """
-    def __init__(self, filenames, source_format=".zarr", data_group="",
-                 data_axes="XYZCT",
+    def __init__(self, filenames, data_group="", data_axes="XYZCT",
                  mask_data_group=None,
                  mask_data_axes=None,
                  transform=None,
@@ -121,10 +120,6 @@ class ZarrDataset(IterableDataset):
             filenames = [filenames]
 
         self._filenames = filenames
-        if not source_format.startswith("."):
-            source_format = "." + source_format
-
-        self._source_format = source_format
         self._use_dask = use_dask
         self._transforms = {("images", ): transform}
         self._transforms_order = [("images", )]

@@ -427,16 +427,12 @@ class ImageLoader(object):
 
         self._rois = rois
 
-        if compute_valid_mask:
-            (self.mask,
-             self._mask_store,
-             self.mask_scale) = self._get_valid_mask()
-        else:
-            self.mask = None
-            self._mask_store = None
-            self.mask_scale = None
+        (self.mask,
+         self.mask_data_axes,
+         self._mask_store,
+         self.mask_scale) = self._get_valid_mask(compute_valid_mask)
 
-    def _get_valid_mask(self):
+    def _get_valid_mask(self, compute_valid_mask=False):
         ax_ref_ord = map_axes_order(self.data_axes, "YX")
 
         if "Y" in self.data_axes:
@@ -458,64 +454,69 @@ class ImageLoader(object):
             W_chk = 1
 
         mask_store = None
-        if ".zarr" in self._filename:
-            if self.mask_data_group is not None:
-                # If the input file is stored in zarr format, try to retrieve
-                # the object mask from the `mask_data_group`.
-                (mask,
-                 mask_store) = image2array(self._filename,
-                                           source_format=".zarr",
-                                           data_group=self.mask_data_group,
-                                           s3_obj=self._s3_obj,
-                                           use_dask=False)
-            else:
-                # Get the closest image to 1:16 of the highest resolution image
-                # and compute the tissue mask on that.
-                mask = compute_tissue_mask(self._filename,
-                                           data_group=self.data_group,
-                                           data_axes=self.data_axes)
-                self.mask_data_axes = "YX"
-
-            sel_ax = []
-            spatial_mask_axes = ""
-            for ax in self.mask_data_axes:
-                if ax in "YX":
-                    sel_ax.append(slice(None))
-                    spatial_mask_axes += ax
+        if compute_valid_mask:
+            if ".zarr" in self._filename:
+                if self.mask_data_group is not None:
+                    # If the input file is stored in zarr format, try to retrieve
+                    # the object mask from the `mask_data_group`.
+                    (mask,
+                    mask_store) = image2array(self._filename,
+                                              source_format=".zarr",
+                                              data_group=self.mask_data_group,
+                                              s3_obj=self._s3_obj,
+                                              use_dask=False)
+                    mask_data_axes = self.mask_data_axes
                 else:
-                    sel_ax.append(0)
-            
-            mask = mask[tuple(sel_ax)]
+                    # Get the closest image to 1:16 of the highest resolution image
+                    # and compute the tissue mask on that.
+                    mask = compute_tissue_mask(self._filename,
+                                               data_group=self.data_group,
+                                               data_axes=self.data_axes)
+                    mask_data_axes = "YX"
 
-            ax_ord = map_axes_order(source_axes=spatial_mask_axes,
-                                    target_axes="YX")
-            mask = mask.transpose(ax_ord)
+                sel_ax = []
+                spatial_mask_axes = ""
+                for ax in self.mask_data_axes:
+                    if ax in "YX":
+                        sel_ax.append(slice(None))
+                        spatial_mask_axes += ax
+                    else:
+                        sel_ax.append(0)
+                
+                mask = mask[tuple(sel_ax)]
+
+                ax_ord = map_axes_order(source_axes=spatial_mask_axes,
+                                        target_axes="YX")
+                mask = mask.transpose(ax_ord)
+
+            mask_scale_H = mask.shape[0] / H
+            mask_scale_W = mask.shape[1] / W
+
+            roi_mask = np.zeros_like(mask, dtype=bool)
+
+            for roi in self._rois:
+                if len(roi) >= 2:
+                    scaled_roi = (slice(round(roi[H_ax].start * mask_scale_H),
+                                        round(roi[H_ax].stop * mask_scale_H),
+                                        None),
+                                slice(round(roi[W_ax].start * mask_scale_W),
+                                        round(roi[W_ax].stop * mask_scale_W),
+                                        None))
+                else:
+                    scaled_roi = slice(None)
+
+                roi_mask[scaled_roi] = True
+
+            mask = np.bitwise_and(mask, roi_mask)
 
         else:
-            mask = np.ones((round(H / H_chk), round(W / W_chk)), dtype=bool)
-            self.mask_data_axes = "YX"
+            mask = np.ones((H_chk, W_chk), dtype=bool)
+            mask_data_axes = "YX"
+            mask_store = None
+            mask_scale_H = H / H_chk
+            mask_scale_W = W / W_chk
 
-        mask_scale_H = mask.shape[0] / H
-        mask_scale_W = mask.shape[1] / W
-
-        roi_mask = np.zeros_like(mask, dtype=bool)
-
-        for roi in self._rois:
-            if len(roi) >= 2:
-                scaled_roi = (slice(round(roi[H_ax].start * mask_scale_H),
-                                    round(roi[H_ax].stop * mask_scale_H),
-                                    None),
-                              slice(round(roi[W_ax].start * mask_scale_W),
-                                    round(roi[W_ax].stop * mask_scale_W),
-                                    None))
-            else:
-                scaled_roi = slice(None)
-
-            roi_mask[scaled_roi] = True
-
-        mask = np.bitwise_and(mask, roi_mask)
-
-        return mask, mask_store, (mask_scale_H, mask_scale_W)
+        return mask, mask_data_axes, mask_store, (mask_scale_H, mask_scale_W)
 
     def __getitem__(self, index):
         return self._arr[index]
