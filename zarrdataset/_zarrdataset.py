@@ -30,7 +30,6 @@ try:
     def zarrdataset_worker_init(worker_id):
         worker_info = torch.utils.data.get_worker_info()
         dataset_obj = worker_info.dataset
-        dataset_obj._worker_id = worker_id
 
         # Reset the random number generators in each worker.
         torch_seed = torch.initial_seed()
@@ -41,24 +40,16 @@ try:
         n_files = len(dataset_obj._filenames)
         if n_files == 1:
             # Get the topleft positions and distribute them among the workers
-            dataset_obj._initialize()
-
-            n_tls = len(dataset_obj._toplefts["images"][0])
-            n_tls_per_worker = int(math.ceil(n_tls / worker_info.num_workers))
-
+            dataset_obj._initialize(force=True)
             dataset_obj._toplefts["images"] =\
-                [dataset_obj._toplefts["images"][0][
-                    slice(n_tls_per_worker * worker_id,
-                        n_tls_per_worker * (worker_id + 1),
-                        None)]]
+                [dataset_obj._toplefts["images"][0][slice(worker_id, None,
+                                                          worker_info.num_workers)]]
 
         else:
-            n_files_per_worker = int(math.ceil(n_files / worker_info.num_workers))
             dataset_obj._filenames =\
-                dataset_obj._filenames[slice(n_files_per_worker * worker_id,
-                                            n_files_per_worker * (worker_id + 1),
-                                            None)]
+                dataset_obj._filenames[worker_id::worker_info.num_workers]
 
+        dataset_obj._worker_id = worker_id
 
     def chained_zarrdataset_worker_init(worker_id):
         worker_info = torch.utils.data.get_worker_info()
@@ -70,14 +61,8 @@ try:
         np.random.seed(torch_seed % (2**32 - 1))
 
         # Open a copy of the dataset on each worker.
-        n_datasets = len(dataset_obj.datasets)
-        n_datasets_per_worker = int(math.ceil(n_datasets
-                                            / worker_info.num_workers))
-
         dataset_obj.datasets = \
-            dataset_obj.datasets[slice(n_datasets_per_worker * worker_id,
-                                    n_datasets_per_worker * (worker_id + 1),
-                                    None)]
+            dataset_obj.datasets[worker_id::worker_info.num_workers]
 
         for ds in dataset_obj.datasets:
             ds._worker_id = worker_id
@@ -183,7 +168,7 @@ class ZarrDataset(IterableDataset):
             # If a patch sampler was passed, it is used to determine the
             # top-left and bottom-right coordinates of the valid samples that
             # can be drawn from images.
-            if compute_valid_mask and self._patch_sampler is not None:
+            if self._patch_sampler is not None:
                 curr_toplefts = self._patch_sampler.compute_chunks(curr_img)
                 toplefts.append(curr_toplefts)
             else:
@@ -219,8 +204,8 @@ class ZarrDataset(IterableDataset):
 
         return z_list, toplefts
 
-    def _initialize(self):
-        if self._initialized:
+    def _initialize(self, force=False):
+        if self._initialized and not force:
             return
 
         # If the zarr files are stored in a S3 bucket, create a connection to
@@ -340,7 +325,7 @@ class ZarrDataset(IterableDataset):
             chk_id = samples[curr_chk][1]
 
             chunk_tlbr = self._toplefts["images"][im_id][chk_id]
-            chunk_tlbr =chunk_tlbr.astype(np.int64)
+            chunk_tlbr = chunk_tlbr.astype(np.int64)
 
             # If this chunk is different from the cached one, change the
             # cached chunk for this one.
@@ -385,11 +370,8 @@ class ZarrDataset(IterableDataset):
             patches = self._getitem(patch_tlbr)
 
             if self._return_positions:
-                pos = patch_tlbr
-                pos[0] += chunk_tlbr[0]
-                pos[1] += chunk_tlbr[1]
-                pos[2] += chunk_tlbr[0]
-                pos[3] += chunk_tlbr[1]
+                pos = np.copy(patch_tlbr)
+                pos += np.broadcast_to(chunk_tlbr[:2], (2, 2)).reshape(4)
                 patches = [pos] + patches
 
             if len(patches) > 1:

@@ -58,6 +58,10 @@ def parse_roi(filename):
         fn_rois_str = filename.split(";")
         if len(fn_rois_str) == 2:
             fn, rois_str = fn_rois_str
+            rois_str = [rois_str]
+        elif len(fn_rois_str) > 2:
+            fn = fn_rois_str[0]
+            rois_str = fn_rois_str[1:]
         else:
             fn = fn_rois_str[0]
             rois_str = []
@@ -488,29 +492,29 @@ class ImageLoader(object):
             mask_scale_H = mask.shape[0] / H
             mask_scale_W = mask.shape[1] / W
 
-            roi_mask = np.zeros_like(mask, dtype=bool)
-
-            for roi in self._rois:
-                if len(roi) >= 2:
-                    scaled_roi = (slice(round(roi[H_ax].start * mask_scale_H),
-                                        round(roi[H_ax].stop * mask_scale_H),
-                                        None),
-                                slice(round(roi[W_ax].start * mask_scale_W),
-                                        round(roi[W_ax].stop * mask_scale_W),
-                                        None))
-                else:
-                    scaled_roi = slice(None)
-
-                roi_mask[scaled_roi] = True
-
-            mask = np.bitwise_and(mask, roi_mask)
-
         else:
-            mask = np.ones((H_chk, W_chk), dtype=bool)
             mask_data_axes = "YX"
             mask_store = None
-            mask_scale_H = H / H_chk
-            mask_scale_W = W / W_chk
+            mask_scale_H = 1 / H_chk
+            mask_scale_W = 1 / W_chk
+            mask = np.ones((int(H / H_chk), int(W / W_chk)), dtype=bool)
+
+        roi_mask = np.zeros_like(mask, dtype=bool)
+
+        for roi in self._rois:
+            if len(roi) >= 2:
+                scaled_roi = (slice(round(roi[H_ax].start * mask_scale_H),
+                                    round(roi[H_ax].stop * mask_scale_H),
+                                    None),
+                            slice(round(roi[W_ax].start * mask_scale_W),
+                                    round(roi[W_ax].stop * mask_scale_W),
+                                    None))
+            else:
+                scaled_roi = slice(None)
+
+            roi_mask[scaled_roi] = True
+
+        mask = np.bitwise_and(mask, roi_mask)
 
         return mask, mask_data_axes, mask_store, (mask_scale_H, mask_scale_W)
 
