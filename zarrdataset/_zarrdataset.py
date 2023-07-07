@@ -3,7 +3,8 @@ import random
 
 import numpy as np
 
-from ._utils import ImageLoader, connect_s3, map_axes_order
+from ._utils import connect_s3, map_axes_order
+from ._imageloaders import ImageLoader
 
 try:
     from tqdm import tqdm
@@ -85,9 +86,11 @@ class ZarrDataset(IterableDataset):
 
     Only two-dimensional (+color channels) data is supported by now.
     """
-    def __init__(self, filenames, data_group="", data_axes="XYZCT",
+    def __init__(self, filenames, data_group="", source_axes="XYZCT",
+                 target_axes=None,
                  mask_data_group=None,
-                 mask_data_axes=None,
+                 mask_source_axes=None,
+                 mask_target_axes=None,
                  transform=None,
                  patch_sampler=None,
                  shuffle=False,
@@ -110,11 +113,11 @@ class ZarrDataset(IterableDataset):
         self._transforms_order = [("images", )]
         self._output_order = ["images"]
 
-        self._data_axes = {"images": data_axes}
+        self._source_axes = {"images": source_axes}
         self._data_group = {"images": data_group}
 
         self._mask_data_group = {"images": mask_data_group}
-        self._mask_data_axes = {"images": mask_data_axes}
+        self._mask_source_axes = {"images": mask_source_axes}
 
         self._compute_valid_mask = {
             "images": force_compute_valid_mask or mask_data_group is not None
@@ -135,9 +138,9 @@ class ZarrDataset(IterableDataset):
         self._patch_sampler = patch_sampler
         self._initialized = False
 
-    def _preload_files(self, filenames, data_group="", data_axes="XYZCT",
+    def _preload_files(self, filenames, data_group="", source_axes="XYZCT",
                        mask_data_group=None,
-                       mask_data_axes=None,
+                       mask_source_axes=None,
                        compute_valid_mask=False):
         """Open a connection to the zarr file using Dask for lazy loading.
 
@@ -158,9 +161,9 @@ class ZarrDataset(IterableDataset):
                 q.set_description(f"Preloading image {fn}")
 
             curr_img = ImageLoader(fn, data_group=data_group,
-                                   data_axes=data_axes,
+                                   source_axes=source_axes,
                                    mask_data_group=mask_data_group,
-                                   mask_data_axes=mask_data_axes,
+                                   mask_source_axes=mask_source_axes,
                                    s3_obj=self._s3_obj,
                                    compute_valid_mask=compute_valid_mask,
                                    use_dask=self._use_dask)
@@ -172,14 +175,14 @@ class ZarrDataset(IterableDataset):
                 curr_toplefts = self._patch_sampler.compute_chunks(curr_img)
                 toplefts.append(curr_toplefts)
             else:
-                ax_ref_ord = map_axes_order(curr_img.data_axes, "YX")
+                ax_ref_ord = map_axes_order(curr_img.source_axes, "YX")
 
-                if "Y" in curr_img.data_axes:
+                if "Y" in curr_img.source_axes:
                     H = curr_img.shape[ax_ref_ord[-2]]
                 else:
                     H = 1
 
-                if "X" in curr_img.data_axes:
+                if "X" in curr_img.source_axes:
                     W = curr_img.shape[ax_ref_ord[-1]]
                 else:
                     W = 1
@@ -217,9 +220,9 @@ class ZarrDataset(IterableDataset):
              toplefts) = self._preload_files(
                 self._filenames,
                 data_group=self._data_group[mode],
-                data_axes=self._data_axes.get(mode, None),
+                source_axes=self._source_axes.get(mode, None),
                 mask_data_group=self._mask_data_group.get(mode, None),
-                mask_data_axes=self._mask_data_axes.get(mode, None),
+                mask_source_axes=self._mask_source_axes.get(mode, None),
                 compute_valid_mask=self._compute_valid_mask.get(mode, False))
 
             self._arr_lists[mode] = arr_list
@@ -227,14 +230,14 @@ class ZarrDataset(IterableDataset):
 
         self._initialized = True
 
-    def _get_coords(self, tlbr, data_axes, scale=1):
+    def _get_coords(self, tlbr, source_axes, scale=1):
         if tlbr is None:
             return slice(None)
 
         tl_y, tl_x, br_y, br_x = tlbr
 
         coords = []
-        for a in data_axes:
+        for a in source_axes:
             if a == "Y":
                 coords.append(slice(int(tl_y * scale),
                                     int(br_y * scale), None))
@@ -250,7 +253,7 @@ class ZarrDataset(IterableDataset):
         patches = {}
 
         for mode in self._output_order:
-            coords = self._get_coords(tlbr, self._data_axes[mode],
+            coords = self._get_coords(tlbr, self._source_axes[mode],
                                       self._img_scale[mode])
             patches[mode] = self._cached_chunks[mode][coords]
 
@@ -274,13 +277,13 @@ class ZarrDataset(IterableDataset):
         return patches
 
     def _cache_chunk(self, im_id, chunk_tlbr):
-        ax_ref = map_axes_order(self._data_axes["images"], "Y")
+        ax_ref = map_axes_order(self._source_axes["images"], "Y")
         H_ax_ref = ax_ref[-1]
         H_ref = self._arr_lists["images"][im_id].shape[H_ax_ref]
 
         for mode in self._arr_lists.keys():
-            if "Y" in self._data_axes[mode]:
-                ax_img = map_axes_order(self._data_axes[mode], "Y")
+            if "Y" in self._source_axes[mode]:
+                ax_img = map_axes_order(self._source_axes[mode], "Y")
                 H_ax_img = ax_img[-1]
                 H_img = self._arr_lists[mode][im_id].shape[H_ax_img]
 
@@ -290,7 +293,7 @@ class ZarrDataset(IterableDataset):
 
             coords = self._get_coords(
                 chunk_tlbr,
-                self._data_axes[mode],
+                self._source_axes[mode],
                 scale)
 
             self._img_scale[mode] = scale
@@ -387,7 +390,7 @@ class LabeledZarrDataset(ZarrDataset):
     The densely labeled targets are extracted from group "labels_data_group".
     """
     def __init__(self, filenames, labels_data_group="labels/0/0",
-                 labels_data_axes="CYX",
+                 labels_source_axes="CYX",
                  input_target_transform=None,
                  target_transform=None,
                  **kwargs):
@@ -397,7 +400,7 @@ class LabeledZarrDataset(ZarrDataset):
 
         # Open the labels from the labels group
         self._data_group["target"] = labels_data_group
-        self._data_axes["target"] = labels_data_axes
+        self._source_axes["target"] = labels_source_axes
 
         # This is a transform that affects the geometry of the input, and then
         # it has to be applied to the target as well

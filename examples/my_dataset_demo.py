@@ -18,7 +18,7 @@ try:
                             type=str,
                             help="Group within the zarr file to be used as input",
                             default="")
-        parser.add_argument("-da", "--data-axes", dest="data_axes",
+        parser.add_argument("-da", "--data-axes", dest="source_axes",
                             type=str,
                             help="Order in which the axes of the image are stored."
                                 " The default order is the given by the OME "
@@ -31,7 +31,7 @@ try:
                                 "stored. If not set, the normal non-labeled "
                                 "dataset is used.",
                             default=None)
-        parser.add_argument("-lda", "--labels-data-axes", dest="labels_data_axes",
+        parser.add_argument("-lda", "--labels-data-axes", dest="labels_source_axes",
                             type=str,
                             help="Order in which the axes of the labels are stored"
                                 ". The default order is the given by the OME "
@@ -43,7 +43,7 @@ try:
                                 "stored. If not set, a simplified mask is "
                                 "generated to use all the image.",
                             default=None)
-        parser.add_argument("-mda", "--mask-data-axes", dest="mask_data_axes",
+        parser.add_argument("-mda", "--mask-data-axes", dest="mask_source_axes",
                             type=str,
                             help="Order in which the axes of the masks are stored"
                                 ". The default order is XY for the spatial axes "
@@ -104,7 +104,7 @@ try:
             patch_sampler = None
 
         transform_fn = torchvision.transforms.Compose([
-            zds.SelectAxes(source_axes=args.data_axes,
+            zds.SelectAxes(source_axes=args.source_axes,
                         axes_selection={"T": 0, "Z": 0},
                         target_axes="YXC"),
             zds.ZarrToArray(dtype=np.uint8),
@@ -113,7 +113,7 @@ try:
 
         if args.labels_data_group is not None:
             targets_transform_fn = torchvision.transforms.Compose([
-                zds.SelectAxes(source_axes=args.labels_data_axes,
+                zds.SelectAxes(source_axes=args.labels_source_axes,
                             axes_selection={"T": 0, "Z": 0, "Y": 0, "X": 0},
                             target_axes="C"),
                 zds.ZarrToArray(np.int64)])

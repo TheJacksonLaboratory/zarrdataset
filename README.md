@@ -12,7 +12,7 @@ filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836839.zarr"]
 # and the order of the axes of the dataset.
 my_dataset = zds.ZarrDataset(filenames,
                              data_group="0",
-                             data_axes="TCZYX",
+                             source_axes="TCZYX",
                              transform=None,
                              patch_sampler=None,
                              shuffle=False,
@@ -68,9 +68,9 @@ import zarrdataset as zds
 # numpy array which axes are ordered as Class, Y-axis, X-axis
 my_dataset = zds.LabeledZarrDataset(filenames,
                                     data_group="0",
-                                    data_axes="TCZYX",
+                                    source_axes="TCZYX",
                                     labels_data_group="labels/0/0",
-                                    labels_data_axes="CYX",
+                                    labels_source_axes="CYX",
                                     transform=None,
                                     patch_sampler=None,
                                     shuffle=False,
@@ -88,7 +88,7 @@ import zarrdataset as zds
 # the remaining axes as Y-axis, X-axis, Color channels. Then convert the array
 # to numpy float32 data type and finally to a PyTorch Tensor.
 preprocess_funs = torchvision.transforms.Compose(
-  [zds.SeletAxes(source_axes=args.data_axes,
+  [zds.SeletAxes(source_axes=args.source_axes,
                  axes_selection={"T": 0, "Z": 0},
                  target_axes="YXC"),
    zds.ZarrToArray(np.float32),
@@ -98,7 +98,7 @@ preprocess_funs = torchvision.transforms.Compose(
 
 my_dataset = zds.ZarrDataset(filenames,
                              data_group="0",
-                             data_axes="TCZYX",
+                             source_axes="TCZYX",
                              transform=preprocess_funs,
                              patch_sampler=None,
                              shuffle=False,
@@ -120,7 +120,7 @@ my_patch_sampler = zds.GridPatchSampler(patch_size)
 
 my_dataset = zds.ZarrDataset(filenames,
                              data_group="0",
-                             data_axes="TCZYX",
+                             source_axes="TCZYX",
                              patch_sampler=my_patch_sampler,
                              shuffle=False,
                              progress_bar=False)

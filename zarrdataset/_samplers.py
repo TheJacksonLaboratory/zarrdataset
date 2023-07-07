@@ -57,16 +57,16 @@ class PatchSampler(object):
         """
         # Use the mask as base to determine the valid patches that can be
         # retrieved from the image.
-        ax_ref_ord = map_axes_order(image.data_axes, "YX")
+        ax_ref_ord = map_axes_order(image.source_axes, "YX")
 
-        if "Y" in image.data_axes:
+        if "Y" in image.source_axes:
             H = image.shape[ax_ref_ord[-2]]
             im_chk_H = image.chunk_size[ax_ref_ord[-2]]
         else:
             H = 1
             im_chk_H = 1
 
-        if "X" in image.data_axes:
+        if "X" in image.source_axes:
             W = image.shape[ax_ref_ord[-1]]
             im_chk_W = image.chunk_size[ax_ref_ord[-1]]
         else:
@@ -105,7 +105,7 @@ class PatchSampler(object):
 
     @staticmethod
     def _get_chunk_mask(image, chunk_tlbr):
-        mask_roi = [slice(0, 1, None)] * (len(image.mask_data_axes) - 2)
+        mask_roi = [slice(0, 1, None)] * (len(image.mask_source_axes) - 2)
         mask_roi += [slice(round(chunk_tlbr[0] * image.mask_scale[0]),
                            round(chunk_tlbr[2] * image.mask_scale[0]),
                            None),
@@ -113,7 +113,7 @@ class PatchSampler(object):
                            round(chunk_tlbr[3] * image.mask_scale[1]),
                            None)]
         mask_roi = tuple(mask_roi[a]
-                         for a in map_axes_order(image.mask_data_axes, "YX"))
+                         for a in map_axes_order(image.mask_source_axes, "YX"))
 
         # To get samples only inside valid areas of the mask
         return image.mask[mask_roi]

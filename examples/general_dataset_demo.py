@@ -3,7 +3,7 @@ import zarrdataset as zds
 
 
 def transform_fn(image):
-    image = zds.SelectAxes(source_axes=data_axes,
+    image = zds.SelectAxes(source_axes=source_axes,
                            axes_selection={"T": 0, "Z": 0},
                            target_axes="CYX")(image)
     image = zds.ZarrToArray(np.float64)(image)
@@ -24,7 +24,7 @@ if __name__ == "__main__":
                  "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"]
 
     data_group = "0"
-    data_axes = "TCZYX"
+    source_axes = "TCZYX"
     patch_size = 1024
     batch_size = 16
     num_workers = 4
@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     my_dataset = zds.ZarrDataset(filenames, transform=transform_fn,
                                  data_group=data_group,
-                                 data_axes=data_axes,
+                                 source_axes=source_axes,
                                  patch_sampler=patch_sampler,
                                  shuffle=True,
                                  progress_bar=True)

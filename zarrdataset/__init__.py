@@ -7,11 +7,12 @@ from ._samplers import (PatchSampler,
                         GridPatchSampler,
                         BlueNoisePatchSampler)
 
-from ._utils import (parse_roi,
+from ._utils import (parse_metadata,
                      map_axes_order,
-                     connect_s3,
-                     image2array,
-                     ImageLoader)
+                     connect_s3)
+
+from ._imageloaders import (image2array,
+                            ImageLoader)
 
 from ._augs import (ZarrToArray,
                     DaskToArray,
@@ -27,7 +28,7 @@ __all__ = ['ZarrDataset',
            'ZarrToArray',
            'DaskToArray',
            'SelectAxes',
-           'parse_roi',
+           'parse_metadata',
            'map_axes_order',
            'connect_s3',
            'image2array',

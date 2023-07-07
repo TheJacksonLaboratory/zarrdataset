@@ -20,7 +20,7 @@ try:
             "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
             "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"]
         data_group = "0"
-        data_axes = "TCZYX"
+        source_axes = "TCZYX"
         patch_size = 512
         batch_size = 4
         num_workers = 4
@@ -29,7 +29,7 @@ try:
         patch_sampler = zds.GridPatchSampler(patch_size)
 
         transform_fn = torchvision.transforms.Compose([
-            zds.SelectAxes(source_axes=data_axes,
+            zds.SelectAxes(source_axes=source_axes,
                         axes_selection={"T": 0, "Z": 0},
                         target_axes="CYX"),
             zds.ZarrToArray(np.float64)
@@ -37,7 +37,7 @@ try:
 
         my_datasets = [zds.ZarrDataset(fn, transform=transform_fn,
                                     data_group=data_group,
-                                    data_axes=data_axes,
+                                    source_axes=source_axes,
                                     patch_sampler=patch_sampler,
                                     shuffle=True,
                                     progress_bar=True)
