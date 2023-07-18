@@ -90,7 +90,7 @@ import zarrdataset as zds
 preprocess_funs = torchvision.transforms.Compose(
   [zds.SeletAxes(source_axes=args.source_axes,
                  axes_selection={"T": 0, "Z": 0},
-                 target_axes="YXC"),
+                 axes="YXC"),
    zds.ZarrToArray(np.float32),
    torchvision.transforms.ToTensor()
   ]

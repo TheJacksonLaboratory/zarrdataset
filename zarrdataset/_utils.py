@@ -1,8 +1,51 @@
 import os
-
+import itertools
 from urllib.parse import urlparse
 import requests
 import boto3
+
+
+def parse_rois(rois_str):
+    """Parse a list of strings defining ROIs.
+
+    Parameters
+    ----------
+    rois_str : list of strings
+        A list of regions of interest parsed from the input string.
+
+    Returns
+    -------
+    rois : list of slices
+        A list of slices to select regions from arrays.
+    """
+    rois = []
+
+    # Create a tuple of slices to define each ROI.
+    for roi in rois_str:
+        if ":" in roi:
+            start_coords, axis_lengths = roi.split(":")
+
+            start_coords = tuple([int(c.strip("\n\r ()"))
+                                  for c in start_coords.split(",")])
+
+            axis_lengths = tuple([int(ln.strip("\n\r ()"))
+                                  for ln in axis_lengths.split(",")])
+
+            # TODO: When passing -1 use all the axis
+            roi_slices = []
+            for c_i, l_i in zip(start_coords, axis_lengths):
+                if l_i > 0:
+                    roi_slices.append(slice(c_i, c_i + l_i, None))
+                else:
+                    roi_slices.append(slice(None))
+
+            roi_slices = tuple(roi_slices)
+        else:
+            roi_slices = slice(None)
+
+        rois.append(roi_slices)
+
+    return rois
 
 
 def parse_metadata(filename):
@@ -21,13 +64,14 @@ def parse_metadata(filename):
     -------
     fn : str
         The parsed filename
-    data_group: str
+    data_group: str or None
         The group for zarr images, or key for tiff files
-    source_axes: str
+    source_axes: str or None
         The orignal axes ordering
-    target_axes: str
-        The permuted axes ordering
-    rois : list of tuples
+    axes: str or None
+        The axes ordering as it being used from the array (may involve
+        permuting, dropping unused axes, and creating new axes)
+    rois_str : list of strings
         A list of regions of interest parsed from the input string.
 
     Notes
@@ -77,10 +121,9 @@ def parse_metadata(filename):
     the first position to the last one. Because no ROIs are defined, the full
     the array will be used.
     """
-    source_axes = ""
-    target_axes = ""
-    data_group = ""
-    rois = []
+    source_axes = None
+    target_axes = None
+    data_group = None
     rois_str = []
 
     if isinstance(filename, str):
@@ -88,7 +131,7 @@ def parse_metadata(filename):
         # reference to start spliting the filename.
         fn_base_split = filename.split(".")
         ext_meta = fn_base_split[-1].split(";")
-        fn_ext = ext_meta[0] 
+        fn_ext = ext_meta[0]
         fn = ".".join(fn_base_split[:-1]) + "." + fn_ext
 
         if len(ext_meta) > 1:
@@ -96,27 +139,12 @@ def parse_metadata(filename):
             axes_str = ext_meta[2].split(":")
             rois_str = ext_meta[3:]
 
-        # Parse source and target axes ordering
-        source_axes = axes_str[0]
-        if len(axes_str) > 1:
-            target_axes = axes_str[1]
+            # Parse source and target axes ordering
+            source_axes = axes_str[0]
+            if len(axes_str) > 1:
+                target_axes = axes_str[1]
 
-        # Create a tuple of slices to define each ROI.
-        for roi in rois_str:
-            start_coords, axis_lengths = roi.split(":")
-
-            start_coords = tuple([int(c.strip("\n\r ()"))
-                                  for c in start_coords.split(",")])
-
-            axis_lengths = tuple([int(ln.strip("\n\r ()"))
-                                  for ln in axis_lengths.split(",")])
-            # TODO: When passing -1 use all the axis
-            roi_slices = tuple([slice(c_i, c_i + l_i, None) for c_i, l_i in
-                                zip(start_coords, axis_lengths)])
-
-            rois.append(roi_slices)
-
-    return fn, data_group, source_axes, target_axes, rois
+    return fn, data_group, source_axes, target_axes, rois_str
 
 
 def map_axes_order(source_axes, target_axes="YX"):
@@ -138,6 +166,8 @@ def map_axes_order(source_axes, target_axes="YX"):
         If `source_axes` has more axes than `target_axes`, the unspecified axes
         will be moved to the front of the ordering, leaving the `target_axes`
         at the trailing positions.
+    dropped_axes : list of ints
+        The indices that are dropped after
 
     Notes
     -----
@@ -240,6 +270,11 @@ def isconsolidated(arr_src):
     ----------
     arr_src : str, zarr.Group, or zarr.Array
         The image filename, or zarr object, to be checked.
+
+    Returns
+    -------
+    is_consolidated : bool
+        Whether zarr array in `arr_src` is consolidated or not.
     """
     is_consolidated = False
 
@@ -251,3 +286,52 @@ def isconsolidated(arr_src):
         is_consolidated = os.path.exists(os.path.join(arr_src, ".zmetadata"))
 
     return is_consolidated
+
+
+def scale_coords(selection_range, scale=1.0):
+    """Scale a set of top-lefts, bottom-rights coordinates, in any dimension,
+    by `scale` factor.
+
+    Parameters
+    ----------
+    selection_range : iterator of tuple or list of ints or slices
+        The selection range from an n-dimensional array to scale. This can be a
+        range (start, end), single index, or None, defining the range of
+        indices taken from each axis.
+    scale : float or iterator of floats
+        The factor to rescale the selection range of each axes. If a single
+        value is passed, all axes are rescaled by that factor.
+
+    Returns
+    -------
+    scaled_selection_range : tuple of slices
+        The scaled selection range as a tuple of slices
+    """
+    scaled_selection_range = []
+    if not isinstance(scale, (list, tuple)):
+        scale = itertools.repeat([scale])
+
+    for ax_range, s in zip(selection_range, scale):
+        if isinstance(ax_range, (slice, range)):
+            scaled_selection_range.append(
+                slice(int(ax_range.start * s), int(ax_range.stop * s), None)
+            )
+        elif isinstance(ax_range, (tuple, list)):
+            scaled_selection_range.append(
+                slice(int(ax_range[0] * s), int(ax_range[1] * s), None)
+            )
+        elif isinstance(ax_range, int):
+            scaled_selection_range.append(
+                slice(ax_range, ax_range + 1, None)
+            )
+        elif ax_range is None:
+            scaled_selection_range.append(
+                slice(None)
+            )
+        else:
+            raise ValueError(f"Axis selection {ax_range} is not supported. "
+                             f"Only ranges in form [start, end], "
+                             f"single index, and None, are supported.")
+
+    scaled_selection_range = tuple(scaled_selection_range)
+    return scaled_selection_range

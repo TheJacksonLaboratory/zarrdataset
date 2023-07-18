@@ -15,20 +15,17 @@ class PatchSampler(object):
 
     Parameters
     ----------
-    patch_size : int
-        Size in pixels of the patches extracted. Only squared patches are
-        supported by now.
-    chunk: tuple of ints
-        Size in pixels of the chunks the image is sub-divided before extracting
-        the patches.
+    patch_size : int or iterator of ints
+        Size in pixels of the patches extracted on each axis. Only squared
+        patches (hyper-cubes) are supported by now. If a single int is passed,
+        that size is used for each dimension. Use the same convention as dask
+        and zarr chunks structure to handle shape and channels correctly.
     """
     def __init__(self, patch_size):
+        # The maximum chunk sizes are used to generate a reference sampling
+        # position array used fo every sampled chunk.
+        self._max_chk = 0
         self._patch_size = patch_size
-
-        # The maximum chunk sizes (H, W) are used to generate a reference
-        # sampling position array used fo every sampled chunk.
-        self._max_chk_H = 0
-        self._max_chk_W = 0
 
     def compute_patches(self, *args, **kwargs):
         raise NotImplementedError("This is a virtual class and has to be "
@@ -49,74 +46,44 @@ class PatchSampler(object):
 
         Returns
         -------
-        tl_brs : numpy.ndarray
-            An array containing the coordinates of the chunks that can be
-            extracted from `image`. Each row in the array has the coordinates
-            in the following format.
-            (top-left y, top-left x)
+        chunks_grids : list of tuples of slices
+            Each valid chunk is returned in form of a slice that can be
+            extracted from the image. The slices are stored as tuples, with one
+            slice per axis.
         """
         # Use the mask as base to determine the valid patches that can be
         # retrieved from the image.
-        ax_ref_ord = map_axes_order(image.source_axes, "YX")
+        if isinstance(self._patch_size, int):
+            self._patch_size = [self._patch_size] * len(image.axes)
 
-        if "Y" in image.source_axes:
-            H = image.shape[ax_ref_ord[-2]]
-            im_chk_H = image.chunk_size[ax_ref_ord[-2]]
-        else:
-            H = 1
-            im_chk_H = 1
+        if isinstance(self._max_chk, int):
+            self._max_chk = [self._max_chk] * len(image.axes)
 
-        if "X" in image.source_axes:
-            W = image.shape[ax_ref_ord[-1]]
-            im_chk_W = image.chunk_size[ax_ref_ord[-1]]
-        else:
-            W = 1
-            im_chk_W = 1
+        self._max_chk = [min(max(max_chk, im_chk), s)
+                         for max_chk, im_chk, s in zip(self._max_chk,
+                                                       image.chunk_size,
+                                                       image.shape)]
 
-        self._max_chk_H = min(max(self._max_chk_H, im_chk_H), H)
-        self._max_chk_W = min(max(self._max_chk_W, im_chk_W), W)
+        im_chk = [min(ps, s) if ps >= chk else chk
+                  for ps, chk, s in zip(self._patch_size, image.chunk_size,
+                                        image.shape)]
 
-        if self._patch_size >= im_chk_H:
-            im_chk_H = min(self._patch_size, H)
-        
-        if self._patch_size >= im_chk_W:
-            im_chk_W = min(self._patch_size, W)
+        chunks_grids = np.meshgrid(*[np.arange(s // chk)
+                                     for s, chk in zip(image.shape, im_chk)])
 
-        scaled_H = max(1, round(im_chk_H * image.mask_scale[0]))
-        scaled_W = max(1, round(im_chk_W * image.mask_scale[1]))
+        chunks_grids = (chk_grid.reshape(-1) * chk
+                        for chk_grid, chk in zip(chunks_grids, im_chk))
 
-        valid_mask = transform.downscale_local_mean(image.mask, 
-                                                    factors=(scaled_H,
-                                                             scaled_W),
-                                                    cval=0)
+        chunks_grids = (zip(chk_grid, np.minimum(chk_grid + chk, s))
+                        for chk_grid, chk, s in zip(chunks_grids, im_chk,
+                                                    image.shape))
+        chunks_grids = [[slice(start, stop, None)
+                         for start, stop in start_stop]
+                        for start_stop in chunks_grids]
 
-        chunks_grid_y, chunks_grid_x = np.nonzero(valid_mask)
-        chunks_grid_y = chunks_grid_y.reshape(-1, 1) * im_chk_H
-        chunks_grid_x = chunks_grid_x.reshape(-1, 1) * im_chk_W
+        chunks_grids = [tuple(ax_slice) for ax_slice in zip(*chunks_grids)]
 
-        chunks_grid = np.hstack(
-            (chunks_grid_y, chunks_grid_x,
-             chunks_grid_y + im_chk_H, chunks_grid_x + im_chk_W))
-
-        chunks_grid[:, 2] = np.minimum(chunks_grid[:, 2], H)
-        chunks_grid[:, 3] = np.minimum(chunks_grid[:, 3], W)
-
-        return chunks_grid
-
-    @staticmethod
-    def _get_chunk_mask(image, chunk_tlbr):
-        mask_roi = [slice(0, 1, None)] * (len(image.mask_source_axes) - 2)
-        mask_roi += [slice(round(chunk_tlbr[0] * image.mask_scale[0]),
-                           round(chunk_tlbr[2] * image.mask_scale[0]),
-                           None),
-                     slice(round(chunk_tlbr[1] * image.mask_scale[1]),
-                           round(chunk_tlbr[3] * image.mask_scale[1]),
-                           None)]
-        mask_roi = tuple(mask_roi[a]
-                         for a in map_axes_order(image.mask_source_axes, "YX"))
-
-        # To get samples only inside valid areas of the mask
-        return image.mask[mask_roi]
+        return chunks_grids
 
 
 class GridPatchSampler(PatchSampler):
@@ -133,27 +100,31 @@ class GridPatchSampler(PatchSampler):
         super(GridPatchSampler, self).__init__(patch_size)
 
     def compute_patches(self, image, chunk_tlbr):
-        chk_H = chunk_tlbr[2] - chunk_tlbr[0]
-        chk_W = chunk_tlbr[3] - chunk_tlbr[1]
+        chunk_valid_mask = image[chunk_tlbr]
 
-        chunk_valid_mask = self._get_chunk_mask(image, chunk_tlbr)
-
-        if chk_H < self._patch_size or chk_W < self._patch_size:
+        if any(map(lambda s_ps: s_ps[0] < s_ps[1],
+                   zip(chunk_valid_mask.shape, self._patch_size))):
             # If the chunk area is smaller than the patch size, return an empty
             # set of topleft positions.
-            toplefts = np.empty((0, 4), dtype=np.int64)
+            toplefts = []
 
         else:
-            valid_mask = transform.resize(chunk_valid_mask,
-                                          (chk_H // self._patch_size,
-                                           chk_W // self._patch_size),
-                                         order=0,
-                                         mode="edge",
-                                         anti_aliasing=False)
+            valid_mask = transform.resize(
+                chunk_valid_mask,
+                [chk // ps
+                 for chk, ps in zip(chunk_valid_mask.shape, self._patch_size)],
+                order=0,
+                mode="edge",
+                anti_aliasing=False)
 
             toplefts = np.nonzero(valid_mask)
-            toplefts = np.stack(toplefts, axis=1) * self._patch_size
-            toplefts = np.hstack((toplefts, toplefts + self._patch_size))
+
+        toplefts = (zip(tl * ps, (tl + 1) * ps)
+                    for tl, ps in zip(toplefts, self._patch_size))
+        toplefts = [[slice(start, stop, None) for start, stop in start_stop]
+                    for start_stop in toplefts]
+
+        toplefts = [tuple(ax_slice) for ax_slice in zip(*toplefts)]
 
         return toplefts
 
@@ -247,7 +218,7 @@ class BlueNoisePatchSampler(PatchSampler):
              chunk_patches) = self._get_positions_array(chk_H=chk_H,
                                                         chk_W=chk_W,
                                                         force=False)
-            chunk_valid_mask = self._get_chunk_mask(image, chunk_tlbr)
+            chunk_valid_mask = image[chunk_tlbr]
 
             chunk_valid_mask_grid = np.meshgrid(
                 [-1]

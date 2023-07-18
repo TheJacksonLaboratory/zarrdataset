@@ -3,11 +3,7 @@ import zarrdataset as zds
 
 
 def transform_fn(image):
-    image = zds.SelectAxes(source_axes=source_axes,
-                           axes_selection={"T": 0, "Z": 0},
-                           target_axes="CYX")(image)
     image = zds.ZarrToArray(np.float64)(image)
-
     return image
 
 

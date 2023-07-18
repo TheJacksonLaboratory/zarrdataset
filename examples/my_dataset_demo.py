@@ -104,18 +104,12 @@ try:
             patch_sampler = None
 
         transform_fn = torchvision.transforms.Compose([
-            zds.SelectAxes(source_axes=args.source_axes,
-                        axes_selection={"T": 0, "Z": 0},
-                        target_axes="YXC"),
             zds.ZarrToArray(dtype=np.uint8),
             torchvision.transforms.ToTensor()
         ])
 
         if args.labels_data_group is not None:
             targets_transform_fn = torchvision.transforms.Compose([
-                zds.SelectAxes(source_axes=args.labels_source_axes,
-                            axes_selection={"T": 0, "Z": 0, "Y": 0, "X": 0},
-                            target_axes="C"),
                 zds.ZarrToArray(np.int64)])
             
             my_dataset = zds.LabeledZarrDataset(
