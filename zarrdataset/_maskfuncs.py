@@ -3,11 +3,8 @@ import numpy as np
 import zarr
 import dask
 import dask.array as da
-from dask.diagnostics import ProgressBar
 
 from skimage import morphology, color, filters, transform
-
-from ._utils import map_axes_order
 
 
 def compute_tissue_chunk(chunk, mask_scale=1/16, min_size=16,
@@ -71,11 +68,14 @@ def compute_tissue_mask(img, mask_scale=1/16, min_size=16,
                                 depth=(int(1 / mask_scale),
                                        int(1 / mask_scale),
                                        0),
-                                boundary=0,
+                                boundary=255,
                                 trim=False,
                                 meta=np.empty((0, 0), dtype=bool))
 
     mask = mask[:int(H * mask_scale), :int(W * mask_scale)]
+
+    with dask.diagnostics.ProgressBar():
+        mask = mask.persist(scheduler="synchronous")
 
     mask_axes = "YX"
 

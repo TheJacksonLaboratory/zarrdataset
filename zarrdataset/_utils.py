@@ -1,5 +1,6 @@
 import os
-import itertools
+import math
+from itertools import repeat
 from urllib.parse import urlparse
 import requests
 import boto3
@@ -31,7 +32,6 @@ def parse_rois(rois_str):
             axis_lengths = tuple([int(ln.strip("\n\r ()"))
                                   for ln in axis_lengths.split(",")])
 
-            # TODO: When passing -1 use all the axis
             roi_slices = []
             for c_i, l_i in zip(start_coords, axis_lengths):
                 if l_i > 0:
@@ -48,7 +48,10 @@ def parse_rois(rois_str):
     return rois
 
 
-def parse_metadata(filename):
+def parse_metadata(filename, default_source_axes, default_data_group=None,
+                   default_axes=None,
+                   default_rois=None,
+                   ignore_rois=False):
     """Parse the filename, data groups, axes ordering, ROIs from `filename`.
 
     The different fields must be separated by a semicolon (;).
@@ -59,9 +62,27 @@ def parse_metadata(filename):
     ----------
     filename : str
         Path to the image.
+    default_source_axes : src
+        Default source axes ordering used when no axes are present in the
+        filename string.
+    default_data_group : src or None
+        Default data group used when data group is present in the filename
+        string.
+    default_axes : src or None
+        Default output axes ordering used when no target axes are present in
+        the filename string.
+    default_rois : list of tuple of slices or None
+        Default roi used when no rois are present in the filename string.
 
     Returns
     -------
+    parsed_metadata : list of dicts
+        A list of parsed values from the filename. A single element is
+        retrieved for each ROI in the filename.
+
+    Notes
+    -----
+    The parsed metadata dictionary has the following structure.
     fn : str
         The parsed filename
     data_group: str or None
@@ -71,11 +92,9 @@ def parse_metadata(filename):
     axes: str or None
         The axes ordering as it being used from the array (may involve
         permuting, dropping unused axes, and creating new axes)
-    rois_str : list of strings
+    rois : list of slices
         A list of regions of interest parsed from the input string.
 
-    Notes
-    -----
     Data groups are expected for files with hierarchical structure, like zarr
     and tiff files. This is usually found on pyramid-like files, where the main
     image is stored in group `0/0`, and any downsampling version of that are
@@ -126,6 +145,12 @@ def parse_metadata(filename):
     data_group = None
     rois_str = []
 
+    if not isinstance(default_rois, list):
+        default_rois = [default_rois]
+
+    if default_axes is None:
+        default_axes = default_source_axes
+
     if isinstance(filename, str):
         # There can be filenames with `;` on them, so take the point as
         # reference to start spliting the filename.
@@ -143,8 +168,35 @@ def parse_metadata(filename):
             source_axes = axes_str[0]
             if len(axes_str) > 1:
                 target_axes = axes_str[1]
+    else:
+        fn = filename
 
-    return fn, data_group, source_axes, target_axes, rois_str
+    if not source_axes:
+        source_axes = default_source_axes
+
+    if not data_group:
+        data_group = default_data_group
+
+    if not target_axes:
+        target_axes = default_axes
+
+    if ignore_rois:
+        rois = [None]
+    else:
+        rois = parse_rois(rois_str)
+        if not rois:
+            rois = default_rois
+
+    parsed_metadata = [
+        {"filename": fn,
+         "data_group": data_group,
+         "source_axes": source_axes,
+         "axes": target_axes,
+         "roi": roi}
+        for roi in rois
+    ]
+
+    return parsed_metadata
 
 
 def map_axes_order(source_axes, target_axes="YX"):
@@ -222,8 +274,8 @@ def select_axes(source_axes, axes_selection):
             unfixed_axes.remove(ax)
             sel_slices.append(idx)
 
-    # These are the new set of source_axes of the array after fixing some axes to
-    # the specified indices.
+    # These are the new set of source_axes of the array after fixing some axes
+    # to the specified indices.
     unfixed_axes = "".join(unfixed_axes)
     sel_slices = tuple(sel_slices)
 
@@ -309,16 +361,22 @@ def scale_coords(selection_range, scale=1.0):
     """
     scaled_selection_range = []
     if not isinstance(scale, (list, tuple)):
-        scale = itertools.repeat([scale])
+        scale = repeat([scale])
 
     for ax_range, s in zip(selection_range, scale):
         if isinstance(ax_range, (slice, range)):
-            scaled_selection_range.append(
-                slice(int(ax_range.start * s), int(ax_range.stop * s), None)
-            )
+            if ax_range.start is None or ax_range.stop is None:
+                scaled_selection_range.append(
+                    slice(None)
+                )
+            else:
+                scaled_selection_range.append(
+                    slice(round(ax_range.start * s), round(ax_range.stop * s),
+                          ax_range.step)
+                )
         elif isinstance(ax_range, (tuple, list)):
             scaled_selection_range.append(
-                slice(int(ax_range[0] * s), int(ax_range[1] * s), None)
+                slice(round(ax_range[0] * s), round(ax_range[1] * s), None)
             )
         elif isinstance(ax_range, int):
             scaled_selection_range.append(

@@ -1,10 +1,12 @@
+import os
+from functools import reduce, partial
+import operator
 import random
 
 import numpy as np
 
-from ._utils import (connect_s3, map_axes_order, parse_metadata, parse_rois,
-                     scale_coords)
-from ._imageloaders import ImageLoader, MaskLoader
+from ._utils import parse_metadata
+from ._imageloaders import ImageCollection
 
 try:
     from tqdm import tqdm
@@ -40,17 +42,18 @@ try:
         np.random.seed(torch_seed % (2**32 - 1))
 
         # Open a copy of the dataset on each worker.
-        n_files = len(dataset_obj._filenames["images"])
+        n_files = len(dataset_obj._collections["images"])
         if n_files == 1:
             # Get the topleft positions and distribute them among the workers
             dataset_obj._initialize(force=True)
-            dataset_obj._toplefts[dataset_obj._mode_tls] =\
-                [dataset_obj._toplefts[dataset_obj._mode_tls][0][w_sel]]
+            dataset_obj._toplefts =\
+                [dataset_obj._toplefts[0][w_sel]]
 
         else:
-            modes = list(dataset_obj._filenames.keys())
-            dataset_obj._filenames = dict((k, dataset_obj._filenames[k][w_sel])
-                                          for k in modes)
+            modes = list(dataset_obj._collections.keys())
+            dataset_obj._collections = dict(
+                (k, dataset_obj._collections[k][w_sel])
+                for k in modes)
 
         dataset_obj._worker_id = worker_id
 
@@ -83,73 +86,34 @@ except ModuleNotFoundError:
         pass
 
 
-def _preload_files(filenames, default_data_group=None,
-                   default_source_axes=None,
-                   default_axes=None,
-                   default_roi=None,
-                   image_loader=ImageLoader,
-                   image_loader_opts=None,
+def _preload_files(collections, image_loader_func=None,
+                   image_loader_func_args=None,
                    patch_sampler=None,
-                   s3_obj=None,
                    worker_id=0,
                    progress_bar=False):
-    """Open a connection to the zarr file using Dask for lazy loading.
-
-    If the mask group is passed, that group within each zarr is used to 
-    determine the valid regions that can be sampled. If None is passed, that
-    means that the full image can be sampled.
+    """
     """
     z_list = []
     toplefts = []
 
-    if image_loader_opts is None:
-        image_loader_opts = {}
-
-    if default_roi is None:
-        default_roi = [slice(None)]
-
     if progress_bar:
-        q = tqdm(desc="Preloading zarr files", total=len(filenames),
+        q = tqdm(desc="Preloading zarr files", total=len(collections),
                  position=worker_id)
 
-    for fn in filenames:
+    modes = collections.keys()
+
+    for collection in zip(*collections.values()):
+        collection = dict(map(tuple, zip(modes, collection)))
+        for mode in collection.keys():
+            collection[mode]["image_func"] = image_loader_func[mode]
+            collection[mode]["image_func_args"] =\
+                image_loader_func_args[mode]
+
         if progress_bar:
-            q.set_description(f"Preloading image {fn}")
+            q.set_description(f"Preloading image "
+                              f"{collection['images']['filename']}")
 
-        # Separate the filename and any ROI passed as the name of the file
-        (fn,
-         parsed_data_group,
-         parsed_source_axes,
-         parsed_axes,
-         parsed_rois) = parse_metadata(fn)
-
-        if parsed_data_group is not None:
-            data_group = parsed_data_group
-        else:
-            data_group = default_data_group
-
-        if parsed_source_axes is not None:
-            source_axes = parsed_source_axes
-        else:
-            source_axes = default_source_axes
-
-        if parsed_axes is not None:
-            axes = parsed_axes
-        else:
-            axes = default_axes
-
-        if len(parsed_rois) > 0:
-            rois = parse_rois(parsed_rois)
-        else:
-            rois = default_roi
-
-        for roi in rois:
-            curr_img = image_loader(fn, data_group=data_group,
-                                    source_axes=source_axes,
-                                    axes=axes,
-                                    s3_obj=s3_obj,
-                                    roi=roi,
-                                    **image_loader_opts)
+            curr_img = ImageCollection(collection)
 
             # If a patch sampler was passed, it is used to determine the
             # top-left and bottom-right coordinates of the valid samples that
@@ -157,7 +121,7 @@ def _preload_files(filenames, default_data_group=None,
             if patch_sampler is not None:
                 toplefts.append(patch_sampler.compute_chunks(curr_img))
             else:
-                toplefts.append(None)
+                toplefts.append([[slice(None)] * len(curr_img.axes)])
 
             z_list.append(curr_img)
 
@@ -168,12 +132,7 @@ def _preload_files(filenames, default_data_group=None,
         q.close()
 
     z_list = np.array(z_list, dtype=object)
-
-    if len(toplefts):
-        # Use Numpy arrays to store the lists instead of python lists.
-        # This is beacuase when lists are too big is easier to handle them as
-        # numpy arrays.
-        toplefts = np.array(toplefts, dtype=object)
+    toplefts = np.array(toplefts, dtype=object)
 
     return z_list, toplefts
 
@@ -183,8 +142,7 @@ class ZarrDataset(IterableDataset):
 
     Only two-dimensional (+color channels) data is supported by now.
     """
-    def __init__(self, filenames, data_group="", source_axes="XYZCT",
-                 axes=None,
+    def __init__(self, filenames, source_axes, axes=None, data_group=None,
                  roi=None,
                  transform=None,
                  patch_sampler=None,
@@ -197,44 +155,36 @@ class ZarrDataset(IterableDataset):
 
         self._worker_id = 0
 
-        if not isinstance(filenames, list):
-            filenames = [filenames]
-
-        self._filenames = {"images": filenames}
         self._transforms = {("images", ): transform}
         self._transforms_order = [("images", )]
         self._output_order = ["images"]
 
-        self._source_axes = {"images": source_axes}
-        self._axes = {"images": axes}
-        self._data_group = {"images": data_group}
+        if not isinstance(filenames, list):
+            filenames = [filenames]
 
-        if roi is None:
-            roi = ""
+        filenames = reduce(
+            operator.add,
+            map(partial(parse_metadata, default_source_axes=source_axes,
+                        default_data_group=data_group,
+                        default_axes=axes,
+                        default_rois=roi),
+                filenames),
+            [])
 
-        if isinstance(roi, str):
-            roi = [roi]
-
-        self._roi = {"images": parse_rois(roi)}
-
-        self._s3_obj = {"images": None}
-
-        self._mode_tls = "images"
-        self._arr_lists = {"images": []}
-        self._toplefts = {"images": []}
-        self._cached_chunks = {"images": None}
-        self._img_scale = {"images": None}
-        self._image_loader = {"images": ImageLoader}
-        self._image_loader_opts = {"images": {}}
+        self._collections = {"images": filenames}
+        self._image_loader_func = {"images": None}
+        self._image_loader_func_args = {"images": None}
 
         self._shuffle = shuffle
         self._progress_bar = progress_bar
-
         self._return_positions = return_positions
         self._return_any_label = return_any_label
         self._draw_same_chunk = draw_same_chunk
 
         self._patch_sampler = patch_sampler
+
+        self._arr_lists = {}
+        self._toplefts = {}
 
         self._initialized = False
 
@@ -242,43 +192,21 @@ class ZarrDataset(IterableDataset):
         if self._initialized and not force:
             return
 
-        # If the zarr files are stored in a S3 bucket, create a connection to
-        # that bucket.
-
-        for mode in self._filenames:
-            self._s3_obj[mode] = connect_s3(self._filenames[mode][0])
-
-            if mode == self._mode_tls:
-                patch_sampler = self._patch_sampler
-            else:
-                patch_sampler = None
-
-            (arr_list,
-             toplefts) = _preload_files(
-                self._filenames[mode],
-                default_data_group=self._data_group[mode],
-                default_source_axes=self._source_axes[mode],
-                default_axes=self._axes[mode],
-                default_roi=self._roi[mode],
-                image_loader=self._image_loader[mode],
-                image_loader_opts=self._image_loader_opts[mode],
-                patch_sampler=patch_sampler,
-                s3_obj=self._s3_obj[mode],
-                worker_id=self._worker_id,
-                progress_bar=self._progress_bar)
-
-            self._arr_lists[mode] = arr_list
-            self._toplefts[mode] = toplefts
+        # Match each filename with the filename of the `images` mode
+        (self._arr_lists,
+         self._toplefts) = _preload_files(
+            self._collections,
+            image_loader_func=self._image_loader_func,
+            image_loader_func_args=self._image_loader_func_args,
+            patch_sampler=self._patch_sampler,
+            worker_id=self._worker_id,
+            progress_bar=self._progress_bar)
 
         self._initialized = True
 
     def __getitem__(self, tlbr):
-        patches = {}
-
-        for mode in self._output_order:
-            coords = tlbr if tlbr is not None else slice(None)
-            coords = self._scale_mode_coords(mode, coords)
-            patches[mode] = self._cached_chunks[mode][coords]
+        coords = tlbr if tlbr is not None else slice(None)
+        patches = self._curr_collection[coords]
 
         for inputs in self._transforms_order:
             if self._transforms[inputs] is not None:
@@ -299,40 +227,14 @@ class ZarrDataset(IterableDataset):
 
         return patches
 
-    def _cache_chunk(self, im_id, chunk_tlbr):
-        for mode in self._output_order:
-            coords = self._scale_mode_coords(mode, chunk_tlbr)
-            self._cached_chunks[mode] = self._arr_lists[mode][im_id][coords]
-
-    def _scale_mode_coords(self, mode, coords):
-        ax_ref = self._arr_lists[self._mode_tls][0].axes
-        sh_ref = self._arr_lists[self._mode_tls][0].shape
-
-        ax_curr = self._arr_lists[mode][0].axes
-        sh_curr = self._arr_lists[mode][0].shape
-        curr_coords = []
-        scale = []
-        for a, s in zip(ax_curr, sh_curr):
-            if a in ax_ref:
-                ax_i = ax_ref.index(a)
-                curr_coords.append(coords[ax_i])
-                scale.append(s / sh_ref[ax_i])
-            else:
-                curr_coords.append(None)
-                scale.append(1.0)
-
-        mode_coords = scale_coords(curr_coords, scale)
-
-        return mode_coords
-
     def __iter__(self):
         # Preload the files and masks associated with them
         self._initialize()
 
         samples = [
             [im_id, chk_id, None, None]
-            for im_id in range(len(self._arr_lists["images"]))
-            for chk_id in range(len(self._toplefts[self._mode_tls][im_id]))
+            for im_id in range(len(self._arr_lists))
+            for chk_id in range(len(self._toplefts[im_id]))
             ]
 
         # When chunks must be depleted before moving to the next chunk, shuffle
@@ -343,6 +245,7 @@ class ZarrDataset(IterableDataset):
         prev_im_id = -1
         prev_chk_id = -1
         curr_chk = 0
+        self._curr_collection = None
 
         while samples:
             # When chunks can be sampled even when these are not depleted,
@@ -353,17 +256,23 @@ class ZarrDataset(IterableDataset):
             im_id = samples[curr_chk][0]
             chk_id = samples[curr_chk][1]
 
-            chunk_tlbr = tuple(self._toplefts[self._mode_tls][im_id][chk_id])
+            chunk_tlbr = tuple(self._toplefts[im_id][chk_id])
 
             # If this chunk is different from the cached one, change the
             # cached chunk for this one.
-            if prev_im_id != im_id or prev_chk_id != chk_id:
-                prev_im_id = im_id
+            if prev_im_id != im_id or chk_id != prev_chk_id:
                 prev_chk_id = chk_id
+
+                if prev_im_id != im_id:
+                    if self._curr_collection is not None:
+                        self._curr_collection.free_cache()
+
+                    prev_im_id = im_id
+                    self._curr_collection = self._arr_lists[im_id]
 
                 if self._patch_sampler is not None:
                     patches_tls = self._patch_sampler.compute_patches(
-                        self._arr_lists[self._mode_tls][im_id],
+                        self._curr_collection,
                         chunk_tlbr
                     )
 
@@ -373,8 +282,6 @@ class ZarrDataset(IterableDataset):
                 if not len(patches_tls):
                     samples.pop(curr_chk)
                     continue
-
-                self._cache_chunk(im_id, chunk_tlbr)
 
             # Initialize the count of top-left positions for patches inside
             # this chunk.
@@ -399,7 +306,10 @@ class ZarrDataset(IterableDataset):
             patches = self.__getitem__(patch_tlbr)
 
             if self._return_positions:
-                pos = [[tlbr.start + chk_tl.start, tlbr.stop + chk_tl.start]
+                pos = [[(tlbr.start + chk_tl.start)
+                        if chk_tl.start is not None else 0,
+                        (tlbr.stop + chk_tl.start)
+                        if chk_tl.start is not None else -1]
                        for tlbr, chk_tl in zip(patch_tlbr, chunk_tlbr)]
                 pos = np.array(pos, dtype=np.int64)
                 patches = [pos] + patches
@@ -416,21 +326,77 @@ class LabeledZarrDataset(ZarrDataset):
     """A labeled dataset based on the zarr dataset class.
     The densely labeled targets are extracted from group "labels_data_group".
     """
-    def __init__(self, filenames, labels_data_group="labels/0/0",
-                 labels_source_axes="CYX",
-                 input_target_transform=None,
+    def __init__(self, filenames, source_axes, axes=None, data_group=None,
+                 roi=None,
+                 labels_filenames=None,
+                 labels_data_group=None,
+                 labels_source_axes=None,
+                 labels_axes=None,
+                 labels_roi=None,
                  target_transform=None,
+                 input_target_transform=None,
                  **kwargs):
-
+        # Override the selection to always return labels with this class
         kwargs["return_any_label"] = False
-        super(LabeledZarrDataset, self).__init__(filenames, **kwargs)
 
-        # Open the labels from the labels group
-        self._data_group["target"] = labels_data_group
-        self._source_axes["target"] = labels_source_axes
+        if (labels_filenames is not None
+           and not isinstance(labels_filenames, list)):
+            labels_filenames = [labels_filenames]
+        else:
+            labels_filenames = filenames
+
+        if labels_data_group is None:
+            labels_data_group = data_group
+
+        if labels_source_axes is None:
+            labels_source_axes = source_axes
+
+        if labels_axes is None:
+            labels_axes = labels_source_axes
+
+        if labels_roi is None:
+            labels_roi = roi
+
+        super(LabeledZarrDataset, self).__init__(filenames, source_axes,
+                                                 axes=axes,
+                                                 data_group=data_group,
+                                                 roi=roi,
+                                                 **kwargs)
+
+        # Match the passed mask filenames to each filename in the images
+        # modality
+        base_names = map(
+            lambda fn:
+            os.path.basename(".".join(fn["filename"].split(".")[:-1])),
+            self._collections["images"])
+
+        labels_base_names = list(
+            map(lambda fn: (fn,
+                            os.path.basename(".".join(fn.split(".")[:-1]))),
+                labels_filenames))
+
+        labels_filenames = [
+            list(filter(lambda label_bn: bn in label_bn[1],
+                        labels_base_names))[0][0]
+            for bn in base_names
+            ]
+
+        labels_filenames = reduce(
+            operator.add,
+            map(partial(parse_metadata, default_source_axes=labels_source_axes,
+                        default_data_group=labels_data_group,
+                        default_axes=labels_axes,
+                        default_rois=labels_roi,
+                        ignore_rois=True),
+                labels_filenames),
+            [])
+
+        self._collections["target"] = labels_filenames
+        self._image_loader_func["target"] = None
+        self._image_loader_func_args["target"] = None
 
         # This is a transform that affects the geometry of the input, and then
-        # it has to be applied to the target as well
+        # it has to be applied to the target as well.
         self._transforms[("images", "target")] = input_target_transform
         self._transforms_order.append(("images", "target"))
 
@@ -440,57 +406,80 @@ class LabeledZarrDataset(ZarrDataset):
 
         self._output_order.append("target")
 
-        self._arr_lists["target"] = []
-        self._cached_chunks["target"] = None
-
 
 class MaskedZarrDataset(ZarrDataset):
     """A masked dataset based on the zarr dataset class.
     """
-    def __init__(self, filenames, mask_filenames=None, mask_data_group=None,
+    def __init__(self, filenames, source_axes, axes=None, data_group=None,
+                 roi=None,
+                 mask_filenames=None,
+                 mask_data_group=None,
                  mask_source_axes=None,
                  mask_axes=None,
                  mask_roi=None,
                  mask_func=None,
-                 mask_func_opts=None,
+                 mask_func_args=None,
                  **kwargs):
 
-        super(MaskedZarrDataset, self).__init__(filenames, **kwargs)
-        if mask_filenames is not None:
-            if not isinstance(mask_filenames, list):
-                mask_filenames = [mask_filenames]
-
-            self._filenames["masks"] = mask_filenames
+        if mask_filenames is not None and not isinstance(mask_filenames, list):
+            mask_filenames = [mask_filenames]
         else:
-            self._filenames["masks"] = filenames
+            mask_filenames = filenames
 
         if mask_data_group is None:
-            mask_data_group = self._data_group["images"]
+            mask_data_group = data_group
 
         if mask_source_axes is None:
-            mask_source_axes = self._source_axes["images"]
+            mask_source_axes = source_axes
 
         if mask_axes is None:
-            mask_axes = self._axes["images"]
+            mask_axes = mask_source_axes
 
         if mask_roi is None:
-            parsed_mask_roi = self._roi["images"]
-        else:
-            if isinstance(mask_roi, str):
-                mask_roi = [mask_roi]
-            parsed_mask_roi = parse_rois(mask_roi)
+            mask_roi = roi
 
-        self._roi["masks"] = parsed_mask_roi
+        super(MaskedZarrDataset, self).__init__(filenames, source_axes,
+                                                axes=axes,
+                                                data_group=data_group,
+                                                roi=roi,
+                                                **kwargs)
 
-        self._data_group["masks"] = mask_data_group
-        self._source_axes["masks"] = mask_source_axes
-        self._axes["masks"] = mask_axes
-        self._img_scale["masks"] = None
+        # Match the passed mask filenames to each filename in the images
+        # modality
+        base_names = map(
+            lambda fn:
+            os.path.basename(".".join(fn["filename"].split(".")[:-1])),
+            self._collections["images"])
 
-        self._cached_chunks["masks"] = None
-        self._s3_obj["masks"] = None
+        mask_base_names = list(
+            map(lambda fn: (fn,
+                            os.path.basename(".".join(fn.split(".")[:-1]))),
+                mask_filenames))
 
-        self._mode_tls = "masks"
-        self._image_loader["masks"] = MaskLoader
-        self._image_loader_opts["masks"] = {"mask_func": mask_func,
-                                            "mask_func_opts": mask_func_opts}
+        mask_filenames = [
+            list(filter(lambda mask_bn: bn in mask_bn[1],
+                        mask_base_names))[0][0]
+            for bn in base_names
+            ]
+
+        mask_filenames = reduce(
+            operator.add,
+            map(partial(parse_metadata, default_source_axes=mask_source_axes,
+                        default_data_group=mask_data_group,
+                        default_axes=mask_axes,
+                        default_rois=mask_roi,
+                        ignore_rois=True),
+                mask_filenames),
+            [])
+
+        self._collections["masks"] = mask_filenames
+        self._image_loader_func["masks"] = mask_func
+        self._image_loader_func_args["masks"] = mask_func_args
+
+
+class MaskedLabeledZarrDataset(MaskedZarrDataset, LabeledZarrDataset):
+    """A dataset based on the zarr dataset class capable of handling labeled
+    datasets from masked inputs.
+    """
+    def __init__(self, filenames, **kwargs):
+        super(MaskedLabeledZarrDataset, self).__init__(filenames, **kwargs)
