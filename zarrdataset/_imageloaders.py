@@ -9,7 +9,9 @@ import PIL
 from PIL import Image
 from io import BytesIO
 
-from ._utils import map_axes_order, connect_s3, scale_coords, select_axes
+from ._utils import (map_axes_order, connect_s3, scale_coords, select_axes,
+                     parse_rois,
+                     translate2roi)
 
 try:
     import tifffile
@@ -37,21 +39,19 @@ def image2array(arr_src, data_group=None, s3_obj=None,
 
     Returns
     -------
-    arr : dask.array.core.Array or zarr.Array
-        A dask array for lazy loading the source array.
+    arr : zarr.Array
+        The image as a zarr array.
     """
     if isinstance(arr_src, zarr.Group):
-        arr = da.from_zarr(arr_src, component=data_group)
+        arr = arr_src[data_group]
         return arr, None
 
     elif isinstance(arr_src, zarr.Array):
-        arr = da.from_zarr(arr_src)
-        return arr, None
+        return arr_src, None
 
     elif isinstance(arr_src, str) and ".zarr" in arr_src:
         store = zarr_store(os.path.join(arr_src, data_group))
-        # z_arr = zarr.open(store, mode="r")
-        arr = da.from_zarr(store)
+        arr = zarr.open(store, mode="r")
         return arr, None
 
     if TIFFFILE_SUPPORT:
@@ -61,7 +61,7 @@ def image2array(arr_src, data_group=None, s3_obj=None,
             data_group = data_group.split("/")[-1]
             store = tifffile.imread(arr_src, aszarr=True,
                                     key=int(data_group))
-            arr = da.from_zarr(store)
+            arr = zarr.open(store, mode="r")
             return arr, store
 
         except tifffile.tifffile.TiffFileError:
@@ -91,34 +91,40 @@ def image2array(arr_src, data_group=None, s3_obj=None,
     height = store.size[1]
     width = store.size[0]
 
-    arr = da.from_delayed(dask.delayed(np.array)(store),
-                          shape=(height, width, channels),
-                          dtype=np.uint8)
+    arr = zarr.array(data=np.array(store),
+                     shape=(height, width, channels),
+                     dtype=np.uint8)
 
     return arr, store
 
 
 class ImageBase(object):
     spatial_axes = "ZYX"
+    source_axes = None
     axes = None
     chunk_size = None
     scale = 1
     reference_axes = None
     mode = ""
+    image_func = None
+    image_func_args = {}
+    _permute_order = None
+    _new_axes = ""
+    _drop_axes = ""
     _arr = None
+    _shape = None
+    _chunk_size = None
     _cached_coords = None
-    _cache = None
 
     def __init__(self, shape, chunk_size=None, axes=None):
         if chunk_size is None:
             chunk_size = shape
 
-        self.shape = shape
-        self.chunk_size = chunk_size
+        self.source_axes = axes
         self.axes = axes
-
-        self._arr = da.from_array(np.ones(shape=shape, dtype=bool))
-        self._arr = da.rechunk(self._arr, chunk_size)
+        self._permute_order = list(range(len(axes)))
+        self._arr = zarr.ones(shape=shape, dtype=bool, chunks=chunk_size)
+        self.roi = tuple([slice(None)] * len(axes))
 
     def _iscached(self, coords):
         if self._cached_coords is None:
@@ -132,7 +138,7 @@ class ImageBase(object):
                     <= (cache.stop if cache.stop is not None else s),
                     coords,
                     self._cached_coords,
-                    self.shape))
+                    self._arr.shape))
 
     def _cache_chunk(self, index):
         if not self._iscached(index):
@@ -144,11 +150,10 @@ class ImageBase(object):
                           if i.stop is not None else None,
                           None),
                     index,
-                    self.chunk_size,
-                    self.shape)
+                    self._arr.chunks,
+                    self._arr.shape)
             )
-            self._cache = self._arr[self._cached_coords].compute(
-                scheduler="synchronous")
+            self._cache = self._arr[self._cached_coords]
 
         cached_index = tuple(
             map(lambda cache, i:
@@ -164,27 +169,76 @@ class ImageBase(object):
         if isinstance(index, slice):
             index = [index] * len(self.axes)
 
+        # Scale the spatial axes of the index according to this image scale.
         index = dict(((ax, sel)
                       for ax, sel in zip(self.reference_axes, index)))
 
         mode_index, _ = select_axes(self.axes, index)
-
         mode_index = scale_coords(mode_index, self.scale)
-        cached_index = self._cache_chunk(mode_index)
-        return self._cache[cached_index]
 
-    def rechunk(self):
-        spatial_chunks = [
-            chk if a in self.spatial_axes else s
-            for chk, a, s in zip(self.chunk_size, self.axes, self._arr.shape)
-            ]
+        # Locate the mode_index within the ROI:
+        roi_mode_index = translate2roi(mode_index, self.roi, self.source_axes,
+                                       self.axes)
 
-        self._arr = self._arr.rechunk(spatial_chunks)
-        self.chunk_size = self._arr.chunksize
+        # Save the corresponding cache of this patch for faster access.
+        cached_index = self._cache_chunk(roi_mode_index)
+        selection = self._cache[cached_index]
 
-    def free_cache(self):
-        self._cached_coords = None
-        self._cache = None
+        # Permute the axes order to match `axes`
+        selection = selection.transpose(self._permute_order)
+
+        # Drop axes with length 1 that are not in `axes`.
+        out_shape = [s
+                     for s, p_a in zip(selection.shape, self._permute_order)
+                     if self.source_axes[p_a] not in self._drop_axes]
+        selection = selection.reshape(out_shape)
+
+        # Add axes requested in `axes` that does not exist on `source_axes`.
+        selection = np.expand_dims(selection, tuple(self.axes.index(a)
+                                                    for a in self._new_axes))
+
+        # Apply the transformation to the selection.
+        if self.image_func is not None:
+            selection = self.image_func(selection, **self.image_func_args)
+
+        return selection
+
+    def _compute_shapes(self):
+        if self._shape is not None:
+            return
+
+        self._shape = []
+        self._chunk_size = []
+
+        for a in self.axes:
+            if a in self.source_axes:
+                a_i = self.source_axes.index(a)
+                r = self.roi[a_i]
+                s = self._arr.shape[a_i]
+                c = self._arr.chunks[a_i]
+
+                r_start = 0 if r.start is None else r.start
+                r_stop = s if r.stop is None else r.stop
+
+                if c > s:
+                    c = s
+
+                self._shape.append(r_stop - r_start)
+                self._chunk_size.append(c)
+
+            else:
+                self._shape.append(1)
+                self._chunk_size.append(1)
+
+    @property
+    def shape(self):
+        self._compute_shapes()
+        return self._shape
+
+    @property
+    def chunk_size(self):
+        self._compute_shapes()
+        return self._chunk_size
 
 
 class ImageLoader(ImageBase):
@@ -209,44 +263,50 @@ class ImageLoader(ImageBase):
                                     s3_obj=self._s3_obj,
                                     zarr_store=zarr_store)
 
-        if roi is not None:
-            self._arr = self._arr[roi]
+        if roi is None:
+            roi = [slice(None)] * len(source_axes)
+        elif isinstance(roi, str):
+            roi = parse_rois([roi])[0]
 
+        roi = list(map(lambda r:
+                       slice(r.start if r.start is not None else 0, r.stop,
+                             None),
+                       roi))
+
+        self.roi = roi
+        self.source_axes = source_axes
         self.axes = source_axes
 
         if axes is not None and axes != source_axes:
             source_axes_list = list(source_axes)
-            drop_axes = list(set(source_axes) - set(axes))
-            for d_a in sorted((source_axes_list.index(a) for a in drop_axes),
+            self._drop_axes = list(set(source_axes) - set(axes))
+            for d_a in sorted((source_axes_list.index(a)
+                               for a in self._drop_axes),
                               reverse=True):
-                try:
-                    self._arr = self._arr.squeeze(d_a)
-                except ValueError:
+                if self.roi[d_a].stop is not None:
+                    roi_len = self.roi[d_a].stop
+                else:
+                    self._arr.shape[da]
+
+                roi_len -= self.roi[d_a].start
+
+                if roi_len > 1:
                     raise ValueError(f"Cannot drop axis `{source_axes[d_a]}` "
                                      f"(from `source_axes={source_axes}`) "
                                      f"because no selection was made for it, "
                                      f"and it is not being used as image axes "
                                      f"thereafter (`axes={axes}`).")
 
-                source_axes_list.pop(d_a)
-
-            permute_order = map_axes_order(source_axes_list, axes)
-            self._arr = self._arr.transpose(permute_order)
-
-            new_axes = list(set(axes) - set(source_axes_list))
-            self._arr = np.expand_dims(self._arr, tuple(axes.index(a)
-                                                        for a in new_axes))
-
+            self._permute_order = map_axes_order(source_axes, axes)
+            self._new_axes = list(set(axes) - set(source_axes))
             self.axes = axes
+        else:
+            self._permute_order = list(range(len(axes)))
 
-        if image_func is not None:
-            if image_func_args is None:
-                image_func_args = {}
-
-            self._arr, self.axes = image_func(self._arr, **image_func_args)
-
-        self.shape = self._arr.shape
-        self.chunk_size = self._arr.chunksize
+        self.image_func = image_func
+        if image_func_args is None:
+            image_func_args = {}
+        self.image_func_args = image_func_args
 
     def __del__(self):
         # Close the connection to the image file
@@ -269,7 +329,6 @@ class ImageCollection(object):
 
         self._generate_mask()
         self._compute_scales()
-        self._rechunk()
 
     def _generate_mask(self):
         if "masks" in self.collection.keys():
@@ -308,10 +367,6 @@ class ImageCollection(object):
                 ]
             img.reference_axes = img_axes
             img.mode = mode
-
-    def _rechunk(self):
-        for mode, img in self.collection.items():
-            img.rechunk()
 
     def __getitem__(self, index):
         collection_set = dict((mode, img[index])

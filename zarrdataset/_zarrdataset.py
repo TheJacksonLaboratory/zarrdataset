@@ -86,7 +86,7 @@ except ModuleNotFoundError:
         pass
 
 
-class ZarrDatasetBase(IterableDataset):
+class ZarrDataset(IterableDataset):
     """A zarr-based dataset.
 
     Only two-dimensional (+color channels) data is supported by now.
@@ -134,8 +134,8 @@ class ZarrDatasetBase(IterableDataset):
 
         self._patch_sampler = patch_sampler
 
-        self._arr_lists = {}
-        self._toplefts = {}
+        self._arr_lists = []
+        self._toplefts = []
 
         self._initialized = False
 
@@ -148,7 +148,7 @@ class ZarrDatasetBase(IterableDataset):
 
         if self._progress_bar:
             q = tqdm(desc="Preloading zarr files",
-                     total=len(self._collections),
+                     total=len(self._collections["images"]),
                      position=self._worker_id)
 
         modes = self._collections.keys()
@@ -173,7 +173,8 @@ class ZarrDatasetBase(IterableDataset):
             if self._patch_sampler is not None:
                 toplefts.append(self._patch_sampler.compute_chunks(curr_img))
             else:
-                toplefts.append([[slice(None)] * len(curr_img.collection["images"].axes)])
+                toplefts.append([[slice(None)]
+                                 * len(curr_img.collection["images"].axes)])
 
             arr_lists.append(curr_img)
 
@@ -247,9 +248,6 @@ class ZarrDatasetBase(IterableDataset):
                 prev_chk_id = chk_id
 
                 if prev_im_id != im_id:
-                    if self._curr_collection is not None:
-                        self._curr_collection.free_cache()
-
                     prev_im_id = im_id
                     self._curr_collection = self._arr_lists[im_id]
 
@@ -302,7 +300,7 @@ class ZarrDatasetBase(IterableDataset):
             yield patches
 
 
-class LabeledZarrDataset(ZarrDatasetBase):
+class LabeledZarrDataset(ZarrDataset):
     """A labeled dataset based on the zarr dataset class.
     The densely labeled targets are extracted from group "labels_data_group".
     """
@@ -371,7 +369,7 @@ class LabeledZarrDataset(ZarrDatasetBase):
         self._output_order.append("target")
 
 
-class MaskedZarrDataset(ZarrDatasetBase):
+class MaskedZarrDataset(ZarrDataset):
     """A masked dataset based on the zarr dataset class.
     """
     def __init__(self, filenames, source_axes, axes=None, data_group=None,
@@ -428,9 +426,9 @@ class MaskedZarrDataset(ZarrDatasetBase):
         self._zarr_store["masks"] = mask_zarr_store
 
 
-class ZarrDataset(MaskedZarrDataset, LabeledZarrDataset):
+class MaskedLabeledZarrDataset(MaskedZarrDataset, LabeledZarrDataset):
     """A dataset based on the zarr dataset class capable of handling labeled
     datasets from masked inputs.
     """
     def __init__(self, filenames, **kwargs):
-        super(ZarrDataset, self).__init__(filenames, **kwargs)
+        super(MaskedLabeledZarrDataset, self).__init__(filenames, **kwargs)

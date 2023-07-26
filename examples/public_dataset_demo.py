@@ -25,8 +25,9 @@ try:
             "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
             "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"
             ]
-        patch_size = 1024
-        batch_size = 1
+
+        patch_size = 256
+        batch_size = 4
         num_workers = 4
 
         torch.manual_seed(777)
@@ -36,13 +37,13 @@ try:
             zds.ZarrToArray(np.float64)
         ])
 
-        my_dataset = zds.ZarrDatasetBase(filenames,
-                                         transform=transform_fn,
-                                         data_group="0",
-                                         source_axes="TCZYX",
-                                         axes="YXC",
-                                         patch_sampler=patch_sampler,
-                                         )
+        my_dataset = zds.ZarrDataset(filenames,
+                                     transform=transform_fn,
+                                     data_group="0",
+                                     source_axes="TCZYX",
+                                     axes="YXC",
+                                     roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
+                                     patch_sampler=patch_sampler)
 
         my_dataloader = DataLoader(my_dataset, batch_size=batch_size,
                                    num_workers=num_workers,

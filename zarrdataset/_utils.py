@@ -396,3 +396,26 @@ def scale_coords(selection_range, scale=1.0):
 
     scaled_selection_range = tuple(scaled_selection_range)
     return scaled_selection_range
+
+
+def translate2roi(index, roi, source_axes, axes):
+    roi_mode_index = {}
+    for a_i, a in enumerate(source_axes):
+        r = roi[a_i]
+
+        if a in axes:
+            i = index[axes.index(a)]
+
+            i_start = i.start if i.start is not None else 0
+            r_start = r.start if r.start is not None else 0
+
+            i_start += r_start
+            i_stop = (i.stop + r_start) if i.stop is not None else r.stop
+
+            roi_mode_index[a] = slice(i_start, i_stop, None)
+        else:
+            roi_mode_index[a] = r
+
+    roi_mode_index, _ = select_axes(source_axes, roi_mode_index)
+
+    return roi_mode_index

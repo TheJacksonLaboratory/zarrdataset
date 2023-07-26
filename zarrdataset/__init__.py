@@ -1,7 +1,7 @@
-from ._zarrdataset import (ZarrDatasetBase,
+from ._zarrdataset import (ZarrDataset,
                            LabeledZarrDataset,
                            MaskedZarrDataset,
-                           ZarrDataset,
+                           MaskedLabeledZarrDataset,
                            zarrdataset_worker_init,
                            chained_zarrdataset_worker_init)
 
@@ -15,7 +15,8 @@ from ._utils import (parse_rois,
                      select_axes,
                      connect_s3,
                      isconsolidated,
-                     scale_coords)
+                     scale_coords,
+                     translate2roi)
 
 from ._imageloaders import (image2array,
                             ImageLoader,
@@ -26,10 +27,10 @@ from ._maskfuncs import compute_tissue_mask
 from ._augs import (ZarrToArray,
                     DaskToArray)
 
-__all__ = ['ZarrDatasetBase',
+__all__ = ['ZarrDataset',
            'LabeledZarrDataset',
            'MaskedZarrDataset',
-           'ZarrDataset',
+           'MaskedLabeledZarrDataset',
            'zarrdataset_worker_init',
            'chained_zarrdataset_worker_init',
            'PatchSampler',
@@ -44,6 +45,7 @@ __all__ = ['ZarrDatasetBase',
            'connect_s3',
            'isconsolidated',
            'scale_coords',
+           'translate2roi',
            'image2array',
            'ImageLoader',
            'ImageCollection',
