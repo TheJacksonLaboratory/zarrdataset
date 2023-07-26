@@ -1,4 +1,4 @@
-import os
+import zarr
 from functools import reduce, partial
 import operator
 import random
@@ -86,58 +86,7 @@ except ModuleNotFoundError:
         pass
 
 
-def _preload_files(collections, image_loader_func=None,
-                   image_loader_func_args=None,
-                   patch_sampler=None,
-                   worker_id=0,
-                   progress_bar=False):
-    """
-    """
-    z_list = []
-    toplefts = []
-
-    if progress_bar:
-        q = tqdm(desc="Preloading zarr files", total=len(collections),
-                 position=worker_id)
-
-    modes = collections.keys()
-
-    for collection in zip(*collections.values()):
-        collection = dict(map(tuple, zip(modes, collection)))
-        for mode in collection.keys():
-            collection[mode]["image_func"] = image_loader_func[mode]
-            collection[mode]["image_func_args"] =\
-                image_loader_func_args[mode]
-
-        if progress_bar:
-            q.set_description(f"Preloading image "
-                              f"{collection['images']['filename']}")
-
-            curr_img = ImageCollection(collection)
-
-            # If a patch sampler was passed, it is used to determine the
-            # top-left and bottom-right coordinates of the valid samples that
-            # can be drawn from images.
-            if patch_sampler is not None:
-                toplefts.append(patch_sampler.compute_chunks(curr_img))
-            else:
-                toplefts.append([[slice(None)] * len(curr_img.axes)])
-
-            z_list.append(curr_img)
-
-        if progress_bar:
-            q.update()
-
-    if progress_bar:
-        q.close()
-
-    z_list = np.array(z_list, dtype=object)
-    toplefts = np.array(toplefts, dtype=object)
-
-    return z_list, toplefts
-
-
-class ZarrDataset(IterableDataset):
+class ZarrDatasetBase(IterableDataset):
     """A zarr-based dataset.
 
     Only two-dimensional (+color channels) data is supported by now.
@@ -151,6 +100,7 @@ class ZarrDataset(IterableDataset):
                  return_positions=False,
                  return_any_label=True,
                  draw_same_chunk=False,
+                 zarr_store=zarr.storage.FSStore,
                  **kwargs):
 
         self._worker_id = 0
@@ -172,6 +122,7 @@ class ZarrDataset(IterableDataset):
             [])
 
         self._collections = {"images": filenames}
+        self._zarr_store = {"images": zarr_store}
         self._image_loader_func = {"images": None}
         self._image_loader_func_args = {"images": None}
 
@@ -192,16 +143,48 @@ class ZarrDataset(IterableDataset):
         if self._initialized and not force:
             return
 
-        # Match each filename with the filename of the `images` mode
-        (self._arr_lists,
-         self._toplefts) = _preload_files(
-            self._collections,
-            image_loader_func=self._image_loader_func,
-            image_loader_func_args=self._image_loader_func_args,
-            patch_sampler=self._patch_sampler,
-            worker_id=self._worker_id,
-            progress_bar=self._progress_bar)
+        arr_lists = []
+        toplefts = []
 
+        if self._progress_bar:
+            q = tqdm(desc="Preloading zarr files",
+                     total=len(self._collections),
+                     position=self._worker_id)
+
+        modes = self._collections.keys()
+
+        for collection in zip(*self._collections.values()):
+            collection = dict(map(tuple, zip(modes, collection)))
+            for mode in collection.keys():
+                collection[mode]["zarr_store"] = self._zarr_store[mode]
+                collection[mode]["image_func"] = self._image_loader_func[mode]
+                collection[mode]["image_func_args"] =\
+                    self._image_loader_func_args[mode]
+
+            if self._progress_bar:
+                q.set_description(f"Preloading image "
+                                  f"{collection['images']['filename']}")
+
+            curr_img = ImageCollection(collection)
+
+            # If a patch sampler was passed, it is used to determine the
+            # top-left and bottom-right coordinates of the valid samples that
+            # can be drawn from images.
+            if self._patch_sampler is not None:
+                toplefts.append(self._patch_sampler.compute_chunks(curr_img))
+            else:
+                toplefts.append([[slice(None)] * len(curr_img.collection["images"].axes)])
+
+            arr_lists.append(curr_img)
+
+            if self._progress_bar:
+                q.update()
+
+        if self._progress_bar:
+            q.close()
+
+        self._arr_lists = np.array(arr_lists, dtype=object)
+        self._toplefts = np.array(toplefts, dtype=object)
         self._initialized = True
 
     def __getitem__(self, tlbr):
@@ -302,15 +285,12 @@ class ZarrDataset(IterableDataset):
                 samples.pop(curr_chk)
 
             patch_tlbr = patches_tls[curr_patch]
-            patch_tlbr = [tlbr for tlbr in patch_tlbr]
             patches = self.__getitem__(patch_tlbr)
 
             if self._return_positions:
-                pos = [[(tlbr.start + chk_tl.start)
-                        if chk_tl.start is not None else 0,
-                        (tlbr.stop + chk_tl.start)
-                        if chk_tl.start is not None else -1]
-                       for tlbr, chk_tl in zip(patch_tlbr, chunk_tlbr)]
+                pos = [[tlbr.start if tlbr.start is not None else 0,
+                        tlbr.stop if tlbr.stop is not None else -1]
+                       for tlbr in patch_tlbr]
                 pos = np.array(pos, dtype=np.int64)
                 patches = [pos] + patches
 
@@ -322,7 +302,7 @@ class ZarrDataset(IterableDataset):
             yield patches
 
 
-class LabeledZarrDataset(ZarrDataset):
+class LabeledZarrDataset(ZarrDatasetBase):
     """A labeled dataset based on the zarr dataset class.
     The densely labeled targets are extracted from group "labels_data_group".
     """
@@ -335,13 +315,14 @@ class LabeledZarrDataset(ZarrDataset):
                  labels_roi=None,
                  target_transform=None,
                  input_target_transform=None,
+                 labels_zarr_store=zarr.storage.FSStore,
                  **kwargs):
         # Override the selection to always return labels with this class
         kwargs["return_any_label"] = False
 
-        if (labels_filenames is not None
-           and not isinstance(labels_filenames, list)):
-            labels_filenames = [labels_filenames]
+        if labels_filenames is not None:
+            if not isinstance(labels_filenames, list):
+                labels_filenames = [labels_filenames]
         else:
             labels_filenames = filenames
 
@@ -363,24 +344,6 @@ class LabeledZarrDataset(ZarrDataset):
                                                  roi=roi,
                                                  **kwargs)
 
-        # Match the passed mask filenames to each filename in the images
-        # modality
-        base_names = map(
-            lambda fn:
-            os.path.basename(".".join(fn["filename"].split(".")[:-1])),
-            self._collections["images"])
-
-        labels_base_names = list(
-            map(lambda fn: (fn,
-                            os.path.basename(".".join(fn.split(".")[:-1]))),
-                labels_filenames))
-
-        labels_filenames = [
-            list(filter(lambda label_bn: bn in label_bn[1],
-                        labels_base_names))[0][0]
-            for bn in base_names
-            ]
-
         labels_filenames = reduce(
             operator.add,
             map(partial(parse_metadata, default_source_axes=labels_source_axes,
@@ -394,6 +357,7 @@ class LabeledZarrDataset(ZarrDataset):
         self._collections["target"] = labels_filenames
         self._image_loader_func["target"] = None
         self._image_loader_func_args["target"] = None
+        self._zarr_store["target"] = labels_zarr_store
 
         # This is a transform that affects the geometry of the input, and then
         # it has to be applied to the target as well.
@@ -407,7 +371,7 @@ class LabeledZarrDataset(ZarrDataset):
         self._output_order.append("target")
 
 
-class MaskedZarrDataset(ZarrDataset):
+class MaskedZarrDataset(ZarrDatasetBase):
     """A masked dataset based on the zarr dataset class.
     """
     def __init__(self, filenames, source_axes, axes=None, data_group=None,
@@ -419,10 +383,12 @@ class MaskedZarrDataset(ZarrDataset):
                  mask_roi=None,
                  mask_func=None,
                  mask_func_args=None,
+                 mask_zarr_store=zarr.storage.FSStore,
                  **kwargs):
 
-        if mask_filenames is not None and not isinstance(mask_filenames, list):
-            mask_filenames = [mask_filenames]
+        if mask_filenames is not None:
+            if not isinstance(mask_filenames, list):
+                mask_filenames = [mask_filenames]
         else:
             mask_filenames = filenames
 
@@ -446,22 +412,6 @@ class MaskedZarrDataset(ZarrDataset):
 
         # Match the passed mask filenames to each filename in the images
         # modality
-        base_names = map(
-            lambda fn:
-            os.path.basename(".".join(fn["filename"].split(".")[:-1])),
-            self._collections["images"])
-
-        mask_base_names = list(
-            map(lambda fn: (fn,
-                            os.path.basename(".".join(fn.split(".")[:-1]))),
-                mask_filenames))
-
-        mask_filenames = [
-            list(filter(lambda mask_bn: bn in mask_bn[1],
-                        mask_base_names))[0][0]
-            for bn in base_names
-            ]
-
         mask_filenames = reduce(
             operator.add,
             map(partial(parse_metadata, default_source_axes=mask_source_axes,
@@ -475,11 +425,12 @@ class MaskedZarrDataset(ZarrDataset):
         self._collections["masks"] = mask_filenames
         self._image_loader_func["masks"] = mask_func
         self._image_loader_func_args["masks"] = mask_func_args
+        self._zarr_store["masks"] = mask_zarr_store
 
 
-class MaskedLabeledZarrDataset(MaskedZarrDataset, LabeledZarrDataset):
+class ZarrDataset(MaskedZarrDataset, LabeledZarrDataset):
     """A dataset based on the zarr dataset class capable of handling labeled
     datasets from masked inputs.
     """
     def __init__(self, filenames, **kwargs):
-        super(MaskedLabeledZarrDataset, self).__init__(filenames, **kwargs)
+        super(ZarrDataset, self).__init__(filenames, **kwargs)

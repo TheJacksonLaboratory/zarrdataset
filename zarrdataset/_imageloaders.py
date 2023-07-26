@@ -1,3 +1,4 @@
+import os
 import math
 import zarr
 import numpy as np
@@ -18,7 +19,8 @@ except ModuleNotFoundError:
     TIFFFILE_SUPPORT = False
 
 
-def image2array(arr_src, data_group=None, s3_obj=None):
+def image2array(arr_src, data_group=None, s3_obj=None,
+                zarr_store=zarr.storage.FSStore):
     """Open images stored in zarr format or any image format that can be opened
     by PIL as an array.
 
@@ -38,15 +40,25 @@ def image2array(arr_src, data_group=None, s3_obj=None):
     arr : dask.array.core.Array or zarr.Array
         A dask array for lazy loading the source array.
     """
-    if (isinstance(arr_src, (zarr.Group, zarr.Array))
-       or (isinstance(arr_src, str) and ".zarr" in arr_src)):
+    if isinstance(arr_src, zarr.Group):
         arr = da.from_zarr(arr_src, component=data_group)
+        return arr, None
+
+    elif isinstance(arr_src, zarr.Array):
+        arr = da.from_zarr(arr_src)
+        return arr, None
+
+    elif isinstance(arr_src, str) and ".zarr" in arr_src:
+        store = zarr_store(os.path.join(arr_src, data_group))
+        # z_arr = zarr.open(store, mode="r")
+        arr = da.from_zarr(store)
         return arr, None
 
     if TIFFFILE_SUPPORT:
         # Try first to open the input file with tifffile (if installed).
         # If that fails, try to open it with PIL.
         try:
+            data_group = data_group.split("/")[-1]
             store = tifffile.imread(arr_src, aszarr=True,
                                     key=int(data_group))
             arr = da.from_zarr(store)
@@ -92,6 +104,7 @@ class ImageBase(object):
     chunk_size = None
     scale = 1
     reference_axes = None
+    mode = ""
     _arr = None
     _cached_coords = None
     _cache = None
@@ -107,66 +120,67 @@ class ImageBase(object):
         self._arr = da.from_array(np.ones(shape=shape, dtype=bool))
         self._arr = da.rechunk(self._arr, chunk_size)
 
-    def __getitem__(self, index):
-        if self.reference_axes is None:
-            self.reference_axes = self.axes
-
-        if isinstance(index, slice):
-            index = tuple([index] * len(self.axes))
-
-        index = dict(((ax, sel)
-                      for ax, sel in zip(self.reference_axes, index)))
-
-        index, _ = select_axes(self.axes, index)
-        index = scale_coords(index, self.scale)
-
-        cached_index = self._cache_chunk(index)
-        return self._cache[cached_index]
-
     def _iscached(self, coords):
         if self._cached_coords is None:
             return False
         else:
-            return (cache.start <= coord.start < coord.stop <= cache.stop
-                    if cache.start and cache.stop else True
-                    for coord, cache in zip(coords, self._cached_coords))
+            return all(
+                map(lambda coord, cache, s:
+                    (cache.start if cache.start is not None else 0)
+                    <= (coord.start if coord.start is not None else 0)
+                    and (coord.stop if coord.stop is not None else s)
+                    <= (cache.stop if cache.stop is not None else s),
+                    coords,
+                    self._cached_coords,
+                    self.shape))
 
     def _cache_chunk(self, index):
-        cached_coords = tuple((
-            slice(chk * (i.start // chk)
-                  if i.start is not None else 0,
-                  chk * int(math.ceil(i.stop / chk))
-                  if i.stop is not None else None,
-                  None)
-            for chk, i in zip(self.chunk_size, index)
-            ))
+        if not self._iscached(index):
+            self._cached_coords = tuple(
+                map(lambda i, chk, s:
+                    slice(chk * int(i.start / chk)
+                          if i.start is not None else 0,
+                          min(s, chk * int(math.ceil(i.stop / chk)))
+                          if i.stop is not None else None,
+                          None),
+                    index,
+                    self.chunk_size,
+                    self.shape)
+            )
+            self._cache = self._arr[self._cached_coords].compute(
+                scheduler="synchronous")
 
-        cached_index = tuple((
-            slice(i.start - cached.start
-                  if i.start is not None else 0,
-                  i.stop - cached.start
-                  if i.stop is not None else None)
-            for cached, i in zip(cached_coords, index)
-            ))
-
-        if not self._iscached(cached_coords):
-            with dask.diagnostics.ProgressBar():
-                self._cache = self._arr[cached_coords].compute(
-                    scheduler="synchronous")
-            self._cached_coords = cached_coords
+        cached_index = tuple(
+            map(lambda cache, i:
+                slice((i.start - cache.start) if i.start is not None else 0,
+                      (i.stop - cache.start) if i.stop is not None else None,
+                      None),
+                self._cached_coords, index)
+        )
 
         return cached_index
 
-    def _rechunk(self):
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            index = [index] * len(self.axes)
+
+        index = dict(((ax, sel)
+                      for ax, sel in zip(self.reference_axes, index)))
+
+        mode_index, _ = select_axes(self.axes, index)
+
+        mode_index = scale_coords(mode_index, self.scale)
+        cached_index = self._cache_chunk(mode_index)
+        return self._cache[cached_index]
+
+    def rechunk(self):
         spatial_chunks = [
-            c if a in self.spatial_axes else s
-            for c, a, s in zip(self._arr.chunksize, self.axes,
-                               self._arr.shape)
+            chk if a in self.spatial_axes else s
+            for chk, a, s in zip(self.chunk_size, self.axes, self._arr.shape)
             ]
 
         self._arr = self._arr.rechunk(spatial_chunks)
         self.chunk_size = self._arr.chunksize
-        self.shape = self._arr.shape
 
     def free_cache(self):
         self._cached_coords = None
@@ -183,14 +197,17 @@ class ImageLoader(ImageBase):
                  roi=None,
                  image_func=None,
                  image_func_args=None,
+                 zarr_store=zarr.storage.FSStore,
                  spatial_axes="ZYX"):
+
         self.spatial_axes = spatial_axes
         self._s3_obj = connect_s3(filename)
 
         (self._arr,
          self._store) = image2array(filename,
                                     data_group=data_group,
-                                    s3_obj=self._s3_obj)
+                                    s3_obj=self._s3_obj,
+                                    zarr_store=zarr_store)
 
         if roi is not None:
             self._arr = self._arr[roi]
@@ -228,7 +245,8 @@ class ImageLoader(ImageBase):
 
             self._arr, self.axes = image_func(self._arr, **image_func_args)
 
-        self._rechunk()
+        self.shape = self._arr.shape
+        self.chunk_size = self._arr.chunksize
 
     def __del__(self):
         # Close the connection to the image file
@@ -251,6 +269,7 @@ class ImageCollection(object):
 
         self._generate_mask()
         self._compute_scales()
+        self._rechunk()
 
     def _generate_mask(self):
         if "masks" in self.collection.keys():
@@ -278,20 +297,26 @@ class ImageCollection(object):
         img_shape = self.collection["images"].shape
         img_axes = self.collection["images"].axes
 
-        for img in self.collection.values():
+        for mode, img in self.collection.items():
             curr_axes = img.axes
             curr_shape = img.shape
 
             img.scale = [
-                (s / img_shape[img_axes.index(a)])
+                2 ** -round(math.log2(img_shape[img_axes.index(a)] / s))
                 if a in self.spatial_axes else 1.0
                 for a, s in zip(curr_axes, curr_shape)
                 ]
             img.reference_axes = img_axes
+            img.mode = mode
+
+    def _rechunk(self):
+        for mode, img in self.collection.items():
+            img.rechunk()
 
     def __getitem__(self, index):
         collection_set = dict((mode, img[index])
-                              for mode, img in self.collection.items())
+                              for mode, img in self.collection.items()
+                              if mode != "masks")
 
         return collection_set
 

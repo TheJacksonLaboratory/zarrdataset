@@ -297,8 +297,9 @@ def connect_s3(filename_sample):
         the S3 bucket. If the filename does not points to a S3 bucket, this
         returns None.
     """
-    if (filename_sample.startswith("s3")
-       or filename_sample.startswith("http")):
+    if (isinstance(filename_sample, str)
+        and (filename_sample.startswith("s3")
+             or filename_sample.startswith("http"))):
         protocol = filename_sample.split(":")[0]
         endpoint = protocol + "://" + urlparse(filename_sample).netloc
         s3_obj = dict(
@@ -371,12 +372,14 @@ def scale_coords(selection_range, scale=1.0):
                 )
             else:
                 scaled_selection_range.append(
-                    slice(round(ax_range.start * s), round(ax_range.stop * s),
+                    slice(int(ax_range.start * s),
+                          int(math.ceil(ax_range.stop * s)),
                           ax_range.step)
                 )
         elif isinstance(ax_range, (tuple, list)):
             scaled_selection_range.append(
-                slice(round(ax_range[0] * s), round(ax_range[1] * s), None)
+                slice(int(ax_range[0] * s), int(math.ceil(ax_range[1] * s)),
+                      None)
             )
         elif isinstance(ax_range, int):
             scaled_selection_range.append(

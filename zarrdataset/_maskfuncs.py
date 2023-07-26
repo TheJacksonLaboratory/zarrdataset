@@ -74,8 +74,7 @@ def compute_tissue_mask(img, mask_scale=1/16, min_size=16,
 
     mask = mask[:int(H * mask_scale), :int(W * mask_scale)]
 
-    with dask.diagnostics.ProgressBar():
-        mask = mask.persist(scheduler="synchronous")
+    mask = mask.persist(scheduler="synchronous")
 
     mask_axes = "YX"
 

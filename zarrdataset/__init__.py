@@ -1,7 +1,7 @@
-from ._zarrdataset import (ZarrDataset,
+from ._zarrdataset import (ZarrDatasetBase,
                            LabeledZarrDataset,
                            MaskedZarrDataset,
-                           MaskedLabeledZarrDataset,
+                           ZarrDataset,
                            zarrdataset_worker_init,
                            chained_zarrdataset_worker_init)
 
@@ -26,10 +26,10 @@ from ._maskfuncs import compute_tissue_mask
 from ._augs import (ZarrToArray,
                     DaskToArray)
 
-__all__ = ['ZarrDataset',
+__all__ = ['ZarrDatasetBase',
            'LabeledZarrDataset',
            'MaskedZarrDataset',
-           'MaskedLabeledZarrDataset',
+           'ZarrDataset',
            'zarrdataset_worker_init',
            'chained_zarrdataset_worker_init',
            'PatchSampler',
