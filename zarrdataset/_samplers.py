@@ -84,10 +84,11 @@ class PatchSampler(object):
             ]
 
         self._max_chunk_size = [
-            min(max(max_chk, im_chk), s)
-            for max_chk, im_chk, s in zip(self._max_chunk_size,
-                                          spatial_chunk_sizes,
-                                          spatial_shape)
+            min(max(max_chk, im_chk, ps), s)
+            for max_chk, im_chk, ps, s in zip(self._max_chunk_size,
+                                              spatial_chunk_sizes,
+                                              self._patch_size,
+                                              spatial_shape)
             ]
 
         mask_spatial_scale = [scl

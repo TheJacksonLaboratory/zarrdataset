@@ -1,4 +1,4 @@
-import os
+import time
 import numpy as np
 import zarrdataset as zds
 
@@ -26,7 +26,7 @@ try:
             "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"
             ]
 
-        patch_size = 256
+        patch_size = (1024, 1024)
         batch_size = 4
         num_workers = 4
 
@@ -41,17 +41,21 @@ try:
                                      transform=transform_fn,
                                      data_group="0",
                                      source_axes="TCZYX",
-                                     axes="YXC",
                                      roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
+                                     axes="CYX",
                                      patch_sampler=patch_sampler)
 
         my_dataloader = DataLoader(my_dataset, batch_size=batch_size,
                                    num_workers=num_workers,
                                    worker_init_fn=zds.zarrdataset_worker_init,
                                    persistent_workers=False)
-
+        etimes = 0
+        etime = time.perf_counter()
         for i, (x, t) in enumerate(my_dataloader):
-            print("Sample %i" % i, x.shape, x.dtype, t.shape, t.dtype)
+            etime = time.perf_counter() - etime
+            etimes += etime
+            print("Sample %i" % i, x.shape, x.dtype, t.shape, t.dtype, etime, etimes / (i + 1))
+            etime = time.perf_counter()
 
 
 except ModuleNotFoundError:

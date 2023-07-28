@@ -104,7 +104,7 @@ class ImageBase(object):
     axes = None
     chunk_size = None
     scale = 1
-    reference_axes = None
+    spatial_reference_axes = None
     mode = ""
     image_func = None
     image_func_args = {}
@@ -171,7 +171,7 @@ class ImageBase(object):
 
         # Scale the spatial axes of the index according to this image scale.
         index = dict(((ax, sel)
-                      for ax, sel in zip(self.reference_axes, index)))
+                      for ax, sel in zip(self.spatial_reference_axes, index)))
 
         mode_index, _ = select_axes(self.axes, index)
         mode_index = scale_coords(mode_index, self.scale)
@@ -286,7 +286,7 @@ class ImageLoader(ImageBase):
                 if self.roi[d_a].stop is not None:
                     roi_len = self.roi[d_a].stop
                 else:
-                    self._arr.shape[da]
+                    roi_len = self._arr.shape[d_a]
 
                 roi_len -= self.roi[d_a].start
 
@@ -355,6 +355,10 @@ class ImageCollection(object):
     def _compute_scales(self):
         img_shape = self.collection["images"].shape
         img_axes = self.collection["images"].axes
+        spatial_reference_axes = [
+            ax
+            for ax in self.collection["images"].axes if ax in self.spatial_axes
+        ]
 
         for mode, img in self.collection.items():
             curr_axes = img.axes
@@ -365,7 +369,7 @@ class ImageCollection(object):
                 if a in self.spatial_axes else 1.0
                 for a, s in zip(curr_axes, curr_shape)
                 ]
-            img.reference_axes = img_axes
+            img.spatial_reference_axes = spatial_reference_axes
             img.mode = mode
 
     def __getitem__(self, index):
