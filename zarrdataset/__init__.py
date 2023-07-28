@@ -19,10 +19,12 @@ from ._utils import (parse_rois,
                      translate2roi)
 
 from ._imageloaders import (image2array,
+                            ImageBase,
                             ImageLoader,
                             ImageCollection)
 
-from ._maskfuncs import compute_tissue_mask
+from ._maskfuncs import (MaskGenerator,
+                         WSITissueMaskGenerator)
 
 from ._augs import (ZarrToArray,
                     DaskToArray)
@@ -47,6 +49,8 @@ __all__ = ['ZarrDataset',
            'scale_coords',
            'translate2roi',
            'image2array',
+           'ImageBase',
            'ImageLoader',
            'ImageCollection',
-           'compute_tissue_mask']
+           'MaskGenerator',
+           'WSITissueMaskGenerator']

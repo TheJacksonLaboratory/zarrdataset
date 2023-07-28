@@ -19,31 +19,37 @@ try:
         # converted to the OME-NGFF (Zarr) format by the OME group. More
         # examples can be found at Public OME-Zarr data (Nov. 2020)
         # https://www.openmicroscopy.org/2020/11/04/zarr-data.html
-        filenames = [
-            "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836839.zarr",
-            "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836840.zarr",
-            "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
-            "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"
-            ]
+        # filenames = [
+        #     "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836839.zarr",
+        #     "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836840.zarr",
+        #     "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
+        #     "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"
+        #     ]
+        filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr"]
 
-        patch_size = (1024, 1024)
+        patch_size = (4096, 4096)
         batch_size = 4
-        num_workers = 4
+        num_workers = 0
 
         torch.manual_seed(777)
         patch_sampler = zds.GridPatchSampler(patch_size)
+
+        mask_generator = zds.WSITissueMaskGenerator(mask_scale=1)
 
         transform_fn = torchvision.transforms.Compose([
             zds.ZarrToArray(np.float64)
         ])
 
-        my_dataset = zds.ZarrDataset(filenames,
-                                     transform=transform_fn,
-                                     data_group="0",
-                                     source_axes="TCZYX",
-                                     roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
-                                     axes="CYX",
-                                     patch_sampler=patch_sampler)
+        my_dataset = zds.MaskedZarrDataset(filenames,
+                                           transform=transform_fn,
+                                           data_group="0",
+                                           source_axes="TCZYX",
+                                           roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
+                                           axes="YXC",
+                                           mask_axes="YXC",
+                                           mask_func=mask_generator,
+                                           mask_data_group="4",
+                                           patch_sampler=patch_sampler)
 
         my_dataloader = DataLoader(my_dataset, batch_size=batch_size,
                                    num_workers=num_workers,

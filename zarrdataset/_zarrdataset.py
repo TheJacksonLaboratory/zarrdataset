@@ -124,7 +124,6 @@ class ZarrDataset(IterableDataset):
         self._collections = {"images": filenames}
         self._zarr_store = {"images": zarr_store}
         self._image_loader_func = {"images": None}
-        self._image_loader_func_args = {"images": None}
 
         self._shuffle = shuffle
         self._progress_bar = progress_bar
@@ -158,8 +157,6 @@ class ZarrDataset(IterableDataset):
             for mode in collection.keys():
                 collection[mode]["zarr_store"] = self._zarr_store[mode]
                 collection[mode]["image_func"] = self._image_loader_func[mode]
-                collection[mode]["image_func_args"] =\
-                    self._image_loader_func_args[mode]
 
             if self._progress_bar:
                 q.set_description(f"Preloading image "
@@ -354,7 +351,6 @@ class LabeledZarrDataset(ZarrDataset):
 
         self._collections["target"] = labels_filenames
         self._image_loader_func["target"] = None
-        self._image_loader_func_args["target"] = None
         self._zarr_store["target"] = labels_zarr_store
 
         # This is a transform that affects the geometry of the input, and then
@@ -422,7 +418,6 @@ class MaskedZarrDataset(ZarrDataset):
 
         self._collections["masks"] = mask_filenames
         self._image_loader_func["masks"] = mask_func
-        self._image_loader_func_args["masks"] = mask_func_args
         self._zarr_store["masks"] = mask_zarr_store
 
 

@@ -2,8 +2,6 @@ import os
 import math
 import zarr
 import numpy as np
-import dask
-import dask.array as da
 
 import PIL
 from PIL import Image
@@ -99,19 +97,18 @@ def image2array(arr_src, data_group=None, s3_obj=None,
 
 
 class ImageBase(object):
+    arr = None
     spatial_axes = "ZYX"
     source_axes = None
     axes = None
     chunk_size = None
-    scale = 1
+    spatial_reference_shape = None
     spatial_reference_axes = None
     mode = ""
-    image_func = None
-    image_func_args = {}
-    _permute_order = None
+    permute_order = None
     _new_axes = ""
     _drop_axes = ""
-    _arr = None
+    _scale = None
     _shape = None
     _chunk_size = None
     _cached_coords = None
@@ -138,7 +135,7 @@ class ImageBase(object):
                     <= (cache.stop if cache.stop is not None else s),
                     coords,
                     self._cached_coords,
-                    self._arr.shape))
+                    self.arr.shape))
 
     def _cache_chunk(self, index):
         if not self._iscached(index):
@@ -150,10 +147,10 @@ class ImageBase(object):
                           if i.stop is not None else None,
                           None),
                     index,
-                    self._arr.chunks,
-                    self._arr.shape)
+                    self.arr.chunks,
+                    self.arr.shape)
             )
-            self._cache = self._arr[self._cached_coords]
+            self._cache = self.arr[self._cached_coords]
 
         cached_index = tuple(
             map(lambda cache, i:
@@ -185,11 +182,11 @@ class ImageBase(object):
         selection = self._cache[cached_index]
 
         # Permute the axes order to match `axes`
-        selection = selection.transpose(self._permute_order)
+        selection = selection.transpose(self.permute_order)
 
         # Drop axes with length 1 that are not in `axes`.
         out_shape = [s
-                     for s, p_a in zip(selection.shape, self._permute_order)
+                     for s, p_a in zip(selection.shape, self.permute_order)
                      if self.source_axes[p_a] not in self._drop_axes]
         selection = selection.reshape(out_shape)
 
@@ -197,9 +194,8 @@ class ImageBase(object):
         selection = np.expand_dims(selection, tuple(self.axes.index(a)
                                                     for a in self._new_axes))
 
-        # Apply the transformation to the selection.
-        if self.image_func is not None:
-            selection = self.image_func(selection, **self.image_func_args)
+        if self.image_func:
+            selection = self.image_func(selection)
 
         return selection
 
@@ -209,13 +205,14 @@ class ImageBase(object):
 
         self._shape = []
         self._chunk_size = []
+        self._scale = []
 
         for a in self.axes:
             if a in self.source_axes:
                 a_i = self.source_axes.index(a)
                 r = self.roi[a_i]
-                s = self._arr.shape[a_i]
-                c = self._arr.chunks[a_i]
+                s = self.arr.shape[a_i]
+                c = self.arr.chunks[a_i]
 
                 r_start = 0 if r.start is None else r.start
                 r_stop = s if r.stop is None else r.stop
@@ -230,6 +227,15 @@ class ImageBase(object):
                 self._shape.append(1)
                 self._chunk_size.append(1)
 
+        for a, s in zip(self.axes, self._shape):
+            if a in self.spatial_reference_axes:
+                a_i = self.spatial_reference_axes.index(a)
+                ref_s = self.spatial_reference_shape[a_i]
+
+                self._scale.append(2 ** -round(math.log2(ref_s / s)))
+            else:
+                self._scale.append(1.0)
+
     @property
     def shape(self):
         self._compute_shapes()
@@ -239,6 +245,11 @@ class ImageBase(object):
     def chunk_size(self):
         self._compute_shapes()
         return self._chunk_size
+
+    @property
+    def scale(self):
+        self._compute_shapes()
+        return self._scale
 
 
 class ImageLoader(ImageBase):
@@ -250,14 +261,14 @@ class ImageLoader(ImageBase):
     def __init__(self, filename, source_axes, data_group=None, axes=None,
                  roi=None,
                  image_func=None,
-                 image_func_args=None,
                  zarr_store=zarr.storage.FSStore,
-                 spatial_axes="ZYX"):
-
+                 spatial_axes="ZYX",
+                 mode=""):
+        self.mode = mode
         self.spatial_axes = spatial_axes
         self._s3_obj = connect_s3(filename)
 
-        (self._arr,
+        (self.arr,
          self._store) = image2array(filename,
                                     data_group=data_group,
                                     s3_obj=self._s3_obj,
@@ -286,7 +297,7 @@ class ImageLoader(ImageBase):
                 if self.roi[d_a].stop is not None:
                     roi_len = self.roi[d_a].stop
                 else:
-                    roi_len = self._arr.shape[d_a]
+                    roi_len = self.arr.shape[d_a]
 
                 roi_len -= self.roi[d_a].start
 
@@ -297,16 +308,16 @@ class ImageLoader(ImageBase):
                                      f"and it is not being used as image axes "
                                      f"thereafter (`axes={axes}`).")
 
-            self._permute_order = map_axes_order(source_axes, axes)
+            self.permute_order = map_axes_order(source_axes, axes)
             self._new_axes = list(set(axes) - set(source_axes))
             self.axes = axes
         else:
-            self._permute_order = list(range(len(axes)))
+            self.permute_order = list(range(len(axes)))
 
         self.image_func = image_func
-        if image_func_args is None:
-            image_func_args = {}
-        self.image_func_args = image_func_args
+
+        if image_func is not None:
+            self.axes = image_func.axes
 
     def __del__(self):
         # Close the connection to the image file
@@ -323,12 +334,13 @@ class ImageCollection(object):
         self._cache = None
 
         self.collection = dict((
-            (mode, ImageLoader(spatial_axes=spatial_axes, **mode_args))
+            (mode, ImageLoader(spatial_axes=spatial_axes, mode=mode,
+                               **mode_args))
             for mode, mode_args in collection_args.items()
         ))
 
         self._generate_mask()
-        self._compute_scales()
+        self._assign_scales()
 
     def _generate_mask(self):
         if "masks" in self.collection.keys():
@@ -352,25 +364,24 @@ class ImageCollection(object):
                                              chunk_size=mask_chunk_size,
                                              axes=mask_axes)
 
-    def _compute_scales(self):
-        img_shape = self.collection["images"].shape
+    def _assign_scales(self):
+        img_shape = self.collection["images"].arr.shape
+        img_source_axes = self.collection["images"].source_axes
         img_axes = self.collection["images"].axes
+
         spatial_reference_axes = [
             ax
-            for ax in self.collection["images"].axes if ax in self.spatial_axes
+            for ax in img_axes if ax in self.spatial_axes
+        ]
+        spatial_reference_shape = [
+            img_shape[img_source_axes.index(ax)]
+            if ax in img_source_axes else 1
+            for ax in spatial_reference_axes
         ]
 
-        for mode, img in self.collection.items():
-            curr_axes = img.axes
-            curr_shape = img.shape
-
-            img.scale = [
-                2 ** -round(math.log2(img_shape[img_axes.index(a)] / s))
-                if a in self.spatial_axes else 1.0
-                for a, s in zip(curr_axes, curr_shape)
-                ]
+        for img in self.collection.values():
+            img.spatial_reference_shape = spatial_reference_shape
             img.spatial_reference_axes = spatial_reference_axes
-            img.mode = mode
 
     def __getitem__(self, index):
         collection_set = dict((mode, img[index])
