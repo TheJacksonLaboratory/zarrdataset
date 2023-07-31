@@ -83,6 +83,12 @@ class PatchSampler(object):
             if ax in self.spatial_axes
             ]
 
+        spatial_axes = [
+            ax
+            for ax in image.axes
+            if ax in self.spatial_axes
+            ]
+
         self._max_chunk_size = [
             min(max(max_chk, im_chk, ps), s)
             for max_chk, im_chk, ps, s in zip(self._max_chunk_size,
@@ -91,13 +97,10 @@ class PatchSampler(object):
                                               spatial_shape)
             ]
 
-        mask_spatial_scale = [scl
-                              for scl, ax in zip(mask.scale, mask.axes)
-                              if ax in self.spatial_axes]
-
-        scaled_chunk_size = tuple(map(lambda scl, chk: int(scl * chk),
-                                      mask_spatial_scale,
-                                      self._max_chunk_size))
+        scaled_chunk_size = tuple(
+            [int(self._max_chunk_size[spatial_axes.index(ax)] * scl)
+             if ax in spatial_axes else 1
+             for ax, scl in zip(mask.axes, mask.scale)])
 
         full_mask = mask[:]
         valid_mask = transform.downscale_local_mean(full_mask,
@@ -136,9 +139,16 @@ class GridPatchSampler(PatchSampler):
             if ax in self.spatial_axes
             )
 
-        scaled_patch_size = tuple(map(lambda ps, scl: int(ps * scl),
-                                      self._patch_size,
-                                      mask_spatial_scale))
+        spatial_axes = [
+            ax
+            for ax in image.axes
+            if ax in self.spatial_axes
+            ]
+
+        scaled_patch_size = tuple(
+            [int(self._max_chunk_size[spatial_axes.index(ax)] * scl)
+             if ax in spatial_axes else 1
+             for ax, scl in zip(mask.axes, mask.scale)])
 
         if all(map(operator.ge, scaled_patch_size, repeat(1))):
             valid_mask = transform.downscale_local_mean(
@@ -166,7 +176,7 @@ class GridPatchSampler(PatchSampler):
 
         spatial_limits = np.array([spatial_shape], dtype=np.int64)
 
-        samples_validity = np.all(bottomrights < spatial_limits, axis=1)
+        samples_validity = np.all(bottomrights <= spatial_limits, axis=1)
 
         toplefts = toplefts[samples_validity, ...]
         bottomrights = bottomrights[samples_validity, ...]
@@ -269,7 +279,7 @@ class BlueNoisePatchSampler(PatchSampler):
 
         spatial_limits = np.array([spatial_shape], dtype=np.int64)
 
-        samples_validity = np.all(bottomrights < spatial_limits, axis=1)
+        samples_validity = np.all(bottomrights <= spatial_limits, axis=1)
 
         toplefts = toplefts[samples_validity, ...]
         bottomrights = bottomrights[samples_validity, ...]

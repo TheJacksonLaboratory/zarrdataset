@@ -18,13 +18,25 @@ try:
                             type=str,
                             help="Group within the zarr file to be used as "
                                  "input.",
-                            default="")
-        parser.add_argument("-da", "--data-axes", dest="source_axes",
+                            default=None)
+        parser.add_argument("-dsa", "--source-axes", dest="source_axes",
                             type=str,
                             help="Order in which the axes of the image are"
                                  " stored. The default order is the given by"
                                  " the OME standard.",
-                            default="XYZCT")
+                            default=None)
+        parser.add_argument("-da", "--axes", dest="axes",
+                            type=str,
+                            help="Order in which the axes of the image are"
+                                 " retrieved. The default order is the given"
+                                 " by the OME standard.",
+                            default=None)
+        parser.add_argument("-ldd", "--labels-data-dir",
+                            dest="labels_data_dir",
+                            nargs="+",
+                            type=str,
+                            help="Directory where the labels are stored",
+                            default=None)
         parser.add_argument("-ldg", "--labels-data-group",
                             dest="labels_data_group",
                             type=str,
@@ -32,30 +44,50 @@ try:
                                  " are stored. If not set, the normal"
                                  " non-labeled dataset is used.",
                             default=None)
-        parser.add_argument("-lda", "--labels-data-axes",
+        parser.add_argument("-ldsa", "--labels-source-axes",
                             dest="labels_source_axes",
                             type=str,
                             help="Order in which the axes of the labels are"
                                  " stored. The default order is the given by"
                                  " the OME standard.",
-                            default="XYZCT")
+                            default=None)
+        parser.add_argument("-lda", "--labels-axes",
+                            dest="labels_axes",
+                            type=str,
+                            help="Order in which the axes of the labels are"
+                                 " retrieved. The default order is the given"
+                                 " by the OME standard.",
+                            default=None)
+        parser.add_argument("-mdd", "--mask-data-dir", dest="mask_data_dir",
+                            nargs="+",
+                            type=str,
+                            help="Directory where the masks are stored",
+                            default=None)
         parser.add_argument("-mdg", "--mask-group", dest="mask_data_group",
                             type=str,
                             help="Group within the zarr file where the masks"
                                  " are stored. If not set, a simplified mask "
                                  "is generated to use all the image.",
                             default=None)
-        parser.add_argument("-mda", "--mask-data-axes",
+        parser.add_argument("-mdsa", "--mask-souce-axes",
                             dest="mask_source_axes",
                             type=str,
                             help="Order in which the axes of the masks are"
                                  "stored. The default order is XY for the"
                                  " spatial axes of the OME standard.",
-                            default="XY")
+                            default=None)
+        parser.add_argument("-mda", "--mask-axes",
+                            dest="mask_axes",
+                            type=str,
+                            help="Order in which the axes of the masks are"
+                                 "retrieved. The default order is XY for the"
+                                 " spatial axes of the OME standard.",
+                            default=None)
         parser.add_argument("-ps", "--patch-size", dest="patch_size",
+                            nargs="+",
                             type=int,
                             help="Size of the patches extracted.",
-                            default=256)
+                            default=[256])
         parser.add_argument("-bs", "--batch-size", dest="batch_size",
                             type=int,
                             help="Size of the mini batches used for training a"
@@ -98,6 +130,9 @@ try:
             elif ".zarr" in dd:
                 filenames.append(dd)
 
+        if len(args.patch_size) == 1:
+            args.patch_size = args.patch_size[0]
+
         if 'grid' in args.sample_method:
             patch_sampler = zds.GridPatchSampler(args.patch_size)
 
@@ -107,19 +142,39 @@ try:
         else:
             patch_sampler = None
 
-        transform_fn = torchvision.transforms.Compose([
-            zds.ZarrToArray(dtype=np.uint8),
-            torchvision.transforms.ToTensor()
-        ])
 
-        if args.labels_data_group is not None:
-            targets_transform_fn = torchvision.transforms.Compose([
-                zds.ZarrToArray(np.int64)])
+        if ((args.labels_data_dir is not None
+             or args.labels_data_group is not None)
+            and (args.mask_data_dir is not None
+                 or args.mask_data_group is not None)):
+
+            my_dataset = zds.MaskedLabeledZarrDataset(
+                filenames,
+                mask_filenames=args.mask_data_dir,
+                labels_filenames=args.labels_data_dir,
+                patch_sampler=patch_sampler,
+                shuffle=True,
+                progress_bar=True,
+                return_positions=True,
+                **args.__dict__)
+
+        elif (args.labels_data_dir is not None
+              or args.labels_data_group is not None):
 
             my_dataset = zds.LabeledZarrDataset(
                 filenames,
-                transform=transform_fn,
-                target_transform=targets_transform_fn,
+                labels_filenames=args.labels_data_dir,
+                patch_sampler=patch_sampler,
+                shuffle=True,
+                progress_bar=True,
+                return_positions=True,
+                **args.__dict__)
+
+        elif (args.mask_data_dir is not None
+              or args.mask_data_group is not None):
+            my_dataset = zds.MaskedZarrDataset(
+                filenames,
+                mask_filenames=args.mask_data_dir,
                 patch_sampler=patch_sampler,
                 shuffle=True,
                 progress_bar=True,
@@ -129,7 +184,6 @@ try:
         else:
             my_dataset = zds.ZarrDataset(
                 filenames,
-                transform=transform_fn,
                 patch_sampler=patch_sampler,
                 shuffle=True,
                 progress_bar=True,

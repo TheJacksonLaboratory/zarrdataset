@@ -165,7 +165,7 @@ class ImageBase(object):
 
     def __getitem__(self, index):
         if isinstance(index, slice):
-            index = [index] * len(self.axes)
+            index = [index] * len(self._spatial_reference_axes)
 
         # Scale the spatial axes of the index according to this image scale.
         index = dict(((ax, sel)

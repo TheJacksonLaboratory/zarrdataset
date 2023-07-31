@@ -51,7 +51,7 @@ def parse_rois(rois_str):
 def parse_metadata(filename, default_source_axes, default_data_group=None,
                    default_axes=None,
                    default_rois=None,
-                   ignore_rois=False):
+                   override_meta=False):
     """Parse the filename, data groups, axes ordering, ROIs from `filename`.
 
     The different fields must be separated by a semicolon (;).
@@ -73,6 +73,9 @@ def parse_metadata(filename, default_source_axes, default_data_group=None,
         the filename string.
     default_rois : list of tuple of slices or None
         Default roi used when no rois are present in the filename string.
+    override_meta : bool
+        Whether to override the values parsed from the filename with the
+        defaults or not.
 
     Returns
     -------
@@ -145,9 +148,6 @@ def parse_metadata(filename, default_source_axes, default_data_group=None,
     data_group = None
     rois_str = []
 
-    if not isinstance(default_rois, list):
-        default_rois = [default_rois]
-
     if default_axes is None:
         default_axes = default_source_axes
 
@@ -171,21 +171,20 @@ def parse_metadata(filename, default_source_axes, default_data_group=None,
     else:
         fn = filename
 
-    if not source_axes:
+    if not source_axes or (override_meta and default_source_axes is not None):
         source_axes = default_source_axes
 
-    if not data_group:
+    if not data_group or (override_meta and default_data_group is not None):
         data_group = default_data_group
 
-    if not target_axes:
+    if not target_axes or (override_meta and default_axes is not None):
         target_axes = default_axes
 
-    if ignore_rois:
-        rois = [None]
-    else:
-        rois = parse_rois(rois_str)
-        if not rois:
-            rois = default_rois
+    rois = parse_rois(rois_str)
+    if not rois or (override_meta and default_rois is not None):
+        if not isinstance(default_rois, list):
+            default_rois = [default_rois]
+        rois = default_rois
 
     parsed_metadata = [
         {"filename": fn,

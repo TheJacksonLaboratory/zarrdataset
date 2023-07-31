@@ -331,7 +331,10 @@ class LabeledZarrDataset(ZarrDataset):
             labels_axes = labels_source_axes
 
         if labels_roi is None:
-            labels_roi = roi
+            if labels_data_group == data_group:
+                labels_roi = roi
+            else:
+                labels_roi = [[slice(None)] * len(labels_source_axes)]
 
         super(LabeledZarrDataset, self).__init__(filenames, source_axes,
                                                  axes=axes,
@@ -376,7 +379,6 @@ class MaskedZarrDataset(ZarrDataset):
                  mask_axes=None,
                  mask_roi=None,
                  mask_func=None,
-                 mask_func_args=None,
                  mask_zarr_store=zarr.storage.FSStore,
                  **kwargs):
 
@@ -396,7 +398,10 @@ class MaskedZarrDataset(ZarrDataset):
             mask_axes = mask_source_axes
 
         if mask_roi is None:
-            mask_roi = roi
+            if mask_data_group == data_group:
+                mask_roi = roi
+            else:
+                mask_roi = [[slice(None)] * len(mask_source_axes)]
 
         super(MaskedZarrDataset, self).__init__(filenames, source_axes,
                                                 axes=axes,
@@ -412,7 +417,7 @@ class MaskedZarrDataset(ZarrDataset):
                         default_data_group=mask_data_group,
                         default_axes=mask_axes,
                         default_rois=mask_roi,
-                        ignore_rois=True),
+                        override_meta=True),
                 mask_filenames),
             [])
 

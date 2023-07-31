@@ -23,7 +23,7 @@ try:
 
         patch_size = (512, 512)
         batch_size = 4
-        num_workers = 0
+        num_workers = 2
 
         torch.manual_seed(777)
         patch_sampler = zds.GridPatchSampler(patch_size)
@@ -34,12 +34,23 @@ try:
             torchvision.transforms.ToTensor()
         ])
 
-        my_dataset = zds.ZarrDataset(filenames, transform=transform_fn,
-                                     data_group="2",
-                                     source_axes="TCZYX",
-                                     roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
-                                     axes="YXC",
-                                     patch_sampler=patch_sampler)
+        # my_dataset = zds.ZarrDataset(filenames, transform=transform_fn,
+        #                              data_group="2",
+        #                              source_axes="TCZYX",
+        #                              roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
+        #                              axes="YXC",
+        #                              patch_sampler=patch_sampler)
+        my_dataset = zds.MaskedZarrDataset(filenames, transform=transform_fn,
+                                           data_group="2",
+                                           source_axes="TCZYX",
+                                           roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
+                                           axes="YXC",
+                                           mask_data_group="4",
+                                           mask_source_axes="TCZYX",
+                                           mask_roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
+                                           mask_axes="YXC",
+                                           mask_func=mask_generator,
+                                           patch_sampler=patch_sampler)
 
         my_dataloader = DataLoader(my_dataset, batch_size=batch_size,
                                    num_workers=num_workers,
