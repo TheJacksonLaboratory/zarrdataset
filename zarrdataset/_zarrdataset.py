@@ -348,7 +348,7 @@ class LabeledZarrDataset(ZarrDataset):
                         default_data_group=labels_data_group,
                         default_axes=labels_axes,
                         default_rois=labels_roi,
-                        ignore_rois=True),
+                        override_meta=True),
                 labels_filenames),
             [])
 
