@@ -33,7 +33,7 @@ class WSITissueMaskGenerator(MaskGenerator):
                                         preserve_range=True)
 
         if self._thresh is None:
-            self._thresh = filters.threshold_otsu(image)
+            self._thresh = filters.threshold_otsu(scaled_gray)
 
         chunk_mask = scaled_gray > self._thresh
         chunk_mask = morphology.remove_small_objects(

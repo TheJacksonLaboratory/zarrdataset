@@ -27,7 +27,7 @@ try:
         #     ]
         filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr"]
 
-        patch_size = (4096, 4096)
+        patch_size = (512, 512)
         batch_size = 4
         num_workers = 0
 
@@ -42,7 +42,7 @@ try:
 
         my_dataset = zds.MaskedZarrDataset(filenames,
                                            transform=transform_fn,
-                                           data_group="0",
+                                           data_group="2",
                                            source_axes="TCZYX",
                                            roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
                                            axes="YXC",

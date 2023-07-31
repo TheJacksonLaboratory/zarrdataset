@@ -99,7 +99,8 @@ class PatchSampler(object):
                                       mask_spatial_scale,
                                       self._max_chunk_size))
 
-        valid_mask = transform.downscale_local_mean(mask[:],
+        full_mask = mask[:]
+        valid_mask = transform.downscale_local_mean(full_mask,
                                                     factors=scaled_chunk_size)
 
         chunks_grids = np.nonzero(valid_mask)
