@@ -15,16 +15,10 @@ try:
     if __name__ == "__main__":
         print("Zarr-based data loader demo")
         # These are images from the Image Data Resource (IDR) 
-        # https://idr.openmicroscopy.org/ that are publicly available and were 
+        # https://idr.openmicroscopy.org/ that are publicly available and were
         # converted to the OME-NGFF (Zarr) format by the OME group. More
         # examples can be found at Public OME-Zarr data (Nov. 2020)
         # https://www.openmicroscopy.org/2020/11/04/zarr-data.html
-        # filenames = [
-        #     "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836839.zarr",
-        #     "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836840.zarr",
-        #     "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836841.zarr",
-        #     "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/9836842.zarr"
-        #     ]
         filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr"]
 
         patch_size = (512, 512)
@@ -37,19 +31,15 @@ try:
         mask_generator = zds.WSITissueMaskGenerator(mask_scale=1)
 
         transform_fn = torchvision.transforms.Compose([
-            zds.ZarrToArray(np.float64)
+            torchvision.transforms.ToTensor()
         ])
 
-        my_dataset = zds.MaskedZarrDataset(filenames,
-                                           transform=transform_fn,
-                                           data_group="2",
-                                           source_axes="TCZYX",
-                                           roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
-                                           axes="YXC",
-                                           mask_axes="YXC",
-                                           mask_func=mask_generator,
-                                           mask_data_group="4",
-                                           patch_sampler=patch_sampler)
+        my_dataset = zds.ZarrDataset(filenames, transform=transform_fn,
+                                     data_group="2",
+                                     source_axes="TCZYX",
+                                     roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
+                                     axes="YXC",
+                                     patch_sampler=patch_sampler)
 
         my_dataloader = DataLoader(my_dataset, batch_size=batch_size,
                                    num_workers=num_workers,
@@ -60,7 +50,8 @@ try:
         for i, (x, t) in enumerate(my_dataloader):
             etime = time.perf_counter() - etime
             etimes += etime
-            print("Sample %i" % i, x.shape, x.dtype, t.shape, t.dtype, etime, etimes / (i + 1))
+            print("Sample %i" % i, x.shape, x.dtype, t.shape, t.dtype, etime,
+                  etimes / (i + 1))
             etime = time.perf_counter()
 
 

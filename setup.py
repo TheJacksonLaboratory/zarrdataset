@@ -26,7 +26,7 @@ setuptools.setup(
         'zarr>=2.12.0',
         'scikit-image>=0.19.3',
         'dask>=2022.2.0',
-        'bridson>=0.1.0',
+        'poisson-disc>=0.2.1',
     ],
     python_requires='>=3.7'
 )

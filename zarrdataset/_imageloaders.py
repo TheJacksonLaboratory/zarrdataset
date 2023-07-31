@@ -102,25 +102,26 @@ class ImageBase(object):
     source_axes = None
     axes = None
     chunk_size = None
-    spatial_reference_shape = None
-    spatial_reference_axes = None
     mode = ""
     permute_order = None
     _new_axes = ""
     _drop_axes = ""
     _scale = None
     _shape = None
+    _spatial_reference_shape = None
+    _spatial_reference_axes = None
     _chunk_size = None
     _cached_coords = None
+    _image_func = None
 
-    def __init__(self, shape, chunk_size=None, axes=None):
+    def __init__(self, shape, chunk_size=None, axes=None, mode=""):
         if chunk_size is None:
             chunk_size = shape
 
         self.source_axes = axes
         self.axes = axes
-        self._permute_order = list(range(len(axes)))
-        self._arr = zarr.ones(shape=shape, dtype=bool, chunks=chunk_size)
+        self.permute_order = list(range(len(axes)))
+        self.arr = zarr.ones(shape=shape, dtype=bool, chunks=chunk_size)
         self.roi = tuple([slice(None)] * len(axes))
 
     def _iscached(self, coords):
@@ -168,7 +169,7 @@ class ImageBase(object):
 
         # Scale the spatial axes of the index according to this image scale.
         index = dict(((ax, sel)
-                      for ax, sel in zip(self.spatial_reference_axes, index)))
+                      for ax, sel in zip(self._spatial_reference_axes, index)))
 
         mode_index, _ = select_axes(self.axes, index)
         mode_index = scale_coords(mode_index, self.scale)
@@ -194,8 +195,8 @@ class ImageBase(object):
         selection = np.expand_dims(selection, tuple(self.axes.index(a)
                                                     for a in self._new_axes))
 
-        if self.image_func:
-            selection = self.image_func(selection)
+        if self._image_func is not None:
+            selection = self._image_func(selection)
 
         return selection
 
@@ -205,7 +206,6 @@ class ImageBase(object):
 
         self._shape = []
         self._chunk_size = []
-        self._scale = []
 
         for a in self.axes:
             if a in self.source_axes:
@@ -227,10 +227,38 @@ class ImageBase(object):
                 self._shape.append(1)
                 self._chunk_size.append(1)
 
-        for a, s in zip(self.axes, self._shape):
-            if a in self.spatial_reference_axes:
-                a_i = self.spatial_reference_axes.index(a)
-                ref_s = self.spatial_reference_shape[a_i]
+        if self._spatial_reference_axes is None:
+            self._spatial_reference_axes = [
+                ax for ax in self.axes if ax in self.spatial_axes
+                ]
+
+        if self._spatial_reference_shape is None:
+            self._spatial_reference_shape = [
+                s for s, ax in zip(self._shape, self.axes)
+                if ax in self.spatial_axes
+                ]
+
+    def rescale(self, spatial_reference_shape=None,
+                spatial_reference_axes=None):
+        if (self._scale is not None
+           and spatial_reference_shape is None
+           and spatial_reference_axes is None):
+            return
+
+        if spatial_reference_shape is not None:
+            self._spatial_reference_shape = spatial_reference_shape
+
+        if spatial_reference_axes is not None:
+            self._spatial_reference_axes = spatial_reference_axes
+
+        self._compute_shapes()
+
+        self._scale = []
+
+        for a, s in zip(self.axes, self.shape):
+            if a in self._spatial_reference_axes:
+                a_i = self._spatial_reference_axes.index(a)
+                ref_s = self._spatial_reference_shape[a_i]
 
                 self._scale.append(2 ** -round(math.log2(ref_s / s)))
             else:
@@ -248,7 +276,7 @@ class ImageBase(object):
 
     @property
     def scale(self):
-        self._compute_shapes()
+        self.rescale()
         return self._scale
 
 
@@ -314,7 +342,7 @@ class ImageLoader(ImageBase):
         else:
             self.permute_order = list(range(len(axes)))
 
-        self.image_func = image_func
+        self._image_func = image_func
 
         if image_func is not None:
             self.axes = image_func.axes
@@ -330,8 +358,6 @@ class ImageCollection(object):
                  spatial_axes="ZYX"):
 
         self.spatial_axes = spatial_axes
-        self._cached_coords = None
-        self._cache = None
 
         self.collection = dict((
             (mode, ImageLoader(spatial_axes=spatial_axes, mode=mode,
@@ -362,7 +388,8 @@ class ImageCollection(object):
 
         self.collection["masks"] = ImageBase(shape=mask_chunk_size,
                                              chunk_size=mask_chunk_size,
-                                             axes=mask_axes)
+                                             axes=mask_axes,
+                                             mode="masks")
 
     def _assign_scales(self):
         img_shape = self.collection["images"].arr.shape
@@ -380,8 +407,7 @@ class ImageCollection(object):
         ]
 
         for img in self.collection.values():
-            img.spatial_reference_shape = spatial_reference_shape
-            img.spatial_reference_axes = spatial_reference_axes
+            img.rescale(spatial_reference_shape, spatial_reference_axes)
 
     def __getitem__(self, index):
         collection_set = dict((mode, img[index])
@@ -389,7 +415,3 @@ class ImageCollection(object):
                               if mode != "masks")
 
         return collection_set
-
-    def free_cache(self):
-        for img in self.collection.values():
-            img.free_cache()

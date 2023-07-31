@@ -136,19 +136,19 @@ class GridPatchSampler(PatchSampler):
             if ax in self.spatial_axes
             )
 
-        scales_patch_size = tuple(map(lambda ps, scl: int(ps * scl),
+        scaled_patch_size = tuple(map(lambda ps, scl: int(ps * scl),
                                       self._patch_size,
                                       mask_spatial_scale))
 
-        if all(map(operator.ge, scales_patch_size, repeat(1))):
+        if all(map(operator.ge, scaled_patch_size, repeat(1))):
             valid_mask = transform.downscale_local_mean(
-                mask[chunk_tlbr], factors=scales_patch_size)
+                mask[chunk_tlbr], factors=scaled_patch_size)
         else:
-            scales_patch_size = tuple(map(lambda ps, scl: 1 / (scl * ps),
+            scaled_patch_size = tuple(map(lambda ps, scl: 1 / (scl * ps),
                                           self._patch_size,
                                           mask_spatial_scale))
             valid_mask = transform.rescale(
-                mask[chunk_tlbr], scale=scales_patch_size)
+                mask[chunk_tlbr], scale=scaled_patch_size)
 
         toplefts = np.nonzero(valid_mask)
 
