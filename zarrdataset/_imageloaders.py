@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 
 
 def image2array(arr_src, data_group=None, s3_obj=None,
-                zarr_store=zarr.storage.FSStore):
+                zarr_store=zarr.DirectoryStore):
     """Open images stored in zarr format or any image format that can be opened
     by PIL as an array.
 
@@ -293,7 +293,7 @@ class ImageLoader(ImageBase):
     def __init__(self, filename, source_axes, data_group=None, axes=None,
                  roi=None,
                  image_func=None,
-                 zarr_store=zarr.storage.FSStore,
+                 zarr_store=zarr.DirectoryStore,
                  spatial_axes="ZYX",
                  mode=""):
         self.mode = mode

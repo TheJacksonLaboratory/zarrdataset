@@ -310,7 +310,7 @@ class LabeledZarrDataset(ZarrDataset):
                  labels_roi=None,
                  target_transform=None,
                  input_target_transform=None,
-                 labels_zarr_store=zarr.storage.FSStore,
+                 labels_zarr_store=zarr.DirectoryStore,
                  **kwargs):
         # Override the selection to always return labels with this class
         kwargs["return_any_label"] = False
@@ -382,7 +382,7 @@ class MaskedZarrDataset(ZarrDataset):
                  mask_axes=None,
                  mask_roi=None,
                  mask_func=None,
-                 mask_zarr_store=zarr.storage.FSStore,
+                 mask_zarr_store=zarr.DirectoryStore,
                  **kwargs):
 
         if mask_filenames is not None:
