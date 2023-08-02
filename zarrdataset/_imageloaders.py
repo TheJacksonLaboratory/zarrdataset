@@ -52,6 +52,10 @@ def image2array(arr_src, data_group=None, s3_obj=None,
         arr = zarr.open(store, mode="r")
         return arr, None
 
+    elif isinstance(arr_src, np.ndarray):
+        arr = zarr.array(data=arr_src, shape=arr_src, chunks=True)
+        return arr, None
+
     if TIFFFILE_SUPPORT:
         # Try first to open the input file with tifffile (if installed).
         # If that fails, try to open it with PIL.

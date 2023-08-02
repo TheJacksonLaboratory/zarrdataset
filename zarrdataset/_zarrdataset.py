@@ -100,7 +100,7 @@ class ZarrDataset(IterableDataset):
                  return_positions=False,
                  return_any_label=True,
                  draw_same_chunk=False,
-                 zarr_store=zarr.storage.FSStore,
+                 zarr_store=zarr.DirectoryStore,
                  **kwargs):
 
         self._worker_id = 0
@@ -342,6 +342,9 @@ class LabeledZarrDataset(ZarrDataset):
                                                  roi=roi,
                                                  **kwargs)
 
+        if not isinstance(labels_filenames, list):
+            labels_filenames = [labels_filenames]
+
         labels_filenames = reduce(
             operator.add,
             map(partial(parse_metadata, default_source_axes=labels_source_axes,
@@ -409,8 +412,9 @@ class MaskedZarrDataset(ZarrDataset):
                                                 roi=roi,
                                                 **kwargs)
 
-        # Match the passed mask filenames to each filename in the images
-        # modality
+        if not isinstance(mask_filenames, list):
+            mask_filenames = [mask_filenames]
+
         mask_filenames = reduce(
             operator.add,
             map(partial(parse_metadata, default_source_axes=mask_source_axes,
