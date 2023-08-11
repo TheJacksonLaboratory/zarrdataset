@@ -100,7 +100,7 @@ class ZarrDataset(IterableDataset):
                  return_positions=False,
                  return_any_label=True,
                  draw_same_chunk=False,
-                 zarr_store=zarr.DirectoryStore,
+                 zarr_store=None,
                  **kwargs):
 
         self._worker_id = 0
@@ -310,7 +310,7 @@ class LabeledZarrDataset(ZarrDataset):
                  labels_roi=None,
                  target_transform=None,
                  input_target_transform=None,
-                 labels_zarr_store=zarr.DirectoryStore,
+                 labels_zarr_store=None,
                  **kwargs):
         # Override the selection to always return labels with this class
         kwargs["return_any_label"] = False
@@ -382,7 +382,7 @@ class MaskedZarrDataset(ZarrDataset):
                  mask_axes=None,
                  mask_roi=None,
                  mask_func=None,
-                 mask_zarr_store=zarr.DirectoryStore,
+                 mask_zarr_store=None,
                  **kwargs):
 
         if mask_filenames is not None:

@@ -19,8 +19,7 @@ except ModuleNotFoundError:
     TIFFFILE_SUPPORT = False
 
 
-def image2array(arr_src, data_group=None, s3_obj=None,
-                zarr_store=zarr.DirectoryStore):
+def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
     """Open images stored in zarr format or any image format that can be opened
     by PIL as an array.
 
@@ -34,6 +33,10 @@ def image2array(arr_src, data_group=None, s3_obj=None,
     s3_obj : dict or None
         A dictionary containing the bucket name and a boto3 client connection
         to a S3 bucket, or None if the file is stored locally.
+    zarr_store : zarr.storage.Store or None
+        The class used to open the zarr file. Leave it as None to let this
+        function to use the most suitable depending to the data location
+        (s3/remote: FSStore, local disk: DirectoryStore).
 
     Returns
     -------
@@ -48,6 +51,15 @@ def image2array(arr_src, data_group=None, s3_obj=None,
         return arr_src, None
 
     elif isinstance(arr_src, str) and ".zarr" in arr_src:
+        if zarr_store is None:
+            # If zarr_store is not set by the user, assign the most suitable
+            # according to the image location (remote: FSStore,
+            # local: DirectoryStore).
+            if s3_obj is not None:
+                zarr_store = zarr.storage.FSStore
+            else:
+                zarr_store = zarr.storage.DirectoryStore
+
         store = zarr_store(os.path.join(arr_src, data_group))
         arr = zarr.open(store, mode="r")
         return arr, None
@@ -293,7 +305,7 @@ class ImageLoader(ImageBase):
     def __init__(self, filename, source_axes, data_group=None, axes=None,
                  roi=None,
                  image_func=None,
-                 zarr_store=zarr.DirectoryStore,
+                 zarr_store=None,
                  spatial_axes="ZYX",
                  mode=""):
         self.mode = mode

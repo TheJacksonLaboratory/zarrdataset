@@ -11,7 +11,7 @@ try:
 
     if __name__ == "__main__":
         print("Zarr-based data loader demo")
-        # These are images from the Image Data Resource (IDR) 
+        # These are images from the Image Data Resource (IDR)
         # https://idr.openmicroscopy.org/ that are publicly available and were 
         # converted to the OME-NGFF (Zarr) format by the OME group. More
         # examples can be found at Public OME-Zarr data (Nov. 2020)
@@ -23,7 +23,6 @@ try:
         num_workers = 0
 
         patch_sampler = zds.GridPatchSampler(patch_size)
-        mask_generator = zds.WSITissueMaskGenerator(mask_scale=1)
 
         my_dataset = zds.ZarrDataset(filenames, transform=transform_fn,
                                      data_group="2",
