@@ -129,7 +129,7 @@ my_dataset = zds.ZarrDataset(filenames,
 Examples of integration of the **ZarrDataset** class with the PyTorch's **DataLoader** can be found in the _examples_ folder.
 
 ## Installation
-To install this package and have access to the zarr-based PyTorch Dataset (ZarrDataset and LabeledZarrDataset) and other functionalities, clone this repository and use the following command from the cloned repository location.
+To install this package and have access to the zarr-based PyTorch Dataset (ZarrDataset and LabeledZarrDataset) and other functionalities, clone this repository and use the following command from inside the cloned repository location.
 ```
-python setup.py -e .
+python -m pip install -e .
 ```
