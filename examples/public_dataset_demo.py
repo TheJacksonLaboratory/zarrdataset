@@ -2,11 +2,6 @@ import time
 import numpy as np
 import zarrdataset as zds
 
-from numcodecs import register_codec
-from caecodec import ConvolutionalAutoencoder, BottleneckStore
-
-register_codec(ConvolutionalAutoencoder)
-
 try:
     import torch
     import torchvision
@@ -19,7 +14,6 @@ try:
         # converted to the OME-NGFF (Zarr) format by the OME group. More
         # examples can be found at Public OME-Zarr data (Nov. 2020)
         # https://www.openmicroscopy.org/2020/11/04/zarr-data.html
-        # filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr"]
         filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0101A/13457537.zarr"]
 
         patch_size = (512, 512)
@@ -35,12 +29,6 @@ try:
             torchvision.transforms.ToTensor()
         ])
 
-        # my_dataset = zds.ZarrDataset(filenames, transform=transform_fn,
-        #                              data_group="2",
-        #                              source_axes="TCZYX",
-        #                              roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
-        #                              axes="YXC",
-        #                              patch_sampler=patch_sampler)
         my_dataset = zds.LabeledZarrDataset(filenames, transform=transform_fn,
                                            data_group="2",
                                            source_axes="TCZYX",

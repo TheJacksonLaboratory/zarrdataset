@@ -44,7 +44,10 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
         The image as a zarr array.
     """
     if isinstance(arr_src, zarr.Group):
-        arr = arr_src[data_group]
+        if data_group is not None and len(data_group):
+            arr = arr_src[data_group]
+        else:
+            arr = arr_src
         return arr, None
 
     elif isinstance(arr_src, zarr.Array):
@@ -60,8 +63,12 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
             else:
                 zarr_store = zarr.storage.DirectoryStore
 
-        store = zarr_store(os.path.join(arr_src, data_group))
-        arr = zarr.open(store, mode="r")
+        store = zarr_store(arr_src)
+        grp = zarr.open(store, mode="r")
+        if data_group is not None and len(data_group):
+            arr = grp[data_group]
+        else:
+            arr = grp
         return arr, None
 
     elif isinstance(arr_src, np.ndarray):
