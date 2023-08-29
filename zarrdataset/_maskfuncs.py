@@ -38,7 +38,7 @@ class WSITissueMaskGenerator(MaskGenerator):
         chunk_mask = scaled_gray > self._thresh
         chunk_mask = morphology.remove_small_objects(
             chunk_mask == 0, min_size=self._min_size ** 2, connectivity=2)
-        mask = morphology.remove_small_holes(
+        chunk_mask = morphology.remove_small_holes(
             chunk_mask, area_threshold=self._area_threshold_2)
         mask = morphology.binary_dilation(
             chunk_mask, morphology.disk(self._min_size))

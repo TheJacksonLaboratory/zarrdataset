@@ -245,19 +245,26 @@ class BlueNoisePatchSampler(PatchSampler):
         chunk_patches = self._get_positions_array(force=False)
 
         chunk_valid_mask = mask[chunk_tlbr]
-        chunk_valid_mask = np.pad(chunk_valid_mask, 1)
-
         chunk_valid_mask_grid = map(lambda chk, s:
-                                    np.linspace(0, chk, s)
-                                    + np.array([float("-inf")]
-                                               + [0] * (s - 2)
-                                               + [float("inf")]),
+                                    np.linspace(0, chk, s),
                                     self._max_chunk_size,
                                     chunk_valid_mask.shape)
-        chunk_valid_mask_grid = np.meshgrid(*tuple(chunk_valid_mask_grid))
+        chunk_valid_mask_grid = np.meshgrid(
+            *reversed(tuple(chunk_valid_mask_grid))
+            )
+    
+        chunk_valid_mask_grid = [
+            np.pad(grid, 1, mode='constant', constant_values=1e12)
+            for grid in chunk_valid_mask_grid
+        ]
+
+        chunk_valid_mask_grid = tuple(
+            ax.flatten() for ax in chunk_valid_mask_grid)
+        chunk_valid_mask = np.pad(chunk_valid_mask, 1, mode='constant',
+                                  constant_values=0)
 
         samples_validity = interpolate.griddata(
-            tuple(ax.flatten() for ax in reversed(chunk_valid_mask_grid)),
+            chunk_valid_mask_grid,
             chunk_valid_mask.flatten(),
             chunk_patches,
             method='nearest'

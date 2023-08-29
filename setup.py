@@ -18,9 +18,10 @@ setuptools.setup(
     url="https://github.com/TheJacksonLaboratory/zarrdataset",
     packages=setuptools.find_packages(),
     install_requires=[
-        'requests>=2.28.2',
-        'aiohttp>=3.8.3',
-        'boto3>=1.26.29',
+        'requests>=2.31.0',
+        'aiohttp>=3.8.5',
+        'boto-core>=1.31.35',
+        'boto3>=1.28.35',
         'fsspec>=2022.11.0',
         's3fs>=0.4.2',
         'zarr>=2.12.0',

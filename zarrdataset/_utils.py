@@ -303,6 +303,7 @@ def connect_s3(filename_sample):
         endpoint = protocol + "://" + urlparse(filename_sample).netloc
         s3_obj = dict(
             bucket_name=filename_sample.split(endpoint)[1].split("/")[1],
+            endpoint_url=endpoint,
             s3=boto3.client("s3", aws_access_key_id="",
                             aws_secret_access_key="",
                             region_name="us-east-2",

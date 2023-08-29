@@ -75,25 +75,12 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
         arr = zarr.array(data=arr_src, shape=arr_src, chunks=True)
         return arr, None
 
-    if TIFFFILE_SUPPORT:
-        # Try first to open the input file with tifffile (if installed).
-        # If that fails, try to open it with PIL.
-        try:
-            data_group = data_group.split("/")[-1]
-            store = tifffile.imread(arr_src, aszarr=True,
-                                    key=int(data_group))
-            arr = zarr.open(store, mode="r")
-            return arr, store
-
-        except tifffile.tifffile.TiffFileError:
-            pass
-
     # If the input is a path to an image stored in a format
     # supported by PIL, open it and use it as a numpy array.
     try:
         if s3_obj is not None:
             # The image is stored in a S3 bucket
-            filename = arr_src.split(s3_obj["endpoint"]
+            filename = arr_src.split(s3_obj["endpoint_url"]
                                      + "/"
                                      + s3_obj["bucket_name"])[1][1:]
             im_bytes = s3_obj["s3"].get_object(Bucket=s3_obj["bucket_name"],
@@ -104,19 +91,36 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
             # The image is stored locally
             store = Image.open(arr_src, mode="r")
 
+        channels = len(store.getbands())
+        height = store.size[1]
+        width = store.size[0]
+
+        arr = zarr.array(data=np.array(store),
+                        shape=(height, width, channels),
+                        dtype=np.uint8)
+        return arr, store
+
     except PIL.UnidentifiedImageError:
-        raise ValueError(f"The file/object {arr_src} cannot be opened by "
-                         f"zarr, dask, TiffFile, or PIL")
+        pass
 
-    channels = len(store.getbands())
-    height = store.size[1]
-    width = store.size[0]
+    if TIFFFILE_SUPPORT:
+        # Try to open the input file with tifffile (if installed).
+        try:
+            if data_group is not None and len(data_group):
+                data_group = data_group.split("/")[-1]
+            else:
+                data_group = "0"
 
-    arr = zarr.array(data=np.array(store),
-                     shape=(height, width, channels),
-                     dtype=np.uint8)
+            store = tifffile.imread(arr_src, aszarr=True,
+                                    key=int(data_group))
+            arr = zarr.open(store, mode="r")
+            return arr, store
 
-    return arr, store
+        except tifffile.tifffile.TiffFileError:
+            pass
+
+    raise ValueError(f"The file/object {arr_src} cannot be opened by "
+                        f"zarr, dask, TiffFile, or PIL")
 
 
 class ImageBase(object):
@@ -127,6 +131,7 @@ class ImageBase(object):
     chunk_size = None
     mode = ""
     permute_order = None
+    _store = None
     _new_axes = ""
     _drop_axes = ""
     _scale = None

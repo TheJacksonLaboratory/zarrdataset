@@ -1,10 +1,32 @@
 import numpy as np
 import zarrdataset as zds
+import zarr
+from PIL import Image
 
 
 def transform_fn(image):
     image = zds.ZarrToArray(np.float64)(image)
     return image
+
+
+def generate_groups():
+    grps = [
+        "tests/test_zarrs/zarr_group_1.zarr",
+        "tests/test_zarrs/zarr_group_2.zarr",
+        "tests/test_zarrs/zarr_group_3.zarr"
+    ]
+
+    grps_arr = []
+    mask_grps_arr = []
+    labels_grps_arr = []
+
+    for fn in grps:
+        z_grp = zarr.open(fn, mode="r")
+        grps_arr.append(z_grp["0/0"])
+        mask_grps_arr.append(z_grp["masks/0/0"])
+        labels_grps_arr.append(z_grp["labels/0/0"])
+
+    return grps_arr, mask_grps_arr, labels_grps_arr
 
 
 if __name__ == "__main__":
@@ -14,17 +36,44 @@ if __name__ == "__main__":
     # converted to the OME-NGFF (Zarr) format by the OME group. More examples
     # can be found at Public OME-Zarr data (Nov. 2020)
     # https://www.openmicroscopy.org/2020/11/04/zarr-data.html
-    filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr"]
+    # filenames = ["https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr"]
+    filenames = [
+        "../tests/test_zarrs/zarr_group_1.zarr",
+        "../tests/test_zarrs/zarr_group_2.zarr",
+        "../tests/test_zarrs/zarr_group_3.zarr"
+        ]
 
-    patch_size = (512, 512)
+    # patch_size = (512, 512)
 
-    patch_sampler = zds.GridPatchSampler(patch_size)
-    my_dataset = zds.ZarrDataset(filenames, transform=transform_fn,
-                                 data_group="2",
-                                 source_axes="TCZYX",
-                                 roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
-                                 axes="YXC",
-                                 patch_sampler=patch_sampler)
+    # patch_sampler = zds.GridPatchSampler(patch_size)
+    # my_dataset = zds.ZarrDataset(filenames, transform=transform_fn,
+    #                              data_group="0/0",
+    #                              source_axes="CYX",
+    #                              # source_axes="TCZYX",
+    #                              # roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
+    #                              axes="YXC",
+    #                              patch_sampler=patch_sampler)
+    groups = dict(
+        filenames=[
+            "https://r0k.us/graphics/kodak/kodak/kodim01.png",
+            "https://r0k.us/graphics/kodak/kodak/kodim02.png",
+            "https://r0k.us/graphics/kodak/kodak/kodim03.png"
+            ],
+        data_group="",
+        source_axes="YXC",
+        axes="CYX"
+        )
 
-    for i, (x, t) in enumerate(my_dataset):
+    patch_height = 256
+    patch_width = 512
+    patch_sampler = zds.BlueNoisePatchSampler(patch_size=(patch_height, 
+                                                      patch_width))
+
+    test_ds = zds.ZarrDataset(
+        **groups,
+        transform=None,
+        patch_sampler=patch_sampler,
+        return_any_label=True)
+
+    for i, (x, t) in enumerate(test_ds):
         print("Sample %i" % i, x.shape, x.dtype, type(t), t)
