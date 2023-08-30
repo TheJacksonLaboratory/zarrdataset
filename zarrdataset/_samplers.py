@@ -98,12 +98,11 @@ class PatchSampler(object):
             ]
 
         scaled_chunk_size = tuple(
-            [int(self._max_chunk_size[spatial_axes.index(ax)] * scl)
+            [max(1, int(self._max_chunk_size[spatial_axes.index(ax)] * scl))
              if ax in spatial_axes else 1
              for ax, scl in zip(mask.axes, mask.scale)])
 
-        full_mask = mask[:]
-        valid_mask = transform.downscale_local_mean(full_mask,
+        valid_mask = transform.downscale_local_mean(mask[:],
                                                     factors=scaled_chunk_size)
 
         chunks_grids = np.nonzero(valid_mask)
@@ -146,7 +145,7 @@ class GridPatchSampler(PatchSampler):
             ]
 
         scaled_patch_size = tuple(
-            [int(self._max_chunk_size[spatial_axes.index(ax)] * scl)
+            [max(1, int(self._max_chunk_size[spatial_axes.index(ax)] * scl))
              if ax in spatial_axes else 1
              for ax, scl in zip(mask.axes, mask.scale)])
 

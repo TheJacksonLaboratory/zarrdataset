@@ -128,3 +128,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .vscode/launch.json
+
+# Test data
+tests/test_images/*
+tests/test_zarrs/*
+tests/test_tiffs/*

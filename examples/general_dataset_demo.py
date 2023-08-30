@@ -2,6 +2,7 @@ import numpy as np
 import zarrdataset as zds
 import zarr
 from PIL import Image
+from torch.utils.data import DataLoader
 
 
 def transform_fn(image):
@@ -55,25 +56,28 @@ if __name__ == "__main__":
     #                              patch_sampler=patch_sampler)
     groups = dict(
         filenames=[
-            "https://r0k.us/graphics/kodak/kodak/kodim01.png",
-            "https://r0k.us/graphics/kodak/kodak/kodim02.png",
-            "https://r0k.us/graphics/kodak/kodak/kodim03.png"
+            "tests/test_tiffs/img_1.ome.tif",
+            "tests/test_tiffs/img_2.ome.tif",
+            "tests/test_tiffs/img_3.ome.tif",
             ],
         data_group="",
-        source_axes="YXC",
+        source_axes="CYX",
         axes="CYX"
         )
 
-    patch_height = 256
-    patch_width = 512
+    patch_height = 25
+    patch_width = 51
     patch_sampler = zds.BlueNoisePatchSampler(patch_size=(patch_height, 
-                                                      patch_width))
+                                                        patch_width))
 
     test_ds = zds.ZarrDataset(
         **groups,
         transform=None,
         patch_sampler=patch_sampler,
         return_any_label=True)
+
+    test_dl = DataLoader(test_ds, num_workers=2, pin_memory=True,
+                            worker_init_fn=zds.zarrdataset_worker_init)
 
     for i, (x, t) in enumerate(test_ds):
         print("Sample %i" % i, x.shape, x.dtype, type(t), t)

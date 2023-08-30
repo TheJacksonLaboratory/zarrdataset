@@ -81,10 +81,11 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
         if s3_obj is not None:
             # The image is stored in a S3 bucket
             filename = arr_src.split(s3_obj["endpoint_url"]
-                                     + "/"
-                                     + s3_obj["bucket_name"])[1][1:]
-            im_bytes = s3_obj["s3"].get_object(Bucket=s3_obj["bucket_name"],
-                                               Key=filename)["Body"].read()
+                                    + "/"
+                                    + s3_obj["bucket_name"])[1][1:]
+            im_bytes = s3_obj["s3"].get_object(
+                Bucket=s3_obj["bucket_name"],
+                Key=filename)["Body"].read()
             store = Image.open(BytesIO(im_bytes))
 
         else:
