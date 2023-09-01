@@ -60,8 +60,8 @@ if __name__ == "__main__":
             "tests/test_tiffs/img_2.ome.tif",
             "tests/test_tiffs/img_3.ome.tif",
             ],
-        data_group="",
         source_axes="CYX",
+        data_group="0/0",
         axes="CYX"
         )
 

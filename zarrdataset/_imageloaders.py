@@ -42,6 +42,9 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
     -------
     arr : zarr.Array
         The image as a zarr array.
+    store: None, zarr.storage.Store, PIL.Image, tifffile.ZarrTiffStore
+        A connection to the image file that is kept open until the dataset is
+        not needed, so this connection can be closed properly.
     """
     if isinstance(arr_src, zarr.Group):
         if data_group is not None and len(data_group):
@@ -107,14 +110,42 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
     if TIFFFILE_SUPPORT:
         # Try to open the input file with tifffile (if installed).
         try:
-            if data_group is not None and len(data_group):
-                data_group = data_group.split("/")[-1]
-            else:
-                data_group = "0"
+            if (data_group is None
+              or (isinstance(data_group, str) and not len(data_group))):
+                tiff_args = dict(
+                    key=None,
+                    levels=None,
+                    series=None
+                )
+            elif isinstance(data_group, str) and len(data_group):
+                data_group_split = data_group.split("/")
 
-            store = tifffile.imread(arr_src, aszarr=True,
-                                    key=int(data_group))
+                if len(data_group_split) > 1:
+                    tiff_args = dict(
+                        key=int(data_group_split[0]),
+                        level=int(data_group_split[1]),
+                        series=None
+                    )
+                else:
+                    tiff_args = dict(
+                        key=int(data_group_split[0]),
+                        level=None,
+                        series=None
+                    )
+
+            elif isinstance(data_group, int):
+                tiff_args = dict(
+                    key=data_group,
+                    level=None,
+                    series=None
+                )
+            else:
+                raise ValueError(f"Incorrect data group format "
+                                 f"{type(data_group)}")
+
+            store = tifffile.imread(arr_src, aszarr=True, **tiff_args)
             arr = zarr.open(store, mode="r")
+
             return arr, store
 
         except tifffile.tifffile.TiffFileError:
@@ -332,16 +363,17 @@ class ImageLoader(ImageBase):
                                     zarr_store=zarr_store)
 
         if roi is None:
-            roi = [slice(None)] * len(source_axes)
+            parsed_roi = [slice(None)] * len(source_axes)
         elif isinstance(roi, str):
-            roi = parse_rois([roi])[0]
+            parsed_roi = parse_rois([roi])[0]
 
-        roi = list(map(lambda r:
-                       slice(r.start if r.start is not None else 0, r.stop,
-                             None),
-                       roi))
+        roi_slices = list(
+            map(lambda r:
+                slice(r.start if r.start is not None else 0, r.stop, None),
+                parsed_roi)
+        )
 
-        self.roi = roi
+        self.roi = roi_slices
         self.source_axes = source_axes
         self.axes = source_axes
 
@@ -369,7 +401,7 @@ class ImageLoader(ImageBase):
             self._new_axes = list(set(axes) - set(source_axes))
             self.axes = axes
         else:
-            self.permute_order = list(range(len(axes)))
+            self.permute_order = list(range(len(self.axes)))
 
         self._image_func = image_func
 
