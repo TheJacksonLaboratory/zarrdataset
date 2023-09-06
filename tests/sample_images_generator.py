@@ -1,10 +1,33 @@
+from functools import partial
+import os
 import shutil
 from pathlib import Path
 import numpy as np
+import torch
 import zarr
 from PIL import Image
 import tifffile
 from zarrdataset import *
+
+
+def input_transform(x, dtype=np.float32):
+    return x.astype(dtype)
+
+def input_target_transform(x, t, dtype=np.float32):
+    return x.astype(dtype), t.astype(dtype)
+
+
+class ImageTransformTest(MaskGenerator):
+    def __init__(self, axes):
+        super(ImageTransformTest, self).__init__(axes=axes)
+
+    def _compute_transform(self, image: np.ndarray):
+        return image * 2
+
+
+def remove_directory(dir=None):
+    if dir is not None and os.path.isdir(dir):
+        shutil.rmtree(dir)
 
 
 def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
@@ -52,7 +75,7 @@ def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
 
     store = zarr.MemoryStore()
     main_grp = zarr.open(store)
-    main_grp.create_dataset(data_group, data=img, dtype=np.uint8,
+    main_grp.create_dataset(data_group, data=img, dtype=dtype,
                             chunks=chunks)
 
     chunk_height = chunks[rel_axes_order[-2]]
@@ -73,7 +96,7 @@ def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
 
 def generate_zarr_group(dst_dir, img_idx, image_specs):
     z_groups = generate_collection(**image_specs)
-    destroy_func = lambda: None
+    destroy_func = partial(remove_directory, dir=None)
     return z_groups, None, None, None, destroy_func
 
 
@@ -82,22 +105,22 @@ def generate_zarr_array(dst_dir, img_idx, image_specs):
 
     img_src = z_groups[image_specs["data_group"]]
 
-    if image_specs.get("mask_group", None) is not None:
+    if "mask_group" in image_specs:
         mask_src = z_groups[image_specs["mask_group"]]
     else:
         mask_src = None
 
-    if image_specs.get("labels_group", None) is not None:
+    if "labels_group" in image_specs:
         labels_src = z_groups[image_specs["labels_group"]]
     else:
         labels_src = None
 
-    if image_specs.get("classes_group", None) is not None:
+    if "classes_group" in image_specs:
         classes_src = z_groups[image_specs["classes_group"]]
     else:
         classes_src = None
 
-    destroy_func = lambda: None
+    destroy_func = partial(remove_directory, dir=None)
 
     return img_src, mask_src, labels_src, classes_src, destroy_func
 
@@ -107,22 +130,22 @@ def generate_ndarray(dst_dir, img_idx, image_specs):
 
     img_src = z_groups[image_specs["data_group"]][:]
 
-    if image_specs.get("mask_group", None) is not None:
+    if "mask_group" in image_specs:
         mask_src = z_groups[image_specs["mask_group"]][:]
     else:
         mask_src = None
 
-    if image_specs.get("labels_group", None) is not None:
+    if "labels_group" in image_specs:
         labels_src = z_groups[image_specs["labels_group"]][:]
     else:
         labels_src = None
 
-    if image_specs.get("classes_group", None) is not None:
+    if "classes_group" in image_specs:
         classes_src = z_groups[image_specs["classes_group"]][:]
     else:
         classes_src = None
 
-    destroy_func = lambda: None
+    destroy_func = partial(remove_directory, dir=None)
 
     return img_src, mask_src, labels_src, classes_src, destroy_func
 
@@ -135,7 +158,7 @@ def generate_zarr_file(dst_dir, img_idx, image_specs):
     z_grp_dst = zarr.open(image_filename, mode="w")
     zarr.copy_all(z_groups, z_grp_dst)
 
-    destroy_func = lambda: shutil.rmtree(dst_dir)
+    destroy_func = partial(remove_directory, dir=dst_dir)
 
     return image_filename, None, None, None, destroy_func
 
@@ -172,7 +195,7 @@ def generate_tiffs(dst_dir, img_idx, image_specs):
             metadata={"axes": "CYX"},
         )
 
-    destroy_func = lambda: shutil.rmtree(dst_dir)
+    destroy_func = partial(remove_directory, dir=dst_dir)
 
     return image_filename, None, None, None, destroy_func
 
@@ -210,7 +233,7 @@ def generate_pngs(dst_dir, img_idx, image_specs):
     labels.save(labels_filename,
                 quality_opts={'compress_level': 9, 'optimize': False})
 
-    destroy_func = lambda: shutil.rmtree(dst_dir)
+    destroy_func = partial(remove_directory, dir=dst_dir)
 
     return image_filename, mask_filename, labels_filename, None, destroy_func
 
@@ -272,7 +295,6 @@ def generate_image_data(image_specs):
         classes_source_axes="CYX",
     )
 
-
     return args, shape, destroy_func
 
 
@@ -286,23 +308,20 @@ def randomize_roi(source_axes, image_shape):
             if s > 1:
                 ax_start = np.random.randint(0, s - 2)
                 ax_length = np.random.randint(1, s - ax_start)
-                ax_shape = ax_length
             else:
                 ax_start = 0
                 ax_length = 1
-                ax_shape = 1
 
         else:
             ax_start = 0
             ax_length = -1
-            ax_shape = s
 
-        roi[ax] = (ax_start, ax_length, ax_shape)
+        roi[ax] = (ax_start, ax_length)
 
     return roi
 
 
-def generate_roi(roi, axes):
+def generate_roi(roi, axes, shape):
     parsable_roi = "("
     parsable_roi += ",".join([
         str(roi[ax][0]) if roi[ax][0] is not None else "0"
@@ -315,23 +334,31 @@ def generate_roi(roi, axes):
         ])
     parsable_roi += ")"
 
-    new_axes = "".join([ax for ax in axes if roi[ax][2] > 1])
-    new_shape = [roi[ax][2] for ax in axes if roi[ax][2] > 1]
+    new_shape = [
+        roi[ax][1] if roi[ax][1] > 0 else s
+        for ax, s in zip(axes, shape)
+    ]
 
-    return parsable_roi, new_axes, new_shape
+    return parsable_roi, new_shape
 
 
 def permute_axes(image_shape, source_axes, axes):
     axes_perm = map_axes_order(source_axes=source_axes,
                                target_axes=axes)
-    permuted_shape = [image_shape[a] for a in axes_perm]
+    drop_axes_count = len(source_axes) - len(axes)
+    permuted_shape = [image_shape[a] for a in axes_perm[drop_axes_count:]]
     return permuted_shape
 
 
-def randomize_axes(source_axes):
+def randomize_axes(source_axes, shape):
     np.random.seed(478963)
     axes = np.random.permutation(list(source_axes))
-    axes = "".join(axes)
+    axes = "".join(
+        ax
+        for ax in axes
+        if (shape[source_axes.index(ax)] > 1
+          or (shape[source_axes.index(ax)] <= 1 and np.random.rand() < 0.5))
+    )
     return axes
 
 
@@ -342,26 +369,30 @@ def generate_sample_image(image_specs, random_roi=False, random_axes=False):
         roi = randomize_roi(image_args["source_axes"], shape)
 
         (image_args["roi"],
-         reduced_axes,
-         expected_shape) = generate_roi(roi, image_args["source_axes"])
+         expected_shape) = generate_roi(roi, image_args["source_axes"], shape)
     else:
-        reduced_axes = image_args["source_axes"]
         expected_shape = shape
 
     if random_axes:
-        image_args["axes"] = randomize_axes(reduced_axes)
+        image_args["axes"] = randomize_axes(image_args["source_axes"],
+                                            expected_shape)
         expected_shape = permute_axes(expected_shape,
-                                      reduced_axes,
+                                      image_args["source_axes"],
                                       image_args["axes"])
     else:
-        image_args["axes"] = reduced_axes
+        image_args["axes"] = image_args["source_axes"]
 
     return image_args, expected_shape, destroy_func
 
 
 def generate_sample_dataset(dataset_specs, random_roi=False,
-                            random_axes=False):
+                            random_axes=False,
+                            apply_transform=False,
+                            input_dtype=np.float32,
+                            target_dtype=np.int64,
+                            input_target_dtype=np.float64):
     dataset_shapes = []
+    dataset_destroyers = []
     dataset_args = None
 
     for image_specs in dataset_specs:
@@ -370,68 +401,114 @@ def generate_sample_dataset(dataset_specs, random_roi=False,
          destroy_func) = generate_image_data(image_specs)
 
         dataset_shapes.append(shape)
+        dataset_destroyers.append(destroy_func)
 
         if dataset_args is None:
             dataset_args = image_args
-            dataset_args["filenames"] = image_args["filename"]
+            dataset_args["filenames"] = [image_args["filename"]]
+            if image_args["labels_filename"] is not None:
+                dataset_args["labels_filenames"] =\
+                    [image_args["labels_filename"]]
+            if image_args["mask_filename"] is not None:
+                dataset_args["mask_filenames"] =\
+                    [image_args["mask_filename"]]
         else:
             dataset_args["filenames"].append(image_args["filename"])
+
+            if image_args["labels_filename"] is not None:
+                dataset_args["labels_filenames"].append(
+                    image_args["labels_filename"]
+                )
+
+            if image_args["mask_filename"] is not None:
+                dataset_args["mask_filenames"].append(
+                    image_args["mask_filename"]
+                )
 
     min_shape = np.stack(dataset_shapes).min(axis=0)
 
     if random_roi:
         roi = randomize_roi(dataset_args["source_axes"], min_shape)
+        expected_shapes = []
+        expected_labels_shapes = []
 
-        (dataset_args["roi"],
-         reduced_axes,
-         expected_shape) = generate_roi(roi, dataset_args["source_axes"])
+        for curr_shape in dataset_shapes:
+            (dataset_args["roi"],
+             curr_expected_shape) = generate_roi(
+                 roi, dataset_args["source_axes"], curr_shape)
 
-        (dataset_args["labels_roi"],
-         labels_reduced_axes,
-         labels_expected_shape) = generate_roi(
-            roi, dataset_args["labels_source_axes"])
+            curr_lables_shape = [
+                curr_shape[dataset_args["source_axes"].index(ax)]
+                for ax in dataset_args["labels_source_axes"]
+                if ax in dataset_args["source_axes"]
+            ]
+            (dataset_args["labels_roi"],
+             curr_label_expected_shape) = generate_roi(
+                 roi, dataset_args["labels_source_axes"], curr_lables_shape)
 
-        expected_shapes = [expected_shape] * len(dataset_shapes)
-        expected_labels_shapes = [labels_expected_shape] * len(dataset_shapes)
+            expected_shapes.append(curr_expected_shape)
+            expected_labels_shapes.append(curr_label_expected_shape)
+
+        _, min_labels_shape = generate_roi(roi,
+                                           dataset_args["labels_source_axes"],
+                                           min_shape)
+
+        _, min_shape = generate_roi(roi, dataset_args["source_axes"],
+                                    min_shape)
 
     else:
-        reduced_axes = dataset_args["source_axes"]
-        labels_reduced_axes = dataset_args["labels_source_axes"]
-
         expected_shapes = dataset_shapes
-
         expected_labels_shapes = [
-            [s
-             for ax, s in zip(dataset_args["source_axes"], img_shape)
-             if ax in dataset_args["labels_source_axes"]]
+            [
+                img_shape[dataset_args["source_axes"].index(ax)]
+                for ax in dataset_args["labels_source_axes"]
+                if ax in dataset_args["source_axes"]
+            ]
             for img_shape in dataset_shapes
         ]
 
-    if random_axes:
-        dataset_args["axes"] = randomize_axes(reduced_axes)
-        dataset_args["labels_axes"] = randomize_axes(labels_reduced_axes)
+        min_labels_shape = [
+            min_shape[dataset_args["source_axes"].index(ax)]
+            for ax in dataset_args["labels_source_axes"]
+            if ax in dataset_args["source_axes"]
+        ]
 
-        expected_shape = [
-            permute_axes(img_shape, reduced_axes, dataset_args["axes"])
+    if random_axes:
+        dataset_args["axes"] = randomize_axes(dataset_args["source_axes"],
+                                              min_shape)
+        dataset_args["labels_axes"] = randomize_axes(
+            dataset_args["labels_source_axes"], min_labels_shape)
+
+        expected_shapes = [
+            permute_axes(img_shape, dataset_args["source_axes"],
+                         dataset_args["axes"])
             for img_shape in expected_shapes
         ]
 
         expected_labels_shapes = [
-            permute_axes(labels_shape, labels_reduced_axes,
+            permute_axes(labels_shape, dataset_args["labels_source_axes"],
                          dataset_args["labels_axes"])
             for labels_shape in expected_labels_shapes
         ]
-    else:
-        dataset_args["axes"] = reduced_axes
-        dataset_args["labels_axes"] = labels_reduced_axes
 
-    return image_args, expected_shapes, expected_labels_shapes, destroy_func
+    if apply_transform:
+        dataset_args["transform"] = partial(input_transform, dtype=input_dtype)
+
+        if dataset_args["labels_filename"] is not None:
+            dataset_args["target_transform"] = partial(input_transform,
+                                                       dtype=target_dtype)
+
+            dataset_args["input_target_transform"] = partial(
+                input_target_transform, dtype=input_target_dtype)
+
+    return (dataset_args, expected_shapes, expected_labels_shapes,
+            dataset_destroyers)
 
 
 IMAGE_SPECS = [
     {
         "source": "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001237.zarr",
-        "type": "zarr",
+        "type": "url",
         "specs": {
             "data_group": "0",
             "shape": [1, 4, 39, 1024, 1024],
@@ -441,69 +518,14 @@ IMAGE_SPECS = [
         }
     },
     {
-        "source": "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001237.zarr",
-        "type": "zarr",
+        "source": "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0048A/9846151.zarr/",
+        "type": "url",
         "specs": {
-            "data_group": "1",
-            "shape": [1, 4, 39, 512, 512],
-            "chunks": [1, 1, 1, 512, 512],
+            "data_group": "0/0",
+            "shape": [1, 3, 1402, 5192, 2947],
+            "chunks": [1, 1, 1, 1024, 1024],
             "source_axes": "TCZYX",
             "dtype": np.uint16
-        }
-    },
-    {
-        "source": "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001237.zarr",
-        "type": "zarr",
-        "specs": {
-            "data_group": "2",
-            "shape": [1, 4, 39, 256, 256],
-            "chunks": [1, 1, 1, 256, 256],
-            "source_axes": "TCZYX",
-            "dtype": np.uint16
-        }
-    },
-    {
-        "source": "https://r0k.us/graphics/kodak/kodak/kodim01.png",
-        "type": "image",
-        "specs": {
-            "data_group": "",
-            "shape": [512, 768, 3],
-            "chunks": [512, 768, 3],
-            "source_axes": "YXC",
-            "dtype": np.uint8
-        }
-    },
-    {
-        "source": "https://r0k.us/graphics/kodak/kodak/kodim02.png",
-        "type": "image",
-        "specs": {
-            "data_group": "",
-            "shape": [512, 768, 3],
-            "chunks": [512, 768, 3],
-            "source_axes": "YXC",
-            "dtype": np.uint8
-        }
-    },
-    {
-        "source": "https://r0k.us/graphics/kodak/kodak/kodim03.png",
-        "type": "image",
-        "specs": {
-            "data_group": "",
-            "shape": [512, 768, 3],
-            "chunks": [512, 768, 3],
-            "source_axes": "YXC",
-            "dtype": np.uint8
-        }
-    },
-    {
-        "source": "https://r0k.us/graphics/kodak/kodak/kodim04.png",
-        "type": "image",
-        "specs": {
-            "data_group": "",
-            "shape": [768, 512, 3],
-            "chunks": [768, 512, 3],
-            "source_axes": "YXC",
-            "dtype": np.uint8
         }
     },
     {
@@ -590,17 +612,137 @@ IMAGE_SPECS = [
             "dtype": np.float32
         }
     },
+    {
+        "source": "https://live.staticflickr.com/4908/31072787307_59f7943caa_o.jpg",
+        "credit": "Photo: Guilhem Vellut / CC BY 2.0",
+        "type": "url",
+        "specs": {
+            "data_group": "",
+            "shape": [5472, 3648, 3],
+            "chunks": [5472, 3648, 1],
+            "source_axes": "YXC",
+            "dtype": np.uint8
+        }
+    },
 ]
 
 
-if __name__ == "__main__":
-    np.random.seed(478963)
+UNLABELED_DATASET_SPECS = [
+    [
+        {
+            "source": "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001237.zarr",
+            "type": "zarr",
+            "specs": {
+                "data_group": "2",
+                "shape": [1, 4, 39, 256, 256],
+                "chunks": [1, 1, 1, 256, 256],
+                "source_axes": "TCZYX",
+                "dtype": np.uint16
+            }
+        },
+        {
+            "source": "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001237.zarr",
+            "type": "zarr",
+            "specs": {
+                "data_group": "2",
+                "shape": [1, 4, 39, 256, 256],
+                "chunks": [1, 1, 1, 256, 256],
+                "source_axes": "TCZYX",
+                "dtype": np.uint16
+            }
+        },
+    ],
+]
 
+
+LABELED_DATASET_SPECS = [
+    [
+        {
+            "source": dict(dst_dir=None, img_idx=None),
+            "type": "zarr_array",
+            "specs": {
+                "data_group": "0",
+                "mask_group": "masks/0",
+                "labels_group": "labels/0",
+                "classes_group": "classes/0",
+                "shape": [1, 3, 1125, 512, 1],
+                "chunks": [1, 3, 256, 128, 1],
+                "source_axes": "ZCXYT",
+                "dtype": np.float32
+            }
+        },
+        {
+            "source": dict(dst_dir=None, img_idx=None),
+            "type": "zarr_array",
+            "specs": {
+                "data_group": "0",
+                "mask_group": "masks/0",
+                "labels_group": "labels/0",
+                "classes_group": "classes/0",
+                "shape": [1, 3, 778, 1015, 1],
+                "chunks": [1, 3, 128, 128, 1],
+                "source_axes": "ZCXYT",
+                "dtype": np.float32
+            }
+        },
+    ],
+    [
+        {
+            "source": dict(dst_dir="tests/test_pngs", img_idx=1),
+            "type": "png",
+            "specs": {
+                "data_group": "0",
+                "mask_group": "masks/0",
+                "labels_group": "labels/0",
+                "classes_group": "classes/0",
+                "shape": [1125, 512, 3],
+                "chunks": [256, 128, 3],
+                "source_axes": "YXC",
+                "dtype": np.uint8
+            }
+        },
+        {
+            "source": dict(dst_dir="tests/test_pngs", img_idx=2),
+            "type": "png",
+            "specs": {
+                "data_group": "0",
+                "mask_group": "masks/0",
+                "labels_group": "labels/0",
+                "classes_group": "classes/0",
+                "shape": [778, 1015, 3],
+                "chunks": [128, 128, 3],
+                "source_axes": "YXC",
+                "dtype": np.uint8
+            }
+        },
+        {
+            "source": dict(dst_dir="tests/test_pngs", img_idx=3),
+            "type": "png",
+            "specs": {
+                "data_group": "0",
+                "mask_group": "masks/0",
+                "labels_group": "labels/0",
+                "classes_group": "classes/0",
+                "shape": [1027, 528, 3],
+                "chunks": [256, 128, 3],
+                "source_axes": "YXC",
+                "dtype": np.uint8
+            }
+        },
+    ],
+]
+
+
+def test_image_loader(image_specs, random_roi, random_axes, apply_transform):
     (image_args,
      expected_shape,
-     destroy_func) = generate_sample_image(IMAGE_SPECS[-1],
-                                           random_roi=False,
-                                           random_axes=True)
+     destroy_func) = generate_sample_image(image_specs, random_roi=random_roi,
+                                           random_axes=random_axes)
+
+    if apply_transform:
+        transform = ImageTransformTest(image_args["axes"])
+    else:
+        transform = None
 
     img = ImageLoader(
         filename=image_args["filename"],
@@ -608,7 +750,7 @@ if __name__ == "__main__":
         data_group=image_args["data_group"],
         axes=image_args["axes"],
         roi=image_args["roi"],
-        image_func=None,
+        image_func=transform,
         zarr_store=None,
         spatial_axes="ZYX",
         mode="r")
@@ -616,9 +758,384 @@ if __name__ == "__main__":
     assert isinstance(img, ImageBase), (f"Image loader returned an incorrect"
                                         f" type of object, expected one based"
                                         f" in ImageBase, got {type(img)}")
-    assert img.shape == expected_shape,\
-          (f"Expected image of shape {expected_shape}, got {img.shape}")
+    assert all(map(lambda s1, s2: s1 == s2, img.shape, expected_shape)),\
+          (f"Expected image of shape {expected_shape}"
+           f", got {img.shape}")
 
     del img
 
     destroy_func()
+
+
+def test_patched_zarrdataset(dataset_specs, patch_sampler_class,
+                             patched_dataset_class,
+                             random_roi,
+                             random_axes,
+                             apply_transform,
+                             input_dtype,
+                             target_dtype,
+                             input_target_dtype):
+    (dataset_args,
+     expected_shapes,
+     _,
+     destroy_funcs) = generate_sample_dataset(dataset_specs,
+                                              random_roi=random_roi,
+                                              random_axes=random_axes,
+                                              apply_transform=apply_transform,
+                                              input_dtype=input_dtype,
+                                              target_dtype=target_dtype,
+                                              input_target_dtype=input_target_dtype)
+
+    min_img_shape = np.array(expected_shapes).min(axis=0)
+
+    patch_size = dict(
+        (ax, np.random.randint(s // 8, s // 4) if s > 8 else 1)
+        for ax, s in zip(dataset_args["axes"], min_img_shape)
+        if ax in "ZYX"
+    )
+
+    patch_sampler = patch_sampler_class(patch_size)
+
+    ds = patched_dataset_class(**dataset_args,
+                               patch_sampler=patch_sampler,
+                               return_any_label=True)
+
+    if not apply_transform:
+        input_dtype = dataset_specs[0]["specs"]["dtype"]
+
+    for i, (img_pair, expected_shape) in enumerate(
+      zip(ds, expected_shapes)):
+        img, _ = img_pair
+
+        if patch_sampler is not None:
+            expected_shape_dst = dict(
+                (ax, patch_size[ax] if ax in patch_size else s)
+                for ax, s in zip(dataset_args["axes"], expected_shape)
+            )
+
+        else:
+            expected_shape_dst = dict(
+                (ax, s)
+                for ax, s in zip(dataset_args["axes"], expected_shape)
+            )
+
+        assert isinstance(img, np.ndarray),\
+            (f"Sample {i}, expected to be a Numpy NDArray, got {type(img)}")
+
+        assert all(map(lambda s, ax:
+                       s == expected_shape_dst[ax],
+                       img.shape,
+                       dataset_args["axes"])),\
+            (f"Expected sample {i} of shape {expected_shape_dst}, got "
+             f"{img.shape} [{dataset_args['axes']}]")
+
+        assert img.dtype == input_dtype,\
+            (f"Expected sample {i} be of type {input_dtype}, got {img.dtype}")
+
+    for destroy_func in destroy_funcs:
+        destroy_func()
+
+
+def base_test_zarrdataset(dataset_specs, patch_sampler_class, dataset_class,
+                          random_roi,
+                          random_axes,
+                          apply_transform,
+                          input_dtype,
+                          target_dtype,
+                          input_target_dtype):
+    (dataset_args,
+     expected_shapes,
+     expected_labels_shapes,
+     destroy_funcs) = generate_sample_dataset(
+         dataset_specs,
+         random_axes=random_axes,
+         random_roi=random_roi,
+         apply_transform=apply_transform,
+         input_dtype=input_dtype,
+         target_dtype=target_dtype,
+         input_target_dtype=input_target_dtype)
+
+    min_img_shape = np.array(expected_shapes).min(axis=0)
+
+    patch_size = dict(
+        (ax, np.random.randint(s // 8, s // 4) if s > 8 else 1)
+        for ax, s in zip(dataset_args["axes"], min_img_shape)
+        if ax in "ZYX"
+    )
+
+    patch_sampler = patch_sampler_class(patch_size)
+
+    ds = dataset_class(**dataset_args,
+                       patch_sampler=patch_sampler,
+                       return_any_label=True)
+
+    if not apply_transform:
+        input_dtype = dataset_specs[0]["specs"]["dtype"]
+        if dataset_specs[0]["type"] in ["png"]:
+            label_dtype = np.uint8
+        else:
+            label_dtype = np.uint32
+
+    elif dataset_class in [LabeledZarrDataset, MaskedLabeledZarrDataset]:
+        input_dtype = input_target_dtype
+        label_dtype = target_dtype
+
+    for i, (img_pair, expected_shape, expected_labels_shape) in enumerate(
+      zip(ds, expected_shapes, expected_labels_shapes)):
+        img, label = img_pair
+
+        if patch_sampler is not None:
+            expected_shape = dict(
+                (ax, patch_size[ax] if ax in patch_size else s)
+                for ax, s in zip(dataset_args["axes"], expected_shape)
+            )
+
+            expected_labels_shape = dict(
+                (ax, patch_size[ax] if ax in patch_size else s)
+                for ax, s in zip(dataset_args["labels_axes"],
+                                 expected_labels_shape)
+            )
+
+        else:
+            expected_shape = dict(
+                (ax, s)
+                for ax, s in zip(dataset_args["axes"], expected_shape)
+            )
+
+            expected_labels_shape = dict(
+                (ax, s)
+                for ax, s in zip(dataset_args["labels_axes"],
+                                 expected_labels_shape)
+            )
+
+        assert isinstance(img, np.ndarray),\
+            (f"Sample {i}, expected to be a Numpy NDArray, got {type(img)}")
+
+        assert img.dtype == input_dtype,\
+            (f"Expected sample {i} be of type {input_dtype}, got {img.dtype}")
+
+        assert all(map(lambda s, ax:
+                       s == expected_shape[ax],
+                       img.shape,
+                       dataset_args["axes"])),\
+            (f"Expected sample {i} of shape {expected_shape}, got {img.shape}"
+             f" [{dataset_args['axes']}]")
+
+        if dataset_class in [LabeledZarrDataset, MaskedLabeledZarrDataset]:
+            assert all(map(lambda s, ax:
+                           s == expected_labels_shape[ax],
+                           label.shape,
+                           dataset_args["labels_axes"])),\
+                (f"Expected label {i} of shape {expected_labels_shape}, "
+                 f"got {label.shape}")
+
+            assert label.dtype == label_dtype,\
+                (f"Expected label {i} be of type {label_dtype}, got"
+                 f" {label.dtype}")
+
+    for destroy_func in destroy_funcs:
+        destroy_func()
+
+
+def base_test_zarrdataset_pytorch(dataset_specs, patch_sampler_class,
+                                  dataset_class,
+                                  random_roi,
+                                  random_axes,
+                                  apply_transform,
+                                  input_dtype,
+                                  target_dtype,
+                                  input_target_dtype,
+                                  num_workers):
+    (dataset_args,
+     expected_shapes,
+     expected_labels_shapes,
+     destroy_funcs) = generate_sample_dataset(
+         dataset_specs,
+         random_axes=random_axes,
+         random_roi=random_roi,
+         apply_transform=apply_transform,
+         input_dtype=input_dtype,
+         target_dtype=target_dtype,
+         input_target_dtype=input_target_dtype)
+
+    min_img_shape = np.array(expected_shapes).min(axis=0)
+
+    patch_size = dict(
+        (ax, np.random.randint(s // 8, s // 4) if s > 8 else 1)
+        for ax, s in zip(dataset_args["axes"], min_img_shape)
+        if ax in "ZYX"
+    )
+
+    patch_sampler = patch_sampler_class(patch_size)
+
+    ds = dataset_class(**dataset_args,
+                       patch_sampler=patch_sampler,
+                       return_any_label=True)
+
+    dl = torch.utils.data.DataLoader(ds,
+                                     num_workers=num_workers,
+                                     worker_init_fn=zarrdataset_worker_init,
+                                     batch_size=1)
+
+    if not apply_transform:
+        meta = np.empty((0, ), dtype=dataset_specs[0]["specs"]["dtype"])
+        meta_pt = torch.from_numpy(meta)
+        input_dtype = meta_pt.dtype
+        if dataset_specs[0]["type"] in ["png"]:
+            label_dtype = torch.uint8
+        else:
+            label_dtype = torch.int32
+
+    elif dataset_class in [LabeledZarrDataset, MaskedLabeledZarrDataset]:
+        input_dtype = input_target_dtype
+        label_dtype = target_dtype
+
+    for i, (img_pair, expected_shape, expected_labels_shape) in enumerate(
+      zip(dl, expected_shapes, expected_labels_shapes)):
+        img, label = img_pair
+
+        if patch_sampler is not None:
+            expected_shape = dict(
+                (ax, patch_size[ax] if ax in patch_size else s)
+                for ax, s in zip(dataset_args["axes"], expected_shape)
+            )
+
+            expected_labels_shape = dict(
+                (ax, patch_size[ax] if ax in patch_size else s)
+                for ax, s in zip(dataset_args["labels_axes"],
+                                 expected_labels_shape)
+            )
+
+        else:
+            expected_shape = dict(
+                (ax, s)
+                for ax, s in zip(dataset_args["axes"], expected_shape)
+            )
+
+            expected_labels_shape = dict(
+                (ax, s)
+                for ax, s in zip(dataset_args["labels_axes"],
+                                 expected_labels_shape)
+            )
+
+        assert isinstance(img, torch.Tensor),\
+            (f"Sample {i}, expected to be a PyTorch Tensor, got {type(img)}")
+
+        assert img.dtype == input_dtype,\
+            (f"Expected sample {i} be of type {input_dtype}, got {img.dtype}")
+
+        assert all(map(lambda s, ax:
+                       s == expected_shape[ax],
+                       img.shape[1:],
+                       dataset_args["axes"])),\
+            (f"Expected sample {i} of shape {expected_shape}, got {img.shape[1:]}"
+             f" [{dataset_args['axes']}]")
+
+        if dataset_class in [LabeledZarrDataset, MaskedLabeledZarrDataset]:
+            assert all(map(lambda s, ax:
+                           s == expected_labels_shape[ax],
+                           label.shape[1:],
+                           dataset_args["labels_axes"])),\
+                (f"Expected label {i} of shape {expected_labels_shape}, "
+                 f"got {label.shape[1:]}")
+
+            assert label.dtype == label_dtype,\
+                (f"Expected label {i} be of type {label_dtype}, got"
+                 f" {label.dtype}")
+
+    for destroy_func in destroy_funcs:
+        destroy_func()
+
+
+if __name__ == "__main__":
+    import tqdm
+    from itertools import product
+    import sys
+
+    image_specs_pars = IMAGE_SPECS
+    random_roi_pars = [True, False]
+    random_axes_pars = [True, False]
+    apply_transform_pars = [False]
+
+    # for image_specs, random_roi, random_axes, apply_transform in tqdm.tqdm(
+    #   product(image_specs_pars, random_roi_pars, random_axes_pars, apply_transform_pars)):
+    #     test_image_loader(image_specs, random_roi, random_axes, apply_transform)
+
+    dataset_specs_pars = LABELED_DATASET_SPECS
+    random_roi_pars = [True]
+    random_axes_pars = [True]
+    patch_sampler_class_pars = [
+        lambda patch_size: None
+    ]
+    dataset_class_pars = [
+        LabeledZarrDataset,
+        MaskedLabeledZarrDataset,
+    ]
+    input_dtype_pars = [np.uint16]
+    target_dtype_pars = [np.float32]
+    input_target_dtype_pars = [np.float64]
+
+    # for (dataset_specs, patch_sampler_class, dataset_class,
+    #      random_roi,
+    #      random_axes,
+    #      apply_transform,
+    #      input_dtype,
+    #      target_dtype,
+    #      input_target_dtype) in tqdm.tqdm(
+    #          product(dataset_specs_pars, patch_sampler_class_pars,
+    #                  dataset_class_pars,
+    #                  random_roi_pars,
+    #                  random_axes_pars,
+    #                  apply_transform_pars,
+    #                  input_dtype_pars,
+    #                  target_dtype_pars,
+    #                  input_target_dtype_pars)):
+    #     base_test_zarrdataset(dataset_specs, patch_sampler_class, dataset_class,
+    #                           random_roi,
+    #                           random_axes,
+    #                           apply_transform,
+    #                           input_dtype,
+    #                           target_dtype,
+    #                           input_target_dtype)
+
+    # ---------------------- Test Torch DataLoader compatibility
+    dataset_specs_pars = LABELED_DATASET_SPECS
+    random_roi_pars = [True]
+    random_axes_pars = [True]
+    patch_sampler_class_pars = [
+        lambda patch_size: None
+    ]
+    dataset_class_pars = [
+        ZarrDataset,
+    ]
+    input_dtype_pars = [torch.int16]
+    target_dtype_pars = [torch.float32]
+    input_target_dtype_pars = [torch.float64]
+    num_workers_pars = [0, 2]
+
+    for (dataset_specs, patch_sampler_class, dataset_class,
+         random_roi,
+         random_axes,
+         apply_transform,
+         input_dtype,
+         target_dtype,
+         input_target_dtype,
+         num_workers) in tqdm.tqdm(
+             product(dataset_specs_pars, patch_sampler_class_pars,
+                     dataset_class_pars,
+                     random_roi_pars,
+                     random_axes_pars,
+                     apply_transform_pars,
+                     input_dtype_pars,
+                     target_dtype_pars,
+                     input_target_dtype_pars,
+                     num_workers_pars)):
+        base_test_zarrdataset_pytorch(dataset_specs, patch_sampler_class,
+                                      dataset_class,
+                                      random_roi,
+                                      random_axes,
+                                      apply_transform,
+                                      input_dtype,
+                                      target_dtype,
+                                      input_target_dtype,
+                                      num_workers)

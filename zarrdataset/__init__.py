@@ -26,8 +26,7 @@ from ._imageloaders import (image2array,
 from ._maskfuncs import (MaskGenerator,
                          WSITissueMaskGenerator)
 
-from ._augs import (ZarrToArray,
-                    DaskToArray)
+from ._augs import ZarrToArray
 
 __all__ = ['ZarrDataset',
            'LabeledZarrDataset',
@@ -39,7 +38,6 @@ __all__ = ['ZarrDataset',
            'GridPatchSampler',
            'BlueNoisePatchSampler',
            'ZarrToArray',
-           'DaskToArray',
            'parse_rois',
            'parse_metadata',
            'map_axes_order',

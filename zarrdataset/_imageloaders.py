@@ -99,9 +99,11 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
         height = store.size[1]
         width = store.size[0]
 
+        arr_shape = [height, width] + ([channels] if channels > 1 else [])
         arr = zarr.array(data=np.array(store),
-                        shape=(height, width, channels),
-                        dtype=np.uint8)
+                         shape=arr_shape,
+                         chunks=arr_shape,
+                         dtype=np.uint8)
         return arr, store
 
     except PIL.UnidentifiedImageError:
@@ -320,7 +322,7 @@ class ImageBase(object):
                 a_i = self._spatial_reference_axes.index(a)
                 ref_s = self._spatial_reference_shape[a_i]
 
-                self._scale.append(2 ** -round(math.log2(ref_s / s)))
+                self._scale.append(s / ref_s)
             else:
                 self._scale.append(1.0)
 
@@ -366,6 +368,8 @@ class ImageLoader(ImageBase):
             parsed_roi = [slice(None)] * len(source_axes)
         elif isinstance(roi, str):
             parsed_roi = parse_rois([roi])[0]
+        else:
+            parsed_roi = roi
 
         roi_slices = list(
             map(lambda r:
@@ -453,7 +457,7 @@ class ImageCollection(object):
                                              mode="masks")
 
     def _assign_scales(self):
-        img_shape = self.collection["images"].arr.shape
+        img_shape = self.collection["images"].shape
         img_source_axes = self.collection["images"].source_axes
         img_axes = self.collection["images"].axes
 
@@ -462,7 +466,7 @@ class ImageCollection(object):
             for ax in img_axes if ax in self.spatial_axes
         ]
         spatial_reference_shape = [
-            img_shape[img_source_axes.index(ax)]
+            img_shape[img_axes.index(ax)]
             if ax in img_source_axes else 1
             for ax in spatial_reference_axes
         ]
