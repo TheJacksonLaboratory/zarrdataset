@@ -18,9 +18,11 @@ class MaskGenerator(object):
 
 
 class WSITissueMaskGenerator(MaskGenerator):
+
     def __init__(self, mask_scale=1/16, min_size=16, area_threshold=128,
-                 thresh=None):
-        super(WSITissueMaskGenerator, self).__init__(axes="YX")
+                 thresh=None,
+                 axes="YX"):
+        super(WSITissueMaskGenerator, self).__init__(axes=axes)
 
         self._mask_scale = mask_scale
         self._min_size = min_size
@@ -35,12 +37,15 @@ class WSITissueMaskGenerator(MaskGenerator):
         if self._thresh is None:
             self._thresh = filters.threshold_otsu(scaled_gray)
 
-        chunk_mask = scaled_gray > self._thresh
+        chunk_mask = scaled_gray < self._thresh
         chunk_mask = morphology.remove_small_objects(
             chunk_mask == 0, min_size=self._min_size ** 2, connectivity=2)
         chunk_mask = morphology.remove_small_holes(
             chunk_mask, area_threshold=self._area_threshold_2)
         mask = morphology.binary_dilation(
             chunk_mask, morphology.disk(self._min_size))
+
+        if "Z" in self.axes:
+            mask = mask[None, ...]
 
         return mask

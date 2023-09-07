@@ -98,17 +98,27 @@ class PatchSampler(object):
                           spatial_chunk_sizes[ax],
                           self._patch_size[ax]),
                       spatial_shape[ax]))
-                  if ax in image.axes else 1)
+             if ax in image.axes else 1)
             for ax in self.spatial_axes
         )
 
-        scaled_chunk_size = tuple(
-            [max(1, int(self._max_chunk_size[ax] * scl))
-             if ax in self.spatial_axes else 1
-             for ax, scl in zip(mask.axes, mask.scale)])
+        mask_spatial_scale = dict(
+            (ax, scl)
+            for scl, ax in zip(mask.scale, mask.axes)
+        )
 
-        valid_mask = transform.downscale_local_mean(mask[:],
-                                                    factors=scaled_chunk_size)
+        scaled_chunk_size = tuple(
+            self._max_chunk_size[ax] * mask_spatial_scale[ax]
+            if ax in self.spatial_axes else 1
+            for ax in mask.axes
+        )
+
+        if all(map(operator.ge, scaled_chunk_size, repeat(1))):
+            valid_mask = transform.downscale_local_mean(
+                mask[:], factors=tuple(int(scl) for scl in scaled_chunk_size))
+        else:
+            valid_mask = transform.rescale(
+                mask[:], scale=[1 / scl for scl in scaled_chunk_size])
 
         chunks_grids = np.nonzero(valid_mask)
 
@@ -199,6 +209,7 @@ class GridPatchSampler(PatchSampler):
                 mask[chunk_tlbr], scale=[1 / scl for scl in scaled_patch_size])
 
         toplefts = np.array(np.nonzero(valid_mask)).T
+
         image_patch_size = np.array([
             self._patch_size[ax]
             for ax in self.spatial_axes
@@ -285,7 +296,7 @@ class BlueNoisePatchSampler(PatchSampler):
                 self._base_chunk_tls = base_chunk_tls.astype(np.int64)
 
             else:
-                self._base_chunk_tls = np.zeros((len(self.spatial_axes), 1),
+                self._base_chunk_tls = np.zeros((1, len(self.spatial_axes)),
                                                 dtype=np.int64)
 
         base_chunk_patches = self._base_chunk_tls[None, :, :]\
@@ -323,7 +334,7 @@ class BlueNoisePatchSampler(PatchSampler):
 
         chunk_valid_mask_grid = np.meshgrid(*chunk_valid_mask_grid,
                                             indexing='ij')
-    
+
         chunk_valid_mask_grid = [
             np.pad(grid, 1, mode='constant', constant_values=1e12)
             for grid in chunk_valid_mask_grid

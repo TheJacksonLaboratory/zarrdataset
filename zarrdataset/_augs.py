@@ -1,5 +1,4 @@
 import numpy as np
-from ._utils import map_axes_order, select_axes
 
 
 class ZarrToArray(object):

@@ -1,4 +1,3 @@
-import os
 import math
 import zarr
 import numpy as np
@@ -19,7 +18,7 @@ except ModuleNotFoundError:
     TIFFFILE_SUPPORT = False
 
 
-def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
+def image2array(arr_src, data_group=None, zarr_store=None):
     """Open images stored in zarr format or any image format that can be opened
     by PIL as an array.
 
@@ -30,9 +29,6 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
     data_group : src or None
         The group within the zarr file from where the array is loaded. This is
         used only when the input file is a zarr object.
-    s3_obj : dict or None
-        A dictionary containing the bucket name and a boto3 client connection
-        to a S3 bucket, or None if the file is stored locally.
     zarr_store : zarr.storage.Store or None
         The class used to open the zarr file. Leave it as None to let this
         function to use the most suitable depending to the data location
@@ -57,6 +53,8 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
         return arr_src, None
 
     elif isinstance(arr_src, str) and ".zarr" in arr_src:
+        s3_obj = connect_s3(arr_src)
+
         if zarr_store is None:
             # If zarr_store is not set by the user, assign the most suitable
             # according to the image location (remote: FSStore,
@@ -81,6 +79,8 @@ def image2array(arr_src, data_group=None, s3_obj=None, zarr_store=None):
     # If the input is a path to an image stored in a format
     # supported by PIL, open it and use it as a numpy array.
     try:
+        s3_obj = connect_s3(arr_src)
+
         if s3_obj is not None:
             # The image is stored in a S3 bucket
             filename = arr_src.split(s3_obj["endpoint_url"]
@@ -356,12 +356,10 @@ class ImageLoader(ImageBase):
                  mode=""):
         self.mode = mode
         self.spatial_axes = spatial_axes
-        self._s3_obj = connect_s3(filename)
 
         (self.arr,
          self._store) = image2array(filename,
                                     data_group=data_group,
-                                    s3_obj=self._s3_obj,
                                     zarr_store=zarr_store)
 
         if roi is None:

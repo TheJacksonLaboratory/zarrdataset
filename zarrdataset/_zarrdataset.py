@@ -1,4 +1,3 @@
-import zarr
 from functools import reduce, partial
 import operator
 import random
@@ -10,6 +9,7 @@ from ._imageloaders import ImageCollection
 
 try:
     from tqdm import tqdm
+
 except ModuleNotFoundError:
     # This removes the dependency on tqdm when it is not installed
     class tqdm(object):
@@ -41,20 +41,7 @@ try:
         random.seed(torch_seed)
         np.random.seed(torch_seed % (2**32 - 1))
 
-        # Open a copy of the dataset on each worker.
-        n_files = len(dataset_obj._collections["images"])
-        if n_files == 1:
-            # Get the topleft positions and distribute them among the workers
-            dataset_obj._initialize(force=True)
-            dataset_obj._toplefts =\
-                [dataset_obj._toplefts[0][w_sel]]
-
-        else:
-            modes = list(dataset_obj._collections.keys())
-            dataset_obj._collections = dict(
-                (k, dataset_obj._collections[k][w_sel])
-                for k in modes)
-
+        dataset_obj._worker_sel = w_sel
         dataset_obj._worker_id = worker_id
 
     def chained_zarrdataset_worker_init(worker_id):
@@ -102,7 +89,7 @@ class ZarrDataset(IterableDataset):
                  draw_same_chunk=False,
                  zarr_store=None,
                  **kwargs):
-
+        self._worker_sel = slice(None)
         self._worker_id = 0
 
         self._transforms = {("images", ): transform}
@@ -181,8 +168,16 @@ class ZarrDataset(IterableDataset):
         if self._progress_bar:
             q.close()
 
-        self._arr_lists = np.array(arr_lists, dtype=object)
-        self._toplefts = np.array(toplefts, dtype=object)
+        if len(arr_lists) > 1:
+            self._arr_lists = np.array(arr_lists[self._worker_sel],
+                                       dtype=object)
+            self._toplefts = np.array(toplefts[self._worker_sel],
+                                      dtype=object)
+        else:
+            self._arr_lists = np.array(arr_lists, dtype=object)
+            self._toplefts = np.array([toplefts[0][self._worker_sel]],
+                                      dtype=object)
+
         self._initialized = True
 
     def __getitem__(self, tlbr):

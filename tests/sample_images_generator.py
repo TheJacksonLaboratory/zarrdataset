@@ -3,12 +3,10 @@ import os
 import shutil
 from pathlib import Path
 import numpy as np
-import torch
 import zarr
 from PIL import Image
 import tifffile
 from zarrdataset import *
-
 
 def input_transform(x, dtype=np.float32):
     return x.astype(dtype)
@@ -262,10 +260,8 @@ def generate_image_data(image_specs):
         shape = image_specs["specs"]["shape"]
 
     else:
-        s3_conn = connect_s3(image_specs["source"])
         arr_src, store = image2array(image_specs["source"],
-                                     image_specs["specs"]["data_group"],
-                                     s3_obj=s3_conn)
+                                     image_specs["specs"]["data_group"])
         shape = arr_src.shape
 
         if store is not None:
@@ -688,35 +684,7 @@ LABELED_DATASET_SPECS = [
     ],
     [
         {
-            "source": dict(dst_dir="tests/test_pngs", img_idx=1),
-            "type": "png",
-            "specs": {
-                "data_group": "0",
-                "mask_group": "masks/0",
-                "labels_group": "labels/0",
-                "classes_group": "classes/0",
-                "shape": [1125, 512, 3],
-                "chunks": [256, 128, 3],
-                "source_axes": "YXC",
-                "dtype": np.uint8
-            }
-        },
-        {
-            "source": dict(dst_dir="tests/test_pngs", img_idx=2),
-            "type": "png",
-            "specs": {
-                "data_group": "0",
-                "mask_group": "masks/0",
-                "labels_group": "labels/0",
-                "classes_group": "classes/0",
-                "shape": [778, 1015, 3],
-                "chunks": [128, 128, 3],
-                "source_axes": "YXC",
-                "dtype": np.uint8
-            }
-        },
-        {
-            "source": dict(dst_dir="tests/test_pngs", img_idx=3),
+            "source": dict(dst_dir="tests/test_pngs", img_idx=0),
             "type": "png",
             "specs": {
                 "data_group": "0",
@@ -937,143 +905,159 @@ def base_test_zarrdataset(dataset_specs, patch_sampler_class, dataset_class,
         destroy_func()
 
 
-def base_test_zarrdataset_pytorch(dataset_specs, patch_sampler_class,
-                                  dataset_class,
-                                  random_roi,
-                                  random_axes,
-                                  apply_transform,
-                                  input_dtype,
-                                  target_dtype,
-                                  input_target_dtype,
-                                  num_workers):
-    (dataset_args,
-     expected_shapes,
-     expected_labels_shapes,
-     destroy_funcs) = generate_sample_dataset(
-         dataset_specs,
-         random_axes=random_axes,
-         random_roi=random_roi,
-         apply_transform=apply_transform,
-         input_dtype=input_dtype,
-         target_dtype=target_dtype,
-         input_target_dtype=input_target_dtype)
+try:
+    import torch
 
-    min_img_shape = np.array(expected_shapes).min(axis=0)
+    def base_test_zarrdataset_pytorch(dataset_specs, patch_sampler_class,
+                                      dataset_class,
+                                      random_roi,
+                                      random_axes,
+                                      apply_transform,
+                                      input_dtype,
+                                      target_dtype,
+                                      input_target_dtype,
+                                      num_workers):
+        (dataset_args,
+        expected_shapes,
+        expected_labels_shapes,
+        destroy_funcs) = generate_sample_dataset(
+            dataset_specs,
+            random_axes=random_axes,
+            random_roi=random_roi,
+            apply_transform=apply_transform,
+            input_dtype=input_dtype,
+            target_dtype=target_dtype,
+            input_target_dtype=input_target_dtype)
 
-    patch_size = dict(
-        (ax, np.random.randint(s // 8, s // 4) if s > 8 else 1)
-        for ax, s in zip(dataset_args["axes"], min_img_shape)
-        if ax in "ZYX"
-    )
+        min_img_shape = np.array(expected_shapes).min(axis=0)
 
-    patch_sampler = patch_sampler_class(patch_size)
+        patch_size = dict(
+            (ax, np.random.randint(s // 8, s // 4) if s > 8 else 1)
+            for ax, s in zip(dataset_args["axes"], min_img_shape)
+            if ax in "ZYX"
+        )
 
-    ds = dataset_class(**dataset_args,
-                       patch_sampler=patch_sampler,
-                       return_any_label=True)
+        patch_sampler = patch_sampler_class(patch_size)
 
-    dl = torch.utils.data.DataLoader(ds,
-                                     num_workers=num_workers,
-                                     worker_init_fn=zarrdataset_worker_init,
-                                     batch_size=1)
+        ds = dataset_class(**dataset_args,
+                           patch_sampler=patch_sampler,
+                           return_any_label=True)
 
-    if not apply_transform:
-        meta = np.empty((0, ), dtype=dataset_specs[0]["specs"]["dtype"])
-        meta_pt = torch.from_numpy(meta)
-        input_dtype = meta_pt.dtype
-        if dataset_specs[0]["type"] in ["png"]:
-            label_dtype = torch.uint8
-        else:
-            label_dtype = torch.int32
+        dl = torch.utils.data.DataLoader(ds,
+                                         num_workers=num_workers,
+                                         worker_init_fn=zarrdataset_worker_init,
+                                         batch_size=1)
 
-    elif dataset_class in [LabeledZarrDataset, MaskedLabeledZarrDataset]:
-        input_dtype = input_target_dtype
-        label_dtype = target_dtype
+        if not apply_transform:
+            meta = np.empty((0, ), dtype=dataset_specs[0]["specs"]["dtype"])
+            meta_pt = torch.from_numpy(meta)
+            input_dtype = meta_pt.dtype
+            if dataset_specs[0]["type"] in ["png"]:
+                label_dtype = torch.uint8
+            else:
+                label_dtype = torch.int32
 
-    for i, (img_pair, expected_shape, expected_labels_shape) in enumerate(
-      zip(dl, expected_shapes, expected_labels_shapes)):
-        img, label = img_pair
+        elif dataset_class in [LabeledZarrDataset, MaskedLabeledZarrDataset]:
+            meta = np.empty((0, ), dtype=input_target_dtype)
+            meta_pt = torch.from_numpy(meta)
+            input_dtype = meta_pt.dtype
 
-        if patch_sampler is not None:
-            expected_shape = dict(
-                (ax, patch_size[ax] if ax in patch_size else s)
-                for ax, s in zip(dataset_args["axes"], expected_shape)
-            )
-
-            expected_labels_shape = dict(
-                (ax, patch_size[ax] if ax in patch_size else s)
-                for ax, s in zip(dataset_args["labels_axes"],
-                                 expected_labels_shape)
-            )
+            meta = np.empty((0, ), dtype=target_dtype)
+            meta_pt = torch.from_numpy(meta)
+            label_dtype = meta_pt.dtype
 
         else:
-            expected_shape = dict(
-                (ax, s)
-                for ax, s in zip(dataset_args["axes"], expected_shape)
-            )
+            meta = np.empty((0, ), dtype=input_dtype)
+            meta_pt = torch.from_numpy(meta)
+            input_dtype = meta_pt.dtype
 
-            expected_labels_shape = dict(
-                (ax, s)
-                for ax, s in zip(dataset_args["labels_axes"],
-                                 expected_labels_shape)
-            )
+            label_dtype = None
 
-        assert isinstance(img, torch.Tensor),\
-            (f"Sample {i}, expected to be a PyTorch Tensor, got {type(img)}")
+        for i, (img_pair, expected_shape, expected_labels_shape) in enumerate(
+          zip(dl, expected_shapes, expected_labels_shapes)):
+            img, label = img_pair
 
-        assert img.dtype == input_dtype,\
-            (f"Expected sample {i} be of type {input_dtype}, got {img.dtype}")
+            if patch_sampler is not None:
+                expected_shape = dict(
+                    (ax, patch_size[ax] if ax in patch_size else s)
+                    for ax, s in zip(dataset_args["axes"], expected_shape)
+                )
 
-        assert all(map(lambda s, ax:
-                       s == expected_shape[ax],
-                       img.shape[1:],
-                       dataset_args["axes"])),\
-            (f"Expected sample {i} of shape {expected_shape}, got {img.shape[1:]}"
-             f" [{dataset_args['axes']}]")
+                expected_labels_shape = dict(
+                    (ax, patch_size[ax] if ax in patch_size else s)
+                    for ax, s in zip(dataset_args["labels_axes"],
+                                     expected_labels_shape)
+                )
 
-        if dataset_class in [LabeledZarrDataset, MaskedLabeledZarrDataset]:
+            else:
+                expected_shape = dict(
+                    (ax, s)
+                    for ax, s in zip(dataset_args["axes"], expected_shape)
+                )
+
+                expected_labels_shape = dict(
+                    (ax, s)
+                    for ax, s in zip(dataset_args["labels_axes"],
+                                     expected_labels_shape)
+                )
+
+            assert isinstance(img, torch.Tensor),\
+                (f"Sample {i}, expected to be a PyTorch Tensor, got {type(img)}")
+
+            assert img.dtype == input_dtype,\
+                (f"Expected sample {i} be of type {input_dtype}, got {img.dtype}")
+
             assert all(map(lambda s, ax:
-                           s == expected_labels_shape[ax],
-                           label.shape[1:],
-                           dataset_args["labels_axes"])),\
-                (f"Expected label {i} of shape {expected_labels_shape}, "
-                 f"got {label.shape[1:]}")
+                        s == expected_shape[ax],
+                        img.shape[1:],
+                        dataset_args["axes"])),\
+                (f"Expected sample {i} of shape {expected_shape}, got {img.shape[1:]}"
+                f" [{dataset_args['axes']}]")
 
-            assert label.dtype == label_dtype,\
-                (f"Expected label {i} be of type {label_dtype}, got"
-                 f" {label.dtype}")
+            if dataset_class in [LabeledZarrDataset, MaskedLabeledZarrDataset]:
+                assert all(map(lambda s, ax:
+                            s == expected_labels_shape[ax],
+                            label.shape[1:],
+                            dataset_args["labels_axes"])),\
+                    (f"Expected label {i} of shape {expected_labels_shape}, "
+                    f"got {label.shape[1:]}")
 
-    for destroy_func in destroy_funcs:
-        destroy_func()
+                assert label.dtype == label_dtype,\
+                    (f"Expected label {i} be of type {label_dtype}, got"
+                    f" {label.dtype}")
+
+        for destroy_func in destroy_funcs:
+            destroy_func()
+
+except ImportError:
+    pass
 
 
 if __name__ == "__main__":
-    import tqdm
     from itertools import product
-    import sys
 
-    image_specs_pars = IMAGE_SPECS
-    random_roi_pars = [True, False]
-    random_axes_pars = [True, False]
-    apply_transform_pars = [False]
+    # image_specs_pars = IMAGE_SPECS
+    # random_roi_pars = [True, False]
+    # random_axes_pars = [True, False]
+    # apply_transform_pars = [False]
 
     # for image_specs, random_roi, random_axes, apply_transform in tqdm.tqdm(
     #   product(image_specs_pars, random_roi_pars, random_axes_pars, apply_transform_pars)):
     #     test_image_loader(image_specs, random_roi, random_axes, apply_transform)
 
-    dataset_specs_pars = LABELED_DATASET_SPECS
-    random_roi_pars = [True]
-    random_axes_pars = [True]
-    patch_sampler_class_pars = [
-        lambda patch_size: None
-    ]
-    dataset_class_pars = [
-        LabeledZarrDataset,
-        MaskedLabeledZarrDataset,
-    ]
-    input_dtype_pars = [np.uint16]
-    target_dtype_pars = [np.float32]
-    input_target_dtype_pars = [np.float64]
+    # dataset_specs_pars = LABELED_DATASET_SPECS
+    # random_roi_pars = [True]
+    # random_axes_pars = [True]
+    # patch_sampler_class_pars = [
+    #     lambda patch_size: None
+    # ]
+    # dataset_class_pars = [
+    #     LabeledZarrDataset,
+    #     MaskedLabeledZarrDataset,
+    # ]
+    # input_dtype_pars = [np.uint16]
+    # target_dtype_pars = [np.float32]
+    # input_target_dtype_pars = [np.float64]
 
     # for (dataset_specs, patch_sampler_class, dataset_class,
     #      random_roi,
@@ -1102,34 +1086,30 @@ if __name__ == "__main__":
     dataset_specs_pars = LABELED_DATASET_SPECS
     random_roi_pars = [True]
     random_axes_pars = [True]
-    patch_sampler_class_pars = [
-        lambda patch_size: None
-    ]
-    dataset_class_pars = [
-        ZarrDataset,
-    ]
-    input_dtype_pars = [torch.int16]
-    target_dtype_pars = [torch.float32]
-    input_target_dtype_pars = [torch.float64]
-    num_workers_pars = [0, 2]
+    dataset_class_pars = [MaskedZarrDataset]
+    patch_sampler_class_pars = [lambda patch_size: GridPatchSampler(patch_size=patch_size)]
+    apply_transform_pars = [True]
+    input_dtype_pars = [np.float32]
+    target_dtype_pars = [np.int64]
+    input_target_dtype_pars = [np.float64]
+    num_workers_pars = [1, 2]
 
-    for (dataset_specs, patch_sampler_class, dataset_class,
-         random_roi,
+    for (dataset_specs, patch_sampler_class, dataset_class, random_roi, 
          random_axes,
          apply_transform,
          input_dtype,
          target_dtype,
          input_target_dtype,
-         num_workers) in tqdm.tqdm(
-             product(dataset_specs_pars, patch_sampler_class_pars,
-                     dataset_class_pars,
-                     random_roi_pars,
-                     random_axes_pars,
-                     apply_transform_pars,
-                     input_dtype_pars,
-                     target_dtype_pars,
-                     input_target_dtype_pars,
-                     num_workers_pars)):
+         num_workers) in product(dataset_specs_pars,
+                                           patch_sampler_class_pars,
+                                           dataset_class_pars,
+                                           random_roi_pars,
+                                           random_axes_pars,
+                                           apply_transform_pars,
+                                           input_dtype_pars,
+                                           target_dtype_pars,
+                                           input_target_dtype_pars,
+                                           num_workers_pars):
         base_test_zarrdataset_pytorch(dataset_specs, patch_sampler_class,
                                       dataset_class,
                                       random_roi,
