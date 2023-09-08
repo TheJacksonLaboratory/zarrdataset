@@ -77,34 +77,6 @@ my_dataset = zds.LabeledZarrDataset(filenames,
                                     progress_bar=False)
 ```
 
-### Transforms
-Some transforms are provided to be integrated along torchvision transforms for data pre-processing and data augmentation.
-
-```
-from torchvision
-import zarrdataset as zds
-
-# Add a pre-process pipeline to select index 0 from axes T and Z, and reorder
-# the remaining axes as Y-axis, X-axis, Color channels. Then convert the array
-# to numpy float32 data type and finally to a PyTorch Tensor.
-preprocess_funs = torchvision.transforms.Compose(
-  [zds.SeletAxes(source_axes=args.source_axes,
-                 axes_selection={"T": 0, "Z": 0},
-                 axes="YXC"),
-   zds.ZarrToArray(np.float32),
-   torchvision.transforms.ToTensor()
-  ]
-)
-
-my_dataset = zds.ZarrDataset(filenames,
-                             data_group="0",
-                             source_axes="TCZYX",
-                             transform=preprocess_funs,
-                             patch_sampler=None,
-                             shuffle=False,
-                             progress_bar=False)
-```
-
 ### Patch sampling
 The **ZarrDataset** and **LabeledZarrDataset** retrieve the full array contained in *data_group* by default.
 To retrieve patches from that array instead, use any of the two samplers provided within this package, or implement a custom one derived from the **PatchSampler** class.

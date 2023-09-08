@@ -43,6 +43,7 @@ try:
 
         dataset_obj._worker_sel = w_sel
         dataset_obj._worker_id = worker_id
+        dataset_obj._num_workers = worker_info.num_workers
 
     def chained_zarrdataset_worker_init(worker_id):
         worker_info = torch.utils.data.get_worker_info()
@@ -59,6 +60,7 @@ try:
 
         for ds in dataset_obj.datasets:
             ds._worker_id = worker_id
+            ds._num_workers = 1
 
 except ModuleNotFoundError:
     import logging
@@ -91,6 +93,7 @@ class ZarrDataset(IterableDataset):
                  **kwargs):
         self._worker_sel = slice(None)
         self._worker_id = 0
+        self._num_workers = 1
 
         self._transforms = {("images", ): transform}
         self._transforms_order = [("images", )]
@@ -168,14 +171,21 @@ class ZarrDataset(IterableDataset):
         if self._progress_bar:
             q.close()
 
-        if len(arr_lists) > 1:
+        if len(arr_lists) == 1:
+            self._arr_lists = np.array(arr_lists, dtype=object)
+            self._toplefts = np.array([toplefts[0][self._worker_sel]],
+                                      dtype=object)
+
+        elif len(arr_lists) < self._num_workers:
+            self._arr_lists = np.array(arr_lists, dtype=object)
+            self._toplefts = np.array([tls[self._worker_sel]
+                                       for tls in toplefts],
+                                      dtype=object)
+
+        else:
             self._arr_lists = np.array(arr_lists[self._worker_sel],
                                        dtype=object)
             self._toplefts = np.array(toplefts[self._worker_sel],
-                                      dtype=object)
-        else:
-            self._arr_lists = np.array(arr_lists, dtype=object)
-            self._toplefts = np.array([toplefts[0][self._worker_sel]],
                                       dtype=object)
 
         self._initialized = True

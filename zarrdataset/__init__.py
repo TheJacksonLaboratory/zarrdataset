@@ -19,7 +19,7 @@ from ._utils import (parse_rois,
                      scale_coords,
                      translate2roi)
 
-from ._augs import ZarrToArray
+from ._augs import ToDtype
 
 from ._zarrdataset import (ZarrDataset,
                            LabeledZarrDataset,
@@ -38,7 +38,7 @@ __all__ = ['ZarrDataset',
            'PatchSampler',
            'GridPatchSampler',
            'BlueNoisePatchSampler',
-           'ZarrToArray',
+           'ToDtype',
            'parse_rois',
            'parse_metadata',
            'map_axes_order',

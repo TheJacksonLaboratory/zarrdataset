@@ -5,10 +5,6 @@ import time
 try:
     import tensorflow as tf
 
-    def transform_fn(image):
-        image = zds.ZarrToArray(np.float32)(image)
-        return image
-
     if __name__ == "__main__":
         print("Zarr-based data loader demo")
         # These are images from the Image Data Resource (IDR)
