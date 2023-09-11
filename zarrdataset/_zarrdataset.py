@@ -75,6 +75,45 @@ except ModuleNotFoundError:
         pass
 
 
+class ImageSample():
+    def __init__(self, im_id, chk_id, shuffle=False):
+        self.im_id = im_id
+        self.chk_id = chk_id
+        self._shuffle = shuffle
+        self._ordering = None
+
+        if self._shuffle:
+            self._rng_seed = random.randint(1, 100000)
+        else:
+            self._rng_seed = None
+
+
+        self._current_patch_idx = 0
+        self.num_patches = None
+
+    def free_sampler(self):
+        del self._ordering
+        self._ordering = None
+
+    def next_patch(self):
+        if self._shuffle and self._ordering is None:
+            curr_state = random.getstate()
+            random.seed(self._rng_seed)
+            self._ordering = list(range(self.num_patches))
+            random.shuffle(self._ordering)
+            random.setstate(curr_state)
+
+        if self._shuffle:
+            curr_patch = self._ordering[self._current_patch_idx]
+        else:
+            curr_patch = self._current_patch_idx
+
+        self._current_patch_idx += 1
+        is_empty = self._current_patch_idx >= self.num_patches
+
+        return curr_patch, is_empty
+
+
 class ZarrDataset(IterableDataset):
     """A zarr-based dataset.
 
@@ -88,6 +127,7 @@ class ZarrDataset(IterableDataset):
                  progress_bar=False,
                  return_positions=False,
                  return_any_label=True,
+                 return_worker_id=False,
                  draw_same_chunk=False,
                  zarr_store=None,
                  **kwargs):
@@ -119,6 +159,7 @@ class ZarrDataset(IterableDataset):
         self._progress_bar = progress_bar
         self._return_positions = return_positions
         self._return_any_label = return_any_label
+        self._return_worker_id = return_worker_id
         self._draw_same_chunk = draw_same_chunk
 
         self._patch_sampler = patch_sampler
@@ -218,35 +259,41 @@ class ZarrDataset(IterableDataset):
         self._initialize()
 
         samples = [
-            [im_id, chk_id, None, None]
+            ImageSample(im_id, chk_id, shuffle=self._shuffle)
             for im_id in range(len(self._arr_lists))
             for chk_id in range(len(self._toplefts[im_id]))
-            ]
+        ]
 
-        # When chunks must be depleted before moving to the next chunk, shuffle
-        # all before hand.
+        # Shuffle chunks here if samples will come from the same chunk until
+        # they are depleted.
         if self._shuffle and self._draw_same_chunk:
             random.shuffle(samples)
 
         prev_im_id = -1
         prev_chk_id = -1
+        prev_chk = -1
         curr_chk = 0
         self._curr_collection = None
 
         while samples:
-            # When chunks can be sampled even when these are not depleted,
-            # shuffle here.
+            # Shuffle chunks here if samples can come from different chunks.
             if self._shuffle and not self._draw_same_chunk:
                 curr_chk = random.randrange(0, len(samples))
 
-            im_id = samples[curr_chk][0]
-            chk_id = samples[curr_chk][1]
+            im_id = samples[curr_chk].im_id
+            chk_id = samples[curr_chk].chk_id
 
             chunk_tlbr = tuple(self._toplefts[im_id][chk_id])
 
-            # If this chunk is different from the cached one, change the
-            # cached chunk for this one.
+            # If this sample is from a different image or chunk, free the
+            # previous sample and re-sample the patches from the current chunk.
             if prev_im_id != im_id or chk_id != prev_chk_id:
+                if prev_chk >= 0:
+                    # Free the patch ordering from the previous chunk to save
+                    # memory.
+                    samples[prev_chk].free_sampler()
+
+                prev_chk = curr_chk
                 prev_chk_id = chk_id
 
                 if prev_im_id != im_id:
@@ -264,25 +311,21 @@ class ZarrDataset(IterableDataset):
 
                 if not len(patches_tls):
                     samples.pop(curr_chk)
+                    prev_chk = -1
                     continue
 
             # Initialize the count of top-left positions for patches inside
             # this chunk.
-            if samples[curr_chk][2] is None:
-                samples[curr_chk][2] = len(patches_tls)
-                samples[curr_chk][3] = 0
+            if samples[curr_chk].num_patches is None:
+                samples[curr_chk].num_patches = len(patches_tls)
 
-            if self._shuffle:
-                curr_patch = random.randrange(0, samples[curr_chk][2])
-            else:
-                curr_patch = samples[curr_chk][3]
-
-            samples[curr_chk][3] = samples[curr_chk][3] + 1
+            curr_patch, is_empty = samples[curr_chk].next_patch()
 
             # When all possible patches have been extracted from the current
             # chunk, remove that chunk from the list of samples.
-            if samples[curr_chk][3] == samples[curr_chk][2]:
+            if is_empty:
                 samples.pop(curr_chk)
+                prev_chk = -1
 
             patch_tlbr = patches_tls[curr_patch]
             patches = self.__getitem__(patch_tlbr)
@@ -293,6 +336,10 @@ class ZarrDataset(IterableDataset):
                        for tlbr in patch_tlbr]
                 pos = np.array(pos, dtype=np.int64)
                 patches = [pos] + patches
+
+            if self._return_worker_id:
+                wid = [np.array(self._worker_id, dtype=np.int64)]
+                patches = wid + patches
 
             if len(patches) > 1:
                 patches = tuple(patches)
