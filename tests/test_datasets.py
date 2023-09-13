@@ -1,5 +1,4 @@
 import numpy as np
-from zarrdataset import *
 import pytest
 
 from sample_images_generator import (UNLABELED_DATASET_SPECS,
@@ -10,8 +9,8 @@ from sample_images_generator import (UNLABELED_DATASET_SPECS,
 @pytest.mark.parametrize("dataset_specs", UNLABELED_DATASET_SPECS)
 @pytest.mark.parametrize("random_roi", [True])
 @pytest.mark.parametrize("random_axes", [True])
-@pytest.mark.parametrize("dataset_class", [ZarrDataset])
-@pytest.mark.parametrize("patch_sampler_class", [lambda patch_size: BlueNoisePatchSampler(patch_size)])
+@pytest.mark.parametrize("dataset_class", ["ZarrDataset"])
+@pytest.mark.parametrize("patch_sampler_class", ["BlueNoisePatchSampler"])
 @pytest.mark.parametrize("apply_transform", [True])
 @pytest.mark.parametrize("input_dtype", [np.uint16])
 @pytest.mark.parametrize("target_dtype", [np.float32])
@@ -38,8 +37,8 @@ def test_zarrdataset(dataset_specs, patch_sampler_class,
 @pytest.mark.parametrize("dataset_specs", LABELED_DATASET_SPECS)
 @pytest.mark.parametrize("random_roi", [True])
 @pytest.mark.parametrize("random_axes", [True])
-@pytest.mark.parametrize("dataset_class", [LabeledZarrDataset])
-@pytest.mark.parametrize("patch_sampler_class", [lambda patch_size: None])
+@pytest.mark.parametrize("dataset_class", ["LabeledZarrDataset"])
+@pytest.mark.parametrize("patch_sampler_class", ["None"])
 @pytest.mark.parametrize("apply_transform", [False])
 @pytest.mark.parametrize("input_dtype", [np.uint16])
 @pytest.mark.parametrize("target_dtype", [np.float32])
@@ -65,8 +64,8 @@ def test_labeled_zarrdataset(dataset_specs, patch_sampler_class,
 @pytest.mark.parametrize("dataset_specs", LABELED_DATASET_SPECS)
 @pytest.mark.parametrize("random_roi", [True])
 @pytest.mark.parametrize("random_axes", [True])
-@pytest.mark.parametrize("dataset_class", [MaskedZarrDataset])
-@pytest.mark.parametrize("patch_sampler_class", [lambda patch_size: GridPatchSampler(patch_size)])
+@pytest.mark.parametrize("dataset_class", ["MaskedZarrDataset"])
+@pytest.mark.parametrize("patch_sampler_class", ["GridPatchSampler"])
 @pytest.mark.parametrize("apply_transform", [False, True])
 @pytest.mark.parametrize("input_dtype", [np.uint16])
 @pytest.mark.parametrize("target_dtype", [np.float32])
@@ -92,8 +91,8 @@ def test_masked_zarrdataset(dataset_specs, patch_sampler_class,
 @pytest.mark.parametrize("dataset_specs", LABELED_DATASET_SPECS)
 @pytest.mark.parametrize("random_roi", [True])
 @pytest.mark.parametrize("random_axes", [True])
-@pytest.mark.parametrize("dataset_class", [MaskedLabeledZarrDataset])
-@pytest.mark.parametrize("patch_sampler_class", [lambda patch_size: GridPatchSampler(patch_size)])
+@pytest.mark.parametrize("dataset_class", ["MaskedLabeledZarrDataset"])
+@pytest.mark.parametrize("patch_sampler_class", ["GridPatchSampler"])
 @pytest.mark.parametrize("apply_transform", [False, True])
 @pytest.mark.parametrize("input_dtype", [np.uint16])
 @pytest.mark.parametrize("target_dtype", [np.float32])

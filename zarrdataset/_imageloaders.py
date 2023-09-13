@@ -25,7 +25,7 @@ def image2array(arr_src, data_group=None, zarr_store=None):
     Parameters
     ----------
     arr_src : str, zarr.Group, or zarr.Array
-        The image filename, or zarr object, to be loaded as a dask array.
+        The image filename, or zarr object, to be loaded as a zarr array.
     data_group : src or None
         The group within the zarr file from where the array is loaded. This is
         used only when the input file is a zarr object.
@@ -154,7 +154,7 @@ def image2array(arr_src, data_group=None, zarr_store=None):
             pass
 
     raise ValueError(f"The file/object {arr_src} cannot be opened by "
-                        f"zarr, dask, TiffFile, or PIL")
+                        f"Zarr, TiffFile, or PIL")
 
 
 class ImageBase(object):
@@ -229,9 +229,13 @@ class ImageBase(object):
         if isinstance(index, slice):
             index = [index] * len(self._spatial_reference_axes)
 
-        # Scale the spatial axes of the index according to this image scale.
-        index = dict(((ax, sel)
-                      for ax, sel in zip(self._spatial_reference_axes, index)))
+        if not isinstance(index, dict):
+            # Arrange the indices requested using the reference image axes
+            # ordering.
+            index = dict(
+                ((ax, sel)
+                for ax, sel in zip(self._spatial_reference_axes, index))
+            )
 
         mode_index, _ = select_axes(self.axes, index)
         mode_index = scale_coords(mode_index, self.scale)
@@ -346,7 +350,7 @@ class ImageLoader(ImageBase):
     """Image lazy loader class.
 
     Opens the zarr file, or any image that can be open by TiffFile or PIL, as a
-    Dask array.
+    Zarr array.
     """
     def __init__(self, filename, source_axes, data_group=None, axes=None,
                  roi=None,

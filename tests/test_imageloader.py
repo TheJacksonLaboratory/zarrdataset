@@ -1,45 +1,34 @@
-from zarrdataset import *
+from pathlib import Path
 import pytest
 from sample_images_generator import (IMAGE_SPECS,
-                                     generate_sample_image,
-                                     ImageTransformTest)
+                                     remove_directory,
+                                     base_test_image_loader)
 
 
-@pytest.mark.parametrize("image_specs", IMAGE_SPECS[:1])
 @pytest.mark.parametrize("random_roi", [True, False])
 @pytest.mark.parametrize("random_axes", [True, False])
 @pytest.mark.parametrize("apply_transform", [True, False])
+def test_image_loaders(random_roi, random_axes, apply_transform):
+    base_test_image_loader(IMAGE_SPECS[0], random_roi, random_axes,
+                           apply_transform)
 
 
-def test_image_loader(image_specs, random_roi, random_axes, apply_transform):
-    (image_args,
-     expected_shape,
-     destroy_func) = generate_sample_image(image_specs, random_roi=random_roi,
-                                           random_axes=random_axes)
+@pytest.mark.parametrize("image_specs", IMAGE_SPECS)
+def test_image_formats(image_specs):
+    base_test_image_loader(image_specs, False, False, False)
 
-    if apply_transform:
-        transform = ImageTransformTest(image_args["axes"])
-    else:
-        transform = None
 
-    img = ImageLoader(
-        filename=image_args["filename"],
-        source_axes=image_args["source_axes"],
-        data_group=image_args["data_group"],
-        axes=image_args["axes"],
-        roi=image_args["roi"],
-        image_func=transform,
-        zarr_store=None,
-        spatial_axes="ZYX",
-        mode="r")
+def test_incorrect_image_format():
+    import zarrdataset as zds
 
-    assert isinstance(img, ImageBase), (f"Image loader returned an incorrect"
-                                        f" type of object, expected one based"
-                                        f" in ImageBase, got {type(img)}")
-    assert all(map(lambda s1, s2: s1 == s2, img.shape, expected_shape)),\
-          (f"Expected image of shape {expected_shape}"
-           f", got {img.shape}")
+    dst_dir = "tests/unsopported_images"
+    filename = "tests/unsopported_images/image.unsopported"
 
-    del img
+    Path(dst_dir).mkdir(parents=True, exist_ok=True)
+    fp = open(filename, "w")
+    fp.close()
 
-    destroy_func()
+    with pytest.raises(ValueError):
+        arr, store = zds.image2array(filename)
+
+    remove_directory(dir=dst_dir)

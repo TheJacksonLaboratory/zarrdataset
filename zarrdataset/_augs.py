@@ -13,7 +13,7 @@ class ToDtype(object):
         self._dtype = dtype
 
     def __call__(self, image:np.ndarray) -> np.ndarray:
-        """Transform a dask array into a numpy ndarray.
+        """Casts the type of `image` to the data type specified with `dtype`.
 
         Parameters
         ----------

@@ -201,8 +201,11 @@ class ZarrDataset(IterableDataset):
             if self._patch_sampler is not None:
                 toplefts.append(self._patch_sampler.compute_chunks(curr_img))
             else:
-                toplefts.append([[slice(None)]
-                                 * len(curr_img.collection["images"].axes)])
+                toplefts.append([
+                    dict((ax, slice(None))
+                         for ax in curr_img.collection["images"].axes)
+                    ]
+                )
 
             arr_lists.append(curr_img)
 
@@ -283,7 +286,7 @@ class ZarrDataset(IterableDataset):
             im_id = samples[curr_chk].im_id
             chk_id = samples[curr_chk].chk_id
 
-            chunk_tlbr = tuple(self._toplefts[im_id][chk_id])
+            chunk_tlbr = self._toplefts[im_id][chk_id]
 
             # If this sample is from a different image or chunk, free the
             # previous sample and re-sample the patches from the current chunk.
@@ -331,11 +334,15 @@ class ZarrDataset(IterableDataset):
             patches = self.__getitem__(patch_tlbr)
 
             if self._return_positions:
-                pos = [[tlbr.start if tlbr.start is not None else 0,
-                        tlbr.stop if tlbr.stop is not None else -1]
-                       for tlbr in patch_tlbr]
-                pos = np.array(pos, dtype=np.int64)
-                patches = [pos] + patches
+                pos = [
+                    [patch_tlbr[ax].start
+                     if patch_tlbr[ax].start is not None else 0,
+                     patch_tlbr[ax].stop
+                     if patch_tlbr[ax].stop is not None else -1
+                    ] if ax in patch_tlbr else [0, -1]
+                    for ax in self._collections["images"][0]["axes"]
+                ]
+                patches = [np.array(pos, dtype=np.int64)] + patches
 
             if self._return_worker_id:
                 wid = [np.array(self._worker_id, dtype=np.int64)]
