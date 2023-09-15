@@ -94,38 +94,53 @@ def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
     return main_grp
 
 
-def generate_zarr_group(dst_dir, img_idx, image_specs):
-    z_groups = generate_collection(**image_specs)
-    destroy_func = partial(remove_directory, dir=None)
-    return z_groups, None, None, None, destroy_func
-
-
-def generate_zarr_array(dst_dir, img_idx, image_specs):
+def generate_zarr_group(dst_dir, image_specs):
     z_groups = generate_collection(**image_specs)
 
-    img_src = z_groups[image_specs["data_group"]]
+    return z_groups, None, None, None
 
-    if "mask_group" in image_specs:
-        mask_src = z_groups[image_specs["mask_group"]]
+
+def generate_zarr_array(dst_dir, image_specs):
+    if dst_dir is None:
+        z_groups = generate_collection(**image_specs)
+
+        img_src = z_groups[image_specs["data_group"]]
+
+        if "mask_group" in image_specs:
+            mask_src = z_groups[image_specs["mask_group"]]
+        else:
+            mask_src = None
+
+        if "labels_group" in image_specs:
+            labels_src = z_groups[image_specs["labels_group"]]
+        else:
+            labels_src = None
+
+        if "classes_group" in image_specs:
+            classes_src = z_groups[image_specs["classes_group"]]
+        else:
+            classes_src = None
+
+        return img_src, mask_src, labels_src, classes_src
+
     else:
-        mask_src = None
+        image_specs["data_group"] = "0"
+        z_groups = generate_collection(**image_specs)
+        image_specs["data_group"] = None
 
-    if "labels_group" in image_specs:
-        labels_src = z_groups[image_specs["labels_group"]]
-    else:
-        labels_src = None
+        img_idx = np.random.randint(10000)
 
-    if "classes_group" in image_specs:
-        classes_src = z_groups[image_specs["classes_group"]]
-    else:
-        classes_src = None
+        image_filename = f'{dst_dir}/zarr_array_{img_idx}.zarr'
 
-    destroy_func = partial(remove_directory, dir=None)
+        z_arr = zarr.open(image_filename, mode='w', shape=z_groups["0"].shape,
+                          chunks=z_groups["0"].chunks)
 
-    return img_src, mask_src, labels_src, classes_src, destroy_func
+        z_arr[:] = z_groups["0"][:]
+
+        return image_filename, None, None, None
 
 
-def generate_ndarray(dst_dir, img_idx, image_specs):
+def generate_ndarray(dst_dir, image_specs):
     z_groups = generate_collection(**image_specs)
 
     img_src = z_groups[image_specs["data_group"]][:]
@@ -145,28 +160,30 @@ def generate_ndarray(dst_dir, img_idx, image_specs):
     else:
         classes_src = None
 
-    destroy_func = partial(remove_directory, dir=None)
-
-    return img_src, mask_src, labels_src, classes_src, destroy_func
+    return img_src, mask_src, labels_src, classes_src
 
 
-def generate_zarr_file(dst_dir, img_idx, image_specs):
+def generate_zarr_file(dst_dir, image_specs):
     z_groups = generate_collection(**image_specs)
 
-    Path(dst_dir).mkdir(parents=True, exist_ok=True)
+    img_idx = np.random.randint(10000)
+
     image_filename = f'{dst_dir}/zarr_group_{img_idx}.zarr'
     z_grp_dst = zarr.open(image_filename, mode="w")
     zarr.copy_all(z_groups, z_grp_dst)
 
-    destroy_func = partial(remove_directory, dir=dst_dir)
-
-    return image_filename, None, None, None, destroy_func
+    return image_filename, None, None, None
 
 
-def generate_tiffs(dst_dir, img_idx, image_specs):
+def generate_tiffs(dst_dir, image_specs):
+    src_data_group = image_specs["data_group"]
+
+    if src_data_group is None:
+        image_specs["data_group"] = "0"
+
     z_groups = generate_collection(**image_specs)
 
-    Path(dst_dir).mkdir(parents=True, exist_ok=True)
+    img_idx = np.random.randint(10000)
 
     image_filename = f'{dst_dir}/img_{img_idx}.ome.tiff'
     with tifffile.TiffWriter(image_filename, bigtiff=True) as tif:
@@ -177,33 +194,33 @@ def generate_tiffs(dst_dir, img_idx, image_specs):
             photometric='rgb'
         )
 
-        tif.write(
-            z_groups[image_specs["mask_group"]][:],
-            metadata={"axes": "YX"},
-            tile=(128, 128),
-        )
+        if "mask_group" in image_specs:
+            tif.write(
+                z_groups[image_specs["mask_group"]][:],
+                metadata={"axes": "YX"},
+                tile=(128, 128),
+            )
     
-        tif.write(
-            z_groups[image_specs["labels_group"]][:],
-            metadata={"axes": "YX"},
-            tile=(128, 128),
-        )
+        if "labels_group" in image_specs:
+            tif.write(
+                z_groups[image_specs["labels_group"]][:],
+                metadata={"axes": "YX"},
+                tile=(128, 128),
+            )
 
-        tif.write(
-            z_groups[image_specs["classes_group"]][:],
-            metadata={"axes": "CYX"},
-        )
+        if "classes_group" in image_specs:
+            tif.write(
+                z_groups[image_specs["classes_group"]][:],
+                metadata={"axes": "CYX"},
+            )
 
-    destroy_func = partial(remove_directory, dir=dst_dir)
+    image_specs["data_group"] = src_data_group
 
-    return image_filename, None, None, None, destroy_func
+    return image_filename, None, None, None
 
 
-def generate_pngs(dst_dir, img_idx, image_specs):
-
+def generate_pngs(dst_dir, image_specs):
     z_groups = generate_collection(**image_specs)
-
-    Path(dst_dir).mkdir(parents=True, exist_ok=True)
 
     permute_order = zds.map_axes_order(source_axes=image_specs["source_axes"],
                                        target_axes="YXC")
@@ -214,6 +231,8 @@ def generate_pngs(dst_dir, img_idx, image_specs):
     img_data = img_data[0, ..., :3]
 
     image = Image.fromarray(img_data)
+
+    img_idx = np.random.randint(10000)
 
     image_filename = f"{dst_dir}/img_{img_idx}.png"
     image.save(image_filename,
@@ -233,38 +252,21 @@ def generate_pngs(dst_dir, img_idx, image_specs):
     labels.save(labels_filename,
                 quality_opts={'compress_level': 9, 'optimize': False})
 
-    destroy_func = partial(remove_directory, dir=dst_dir)
-
-    return image_filename, mask_filename, labels_filename, None, destroy_func
+    return image_filename, mask_filename, labels_filename, None
 
 
-GENERATORS = {
-    "zarr_group": generate_zarr_group,
-    "zarr_file": generate_zarr_file,
-    "zarr_array": generate_zarr_array,
-    "ndarray": generate_ndarray,
-    "tiff": generate_tiffs,
-    "png": generate_pngs,
-}
+def generate_empty_file(dst_dir, image_specs):
+    filename = Path(dst_dir) / image_specs["filename"]
+    fp = open(filename, "w")
+    fp.close()
+
+    return filename, None, None, None
 
 
 def generate_image_data(image_specs):
-
-    if image_specs["type"] in GENERATORS.keys():
-        (img_src,
-         mask_src,
-         labels_src,
-         classes_src,
-         destroy_func) = GENERATORS[image_specs["type"]](
-            dst_dir=image_specs["source"]["dst_dir"],
-            img_idx=image_specs["source"]["img_idx"],
-            image_specs=image_specs["specs"])
-
-        shape = image_specs["specs"]["shape"]
-
+    if isinstance(image_specs["source"], str):
+        pass
     else:
-        arr_src, store = zds.image2array(image_specs["source"],
-                                         image_specs["specs"]["data_group"])
         shape = arr_src.shape
 
         if store is not None:
@@ -505,8 +507,9 @@ def generate_sample_dataset(dataset_specs, random_roi=False,
 
 IMAGE_SPECS = [
     {
+        "dst_dir": None,
         "source": "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001237.zarr",
-        "type": "url",
+        "credit": "© 2016-2023 University of Dundee & Open Microscopy Environment. Creative Commons Attribution 4.0 International License",
         "specs": {
             "data_group": "0",
             "shape": [1, 4, 39, 1024, 1024],
@@ -516,8 +519,9 @@ IMAGE_SPECS = [
         }
     },
     {
+        "dst_dir": None,
         "source": "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0048A/9846151.zarr/",
-        "type": "url",
+        "credit": "© 2016-2023 University of Dundee & Open Microscopy Environment. Creative Commons Attribution 4.0 International License",
         "specs": {
             "data_group": "0/0",
             "shape": [1, 3, 1402, 5192, 2947],
@@ -527,8 +531,9 @@ IMAGE_SPECS = [
         }
     },
     {
-        "source": dict(dst_dir="tests/test_zarrs", img_idx=1),
-        "type": "zarr_group",
+        "dst_dir": "tests/test_zarrs",
+        "source": generate_zarr_group,
+        "credit": None,
         "specs": {
             "data_group": "0/0",
             "mask_group": "masks/0/0",
@@ -541,8 +546,9 @@ IMAGE_SPECS = [
         }
     },
     {
-        "source": dict(dst_dir="tests/test_zarrs", img_idx=2),
-        "type": "zarr_file",
+        "dst_dir": "tests/test_zarrs",
+        "source": generate_zarr_file,
+        "credit": None,
         "specs": {
             "data_group": "0",
             "mask_group": "masks/0",
@@ -555,50 +561,93 @@ IMAGE_SPECS = [
         }
     },
     {
-        "source": dict(dst_dir="tests/test_tiffs", img_idx=3),
-        "type": "tiff",
+        "dst_dir": "tests/test_tiffs",
+        "source": generate_tiffs,
+        "credit": None,
         "specs": {
             "data_group": "0",
             "mask_group": "1",
             "labels_group": "2",
             "classes_group": "3",
             "shape": [1125, 512, 3],
-            "chunks": [256, 128, 3],
+            "chunks": [128, 128, 3],
             "source_axes": "YXC",
             "dtype": np.uint16
         }
     },
     {
-        "source": dict(dst_dir="tests/test_pngs", img_idx=4),
-        "type": "png",
+        "dst_dir": "tests/test_tiffs",
+        "source": generate_tiffs,
+        "credit": None,
+        "specs": {
+            "data_group": "0/0",
+            "mask_group": "0/1",
+            "labels_group": "0/2",
+            "classes_group": "0/3",
+            "shape": [1125, 512, 3],
+            "chunks": [128, 128, 3],
+            "source_axes": "YXC",
+            "dtype": np.uint16
+        }
+    },
+    {
+        "dst_dir": "tests/test_tiffs",
+        "source": generate_tiffs,
+        "credit": None,
+        "specs": {
+            "data_group": None,
+            "shape": [1125, 512, 3],
+            "chunks": [128, 128, 3],
+            "source_axes": "YXC",
+            "dtype": np.uint16
+        }
+    },
+    {
+        "dst_dir": "tests/test_tiffs",
+        "source": generate_tiffs,
+        "credit": None,
+        "specs": {
+            "data_group": 0,
+            "shape": [1125, 512, 3],
+            "chunks": [128, 128, 3],
+            "source_axes": "YXC",
+            "dtype": np.uint16
+        }
+    },
+    {
+        "dst_dir": "tests/test_pngs",
+        "source": generate_pngs,
+        "credit": None,
         "specs": {
             "data_group": "0",
             "mask_group": "masks/0",
             "labels_group": "labels/0",
             "classes_group": "classes/0",
             "shape": [1125, 512, 3],
-            "chunks": [256, 128, 3],
+            "chunks": [1125, 512, 3],
             "source_axes": "YXC",
             "dtype": np.uint8
         }
     },
     {
-        "source": dict(dst_dir=None, img_idx=None),
-        "type": "ndarray",
+        "dst_dir": None,
+        "source": generate_ndarray,
+        "credit": None,
         "specs": {
             "data_group": "0",
             "mask_group": "masks/0",
             "labels_group": "labels/0",
             "classes_group": "classes/0",
             "shape": [1125, 3, 512],
-            "chunks": [256, 3, 128],
+            "chunks": [1125, 3, 512],
             "source_axes": "YCX",
             "dtype": np.uint8
         }
     },
     {
-        "source": dict(dst_dir=None, img_idx=None),
-        "type": "zarr_array",
+        "dst_dir": None,
+        "source": generate_zarr_array,
+        "credit": None,
         "specs": {
             "data_group": "0",
             "mask_group": "masks/0",
@@ -611,13 +660,94 @@ IMAGE_SPECS = [
         }
     },
     {
+        "dst_dir": "tests/test_zarrs",
+        "source": generate_zarr_array,
+        "credit": None,
+        "specs": {
+            "data_group": None,
+            "shape": [1, 3, 1125, 512, 1],
+            "chunks": [1, 3, 256, 128, 1],
+            "source_axes": "ZCXYT",
+            "dtype": np.float32
+        }
+    },
+    {
+        "dst_dir": None,
         "source": "https://live.staticflickr.com/4908/31072787307_59f7943caa_o.jpg",
         "credit": "Photo: Guilhem Vellut / CC BY 2.0",
-        "type": "url",
         "specs": {
-            "data_group": "",
-            "shape": [5472, 3648, 3],
-            "chunks": [5472, 3648, 1],
+            "data_group": None,
+            "shape": [3648, 5472, 3],
+            "chunks": [3648, 5472, 3],
+            "source_axes": "YXC",
+            "dtype": np.uint8
+        }
+    },
+]
+
+UNSUPPORTED_IMAGE_SPECS = [
+    {
+        "dst_dir": "tests/test_unsupported",
+        "source": generate_empty_file,
+        "credit": None,
+        "wrong_data_group": None,
+        "specs": {
+            "filename": "image.unknown",
+        }
+    },
+    {
+        "dst_dir": "tests/test_unsupported",
+        "source": generate_empty_file,
+        "credit": None,
+        "wrong_data_group": None,
+        "specs": {
+            "filename": "image.txt",
+        }
+    },
+    {
+        "dst_dir": "tests/test_unsupported",
+        "source": generate_empty_file,
+        "credit": None,
+        "wrong_data_group": None,
+        "specs": {
+            "filename": "image.zip",
+        }
+    },
+    {
+        "dst_dir": "tests/test_zarrs",
+        "source": generate_zarr_group,
+        "credit": None,
+        "wrong_data_group": None,
+        "specs": {
+            "data_group": "0",
+            "shape": [1, 2, 2],
+            "chunks": [1, 2, 2],
+            "source_axes": "CYX",
+            "dtype": np.uint8
+        }
+    },
+    {
+        "dst_dir": "tests/test_zarrs",
+        "source": generate_zarr_file,
+        "credit": None,
+        "wrong_data_group": None,
+        "specs": {
+            "data_group": "0",
+            "shape": [1, 2, 2],
+            "chunks": [1, 2, 2],
+            "source_axes": "CYX",
+            "dtype": np.uint8
+        }
+    },
+    {
+        "dst_dir": "tests/test_tiffs",
+        "source": generate_tiffs,
+        "credit": None,
+        "wrong_data_group": dict(data_group="0"),
+        "specs": {
+            "data_group": "0",
+            "shape": [2, 2, 3],
+            "chunks": [2, 2, 3],
             "source_axes": "YXC",
             "dtype": np.uint8
         }
@@ -729,42 +859,6 @@ UNLABELED_3D_DATASET_SPECS = [
     ],
 ]
 
-
-def base_test_image_loader(image_specs, random_roi, random_axes,
-                           apply_transform):
-
-    (image_args,
-     expected_shape,
-     destroy_func) = generate_sample_image(image_specs, random_roi=random_roi,
-                                           random_axes=random_axes)
-
-    if apply_transform:
-        transform = ImageTransformTest(image_args["axes"])
-    else:
-        transform = None
-
-    img = zds.ImageLoader(
-        filename=image_args["filename"],
-        source_axes=image_args["source_axes"],
-        data_group=image_args["data_group"],
-        axes=image_args["axes"],
-        roi=image_args["roi"],
-        image_func=transform,
-        zarr_store=None,
-        spatial_axes="ZYX",
-        mode="r")
-
-    assert isinstance(img, zds.ImageBase), (f"Image loader returned an "
-                                            f"incorrect type of object, "
-                                            f"expected one based on ImageBase,"
-                                            f" got {type(img)}")
-    assert all(map(lambda s1, s2: s1 == s2, img.shape, expected_shape)),\
-          (f"Expected image of shape {expected_shape}"
-           f", got {img.shape}")
-
-    del img
-
-    destroy_func()
 
 
 def base_test_zarrdataset(dataset_specs, patch_sampler_class, dataset_class,

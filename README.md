@@ -1,4 +1,4 @@
-# zarrdataset
+# ZarrDataset
 A dataset for loading images stored in zarr format to be used primarly with PyTorch's DataLoader in machine learning training workflows.
 
 ## Usage

@@ -7,8 +7,42 @@ Welcome to ZarrDataset's documentation!
 =======================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   :caption: Getting started:
+
+   readme_link
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Examples:
+
+   examples/basic_example
+
+   examples/basic_example_pytorch
+
+   examples/basic_example_tensorflow
+
+   examples/basic_masked_datasets_example
+
+   examples/advanced_masked_datasets_example
+
+   examples/basic_labeled_datasets_example
+
+   examples/advanced_example_pytorch
+
+
+REFERENCE
+=========
+
+.. toctree::
+   :maxdepth: 1
    :caption: Contents:
+
+   license_link
+
+.. toctree::
+   :maxdepth: 1
+
 
 Indices and tables
 ==================

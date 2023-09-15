@@ -493,5 +493,6 @@ class MaskedLabeledZarrDataset(MaskedZarrDataset, LabeledZarrDataset):
     """A dataset based on the zarr dataset class capable of handling labeled
     datasets from masked inputs.
     """
-    def __init__(self, filenames, **kwargs):
-        super(MaskedLabeledZarrDataset, self).__init__(filenames, **kwargs)
+    def __init__(self, filenames, source_axes, **kwargs):
+        super(MaskedLabeledZarrDataset, self).__init__(filenames, source_axes,
+                                                       **kwargs)

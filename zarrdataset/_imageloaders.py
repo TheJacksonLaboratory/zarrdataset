@@ -46,7 +46,9 @@ def image2array(arr_src, data_group=None, zarr_store=None):
         if data_group is not None and len(data_group):
             arr = arr_src[data_group]
         else:
-            arr = arr_src
+            raise ValueError(f"Cannot use {arr_src} because it is a Zarr Group"
+                             f" and a Zarr Array was expected. Please specify"
+                             f" the group where the array is stored.")
         return arr, None
 
     elif isinstance(arr_src, zarr.Array):
@@ -66,57 +68,36 @@ def image2array(arr_src, data_group=None, zarr_store=None):
 
         store = zarr_store(arr_src)
         grp = zarr.open(store, mode="r")
-        if data_group is not None and len(data_group):
-            arr = grp[data_group]
+
+        if isinstance(grp, zarr.Group):
+            if data_group is not None and len(data_group):
+                arr = grp[data_group]
+            else:
+                raise ValueError(f"Cannot use {arr_src} because it is a Zarr "
+                                 f"Group and the group where the array is "
+                                 f"stored was not specified.")
         else:
             arr = grp
+
         return arr, None
 
     elif isinstance(arr_src, np.ndarray):
-        arr = zarr.array(data=arr_src, shape=arr_src, chunks=True)
+        arr = zarr.array(data=arr_src, shape=arr_src.shape,
+                         chunks=arr_src.shape)
         return arr, None
+    
+    # Try to create a connection with the file, to determine if it is a remote
+    # resource or local file.
+    s3_obj = connect_s3(arr_src)
 
-    # If the input is a path to an image stored in a format
-    # supported by PIL, open it and use it as a numpy array.
-    try:
-        s3_obj = connect_s3(arr_src)
-
-        if s3_obj is not None:
-            # The image is stored in a S3 bucket
-            filename = arr_src.split(s3_obj["endpoint_url"]
-                                    + "/"
-                                    + s3_obj["bucket_name"])[1][1:]
-            im_bytes = s3_obj["s3"].get_object(
-                Bucket=s3_obj["bucket_name"],
-                Key=filename)["Body"].read()
-            store = Image.open(BytesIO(im_bytes))
-
-        else:
-            # The image is stored locally
-            store = Image.open(arr_src, mode="r")
-
-        channels = len(store.getbands())
-        height = store.size[1]
-        width = store.size[0]
-
-        arr_shape = [height, width] + ([channels] if channels > 1 else [])
-        arr = zarr.array(data=np.array(store),
-                         shape=arr_shape,
-                         chunks=arr_shape,
-                         dtype=np.uint8)
-        return arr, store
-
-    except PIL.UnidentifiedImageError:
-        pass
-
-    if TIFFFILE_SUPPORT:
+    if TIFFFILE_SUPPORT and s3_obj is None:
         # Try to open the input file with tifffile (if installed).
         try:
             if (data_group is None
               or (isinstance(data_group, str) and not len(data_group))):
                 tiff_args = dict(
                     key=None,
-                    levels=None,
+                    level=None,
                     series=None
                 )
             elif isinstance(data_group, str) and len(data_group):
@@ -153,8 +134,39 @@ def image2array(arr_src, data_group=None, zarr_store=None):
         except tifffile.tifffile.TiffFileError:
             pass
 
-    raise ValueError(f"The file/object {arr_src} cannot be opened by "
-                        f"Zarr, TiffFile, or PIL")
+    # If the input is a path to an image stored in a format
+    # supported by PIL, open it and use it as a numpy array.
+    try:
+        if s3_obj is not None:
+            # The image is stored in a S3 bucket
+            filename = arr_src.split(s3_obj["endpoint_url"]
+                                    + "/"
+                                    + s3_obj["bucket_name"])[1][1:]
+            im_bytes = s3_obj["s3"].get_object(
+                Bucket=s3_obj["bucket_name"],
+                Key=filename)["Body"].read()
+            store = Image.open(BytesIO(im_bytes))
+
+        else:
+            # The image is stored locally
+            store = Image.open(arr_src, mode="r")
+
+        channels = len(store.getbands())
+        height = store.size[1]
+        width = store.size[0]
+
+        arr_shape = [height, width] + ([channels] if channels > 1 else [])
+        arr = zarr.array(data=np.array(store),
+                         shape=arr_shape,
+                         chunks=arr_shape,
+                         dtype=np.uint8)
+        return arr, store
+
+    except PIL.UnidentifiedImageError:
+        pass
+
+    raise ValueError(f"The file/object {arr_src} cannot be opened by Zarr "
+                     f"{', TiffFile, ' if TIFFFILE_SUPPORT else ''} or PIL")
 
 
 class ImageBase(object):
@@ -370,8 +382,27 @@ class ImageLoader(ImageBase):
             parsed_roi = [slice(None)] * len(source_axes)
         elif isinstance(roi, str):
             parsed_roi = parse_rois([roi])[0]
+        elif isinstance(roi, list):
+            if len(roi) != len(source_axes):
+                raise ValueError(f"ROIs does not match the number of the array"
+                                 f" axes. Expected {len(source_axes)}, got "
+                                 f"{len(roi)}")
+            elif not all([isinstance(roi_ax, slice)] for roi_ax in roi):
+                raise ValueError(f"ROIs must be slices, but got "
+                                 f"{[type(roi_ax) for roi_ax in roi]}")
+            else:
+                parsed_roi = roi
+        elif isinstance(roi, slice):
+            if (len(source_axes) > 1
+              and not (roi.start is None and roi.stop is None)):
+                raise ValueError(f"ROIs must specify a slice per axes. "
+                                 f"Expected {len(source_axes)} slices, got "
+                                 f"only {roi}")
+            else:
+                parsed_roi = [roi]
         else:
-            parsed_roi = roi
+            raise ValueError(f"Incorrect ROI format, expected a list of "
+                             f"slices, or a parsable string, got {roi}")
 
         roi_slices = list(
             map(lambda r:
@@ -436,7 +467,8 @@ class ImageCollection(object):
         self._assign_scales()
 
     def _generate_mask(self):
-        if "masks" in self.collection.keys():
+        if ("mask" in self.collection.keys()
+          or "masks" in self.collection.keys()):
             return
 
         ref_axes = self.collection["images"].axes

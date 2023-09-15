@@ -24,7 +24,9 @@ autoapi_dirs = ["../../zarrdataset"]
 templates_path = ['_templates']
 exclude_patterns = []
 
-
+# -- Options for myst_nb -------------------------------------------------
+nb_execution_mode = "cache"
+nb_execution_cache_path = "docs/build/.jupyter_cache"
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
