@@ -11,7 +11,7 @@ def parse_rois(rois_str):
 
     Parameters
     ----------
-    rois_str : list of strings
+    rois_str : str or list of str
         A list of regions of interest parsed from the input string.
 
     Returns
@@ -20,6 +20,9 @@ def parse_rois(rois_str):
         A list of slices to select regions from arrays.
     """
     rois = []
+
+    if isinstance(rois_str, str):
+        rois_str = [rois_str]
 
     # Create a tuple of slices to define each ROI.
     for roi in rois_str:
@@ -36,6 +39,8 @@ def parse_rois(rois_str):
             for c_i, l_i in zip(start_coords, axis_lengths):
                 if l_i > 0:
                     roi_slices.append(slice(c_i, c_i + l_i, None))
+                elif c_i > 0:
+                    roi_slices.append(slice(c_i, None, None))
                 else:
                     roi_slices.append(slice(None))
 
@@ -152,8 +157,9 @@ def parse_metadata(filename, default_source_axes, default_data_group=None,
         default_axes = default_source_axes
 
     if isinstance(filename, str):
-        # There can be filenames with `;` on them, so take the point as
-        # reference to start spliting the filename.
+        # There can be filenames with `;` on them, so take the dot separating
+        # the filename and extension as reference to start spliting the
+        # filename.
         fn_base_split = filename.split(".")
         ext_meta = fn_base_split[-1].split(";")
         fn_ext = ext_meta[0]
@@ -200,8 +206,7 @@ def parse_metadata(filename, default_source_axes, default_data_group=None,
 
 def map_axes_order(source_axes, target_axes="YX"):
     """Get the indices of a set of axes that reorders it to match another set
-    of axes. This is can be used to transpose an array which coordinates
-    systems is defined in a different ordering than the one needed.
+    of axes.
 
     Parameters
     ----------
@@ -217,8 +222,6 @@ def map_axes_order(source_axes, target_axes="YX"):
         If `source_axes` has more axes than `target_axes`, the unspecified axes
         will be moved to the front of the ordering, leaving the `target_axes`
         at the trailing positions.
-    dropped_axes : list of ints
-        The indices that are dropped after
 
     Notes
     -----
@@ -234,7 +237,7 @@ def map_axes_order(source_axes, target_axes="YX"):
     return transpose_order
 
 
-def select_axes(source_axes, axes_selection):
+def select_axes(source_axes : str, axes_selection : dict):
     """Get a sliced selection of axes from a zarr array.
 
     Parameters
@@ -264,7 +267,7 @@ def select_axes(source_axes, axes_selection):
     for ax in source_axes:
         idx = axes_selection.get(ax, None)
 
-        if idx is None:
+        if idx is None or (idx.start is None and idx.stop is None):
             sel_slices.append(slice(None))
 
         else:
@@ -341,7 +344,8 @@ def isconsolidated(arr_src):
     return is_consolidated
 
 
-def scale_coords(selection_range, scale=1.0):
+def scale_coords(selection_range : (list, tuple),
+                 scale : (float, list, tuple) = 1.0):
     """Scale a set of top-lefts, bottom-rights coordinates, in any dimension,
     by `scale` factor.
 
@@ -362,7 +366,7 @@ def scale_coords(selection_range, scale=1.0):
     """
     scaled_selection_range = []
     if not isinstance(scale, (list, tuple)):
-        scale = repeat([scale])
+        scale = repeat(scale)
 
     for ax_range, s in zip(selection_range, scale):
         if isinstance(ax_range, (slice, range)):
@@ -383,7 +387,8 @@ def scale_coords(selection_range, scale=1.0):
             )
         elif isinstance(ax_range, int):
             scaled_selection_range.append(
-                slice(ax_range, ax_range + 1, None)
+                slice(int(ax_range * s), int(math.ceil((ax_range + 1) * s)),
+                      None)
             )
         elif ax_range is None:
             scaled_selection_range.append(
@@ -398,23 +403,31 @@ def scale_coords(selection_range, scale=1.0):
     return scaled_selection_range
 
 
-def translate2roi(index, roi, source_axes, axes):
+def translate2roi(index : dict, roi : tuple, source_axes : str, axes : str):
     roi_mode_index = {}
-    for a_i, a in enumerate(source_axes):
+    for a_i, ax in enumerate(source_axes):
         r = roi[a_i]
 
-        if a in axes:
-            i = index[axes.index(a)]
+        if ax in axes and ax in index:
+            i = index[ax]
 
             i_start = i.start if i.start is not None else 0
             r_start = r.start if r.start is not None else 0
 
-            i_start += r_start
-            i_stop = (i.stop + r_start) if i.stop is not None else r.stop
+            i_start = i_start + r_start
+            i_stop = (r_start + i.stop) if i.stop is not None else None
 
-            roi_mode_index[a] = slice(i_start, i_stop, None)
+            if i_stop is not None and r.stop is not None:
+                i_stop = min(i_stop, r.stop)
+            elif i_stop is None:
+                i_stop = r.stop
+
+            if i_stop is None and i_start == 0:
+                i_start = None
+
+            roi_mode_index[ax] = slice(i_start, i_stop, None)
         else:
-            roi_mode_index[a] = r
+            roi_mode_index[ax] = r
 
     roi_mode_index, _ = select_axes(source_axes, roi_mode_index)
 

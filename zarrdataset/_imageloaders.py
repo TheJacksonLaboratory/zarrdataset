@@ -188,15 +188,16 @@ class ImageBase(object):
     _cached_coords = None
     _image_func = None
 
-    def __init__(self, shape, chunk_size=None, axes=None, mode=""):
+    def __init__(self, shape, chunk_size=None, source_axes=None, mode=""):
         if chunk_size is None:
             chunk_size = shape
 
-        self.source_axes = axes
-        self.axes = axes
-        self.permute_order = list(range(len(axes)))
+        self.source_axes = source_axes
+        self.axes = source_axes
+        self.permute_order = list(range(len(source_axes)))
         self.arr = zarr.ones(shape=shape, dtype=bool, chunks=chunk_size)
-        self.roi = tuple([slice(None)] * len(axes))
+        self.roi = tuple([slice(None)] * len(source_axes))
+        self.mode = mode
 
     def _iscached(self, coords):
         if self._cached_coords is None:
@@ -237,20 +238,32 @@ class ImageBase(object):
 
         return cached_index
 
-    def __getitem__(self, index):
+    def __getitem__(self, index : (slice, tuple, dict)) -> np.ndarray:
+        if self._spatial_reference_axes is not None:
+            spatial_reference_axes = self._spatial_reference_axes
+        else:
+            spatial_reference_axes = self.axes
+
         if isinstance(index, slice):
-            index = [index] * len(self._spatial_reference_axes)
+            index = [index] * len(spatial_reference_axes)
 
         if not isinstance(index, dict):
             # Arrange the indices requested using the reference image axes
             # ordering.
             index = dict(
                 ((ax, sel)
-                for ax, sel in zip(self._spatial_reference_axes, index))
+                for ax, sel in zip(spatial_reference_axes, index))
             )
 
         mode_index, _ = select_axes(self.axes, index)
-        mode_index = scale_coords(mode_index, self.scale)
+        mode_scales = tuple(self.scale[ax] for ax in self.axes)
+
+        mode_index = scale_coords(mode_index, mode_scales)
+
+        mode_index = dict(
+            ((ax, sel)
+            for ax, sel in zip(self.axes, mode_index))
+        )
 
         # Locate the mode_index within the ROI:
         roi_mode_index = translate2roi(mode_index, self.roi, self.source_axes,
@@ -290,13 +303,10 @@ class ImageBase(object):
                 a_i = self.source_axes.index(a)
                 r = self.roi[a_i]
                 s = self.arr.shape[a_i]
-                c = self.arr.chunks[a_i]
+                c = min(self.arr.chunks[a_i], s)
 
                 r_start = 0 if r.start is None else r.start
                 r_stop = s if r.stop is None else r.stop
-
-                if c > s:
-                    c = s
 
                 self._shape.append(r_stop - r_start)
                 self._chunk_size.append(c)
@@ -331,29 +341,29 @@ class ImageBase(object):
 
         self._compute_shapes()
 
-        self._scale = []
+        self._scale = {}
 
-        for a, s in zip(self.axes, self.shape):
-            if a in self._spatial_reference_axes:
-                a_i = self._spatial_reference_axes.index(a)
-                ref_s = self._spatial_reference_shape[a_i]
+        for ax, s in zip(self.axes, self.shape):
+            if ax in self._spatial_reference_axes:
+                ax_i = self._spatial_reference_axes.index(ax)
+                ref_s = self._spatial_reference_shape[ax_i]
 
-                self._scale.append(s / ref_s)
+                self._scale[ax] = s / ref_s
             else:
-                self._scale.append(1.0)
+                self._scale[ax] = 1.0
 
     @property
-    def shape(self):
+    def shape(self) -> list:
         self._compute_shapes()
         return self._shape
 
     @property
-    def chunk_size(self):
+    def chunk_size(self) -> list:
         self._compute_shapes()
         return self._chunk_size
 
     @property
-    def scale(self):
+    def scale(self) -> dict:
         self.rescale()
         return self._scale
 
@@ -373,21 +383,16 @@ class ImageLoader(ImageBase):
         self.mode = mode
         self.spatial_axes = spatial_axes
 
-        (self.arr,
-         self._store) = image2array(filename,
-                                    data_group=data_group,
-                                    zarr_store=zarr_store)
-
         if roi is None:
             parsed_roi = [slice(None)] * len(source_axes)
         elif isinstance(roi, str):
             parsed_roi = parse_rois([roi])[0]
-        elif isinstance(roi, list):
+        elif isinstance(roi, (list, tuple)):
             if len(roi) != len(source_axes):
                 raise ValueError(f"ROIs does not match the number of the array"
                                  f" axes. Expected {len(source_axes)}, got "
                                  f"{len(roi)}")
-            elif not all([isinstance(roi_ax, slice)] for roi_ax in roi):
+            elif not all([isinstance(roi_ax, slice) for roi_ax in roi]):
                 raise ValueError(f"ROIs must be slices, but got "
                                  f"{[type(roi_ax) for roi_ax in roi]}")
             else:
@@ -399,7 +404,7 @@ class ImageLoader(ImageBase):
                                  f"Expected {len(source_axes)} slices, got "
                                  f"only {roi}")
             else:
-                parsed_roi = [roi]
+                parsed_roi = [roi] * len(source_axes)
         else:
             raise ValueError(f"Incorrect ROI format, expected a list of "
                              f"slices, or a parsable string, got {roi}")
@@ -409,6 +414,10 @@ class ImageLoader(ImageBase):
                 slice(r.start if r.start is not None else 0, r.stop, None),
                 parsed_roi)
         )
+
+        (self.arr,
+         self._store) = image2array(filename, data_group=data_group,
+                                    zarr_store=zarr_store)
 
         self.roi = roi_slices
         self.source_axes = source_axes
@@ -487,7 +496,7 @@ class ImageCollection(object):
 
         self.collection["masks"] = ImageBase(shape=mask_chunk_size,
                                              chunk_size=mask_chunk_size,
-                                             axes=mask_axes,
+                                             source_axes=mask_axes,
                                              mode="masks")
 
     def _assign_scales(self):
