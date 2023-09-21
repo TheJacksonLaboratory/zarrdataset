@@ -55,7 +55,7 @@ Sample the image randomly
 
 ```{code-cell} ipython3
 patch_size = dict(Z=32, Y=128, X=128)
-patch_sampler = zds.GridPatchSampler(patch_size=patch_size)
+patch_sampler = zds.PatchSampler(patch_size=patch_size)
 ```
 
 Transform the input data from uint16 to float16 with a torchvision pre-processing pipeline

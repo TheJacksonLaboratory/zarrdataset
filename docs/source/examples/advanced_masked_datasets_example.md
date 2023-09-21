@@ -86,7 +86,7 @@ Sample the image uniformly in a squared grid pattern
 
 ```{code-cell} ipython3
 patch_size = dict(Y=512, X=512)
-patch_sampler = zds.GridPatchSampler(patch_size=patch_size)
+patch_sampler = zds.PatchSampler(patch_size=patch_size)
 ```
 
 Use the MaskedZarrDataset class to enable extraction of samples from masked regions.
@@ -140,7 +140,7 @@ plt.show()
 
 ```{code-cell} ipython3
 patch_size = dict(Y=512, X=512)
-patch_sampler = zds.GridPatchSampler(patch_size=patch_size)
+patch_sampler = zds.PatchSampler(patch_size=patch_size)
 ```
 
 Apply WSITissueMaskGenerator transform to each image in the dataset to define each sampling mask

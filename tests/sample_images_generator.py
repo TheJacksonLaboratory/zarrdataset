@@ -1,8 +1,5 @@
 import zarrdataset as zds
 
-from functools import partial
-import os
-import shutil
 from pathlib import Path
 import numpy as np
 import zarr
@@ -22,11 +19,6 @@ class ImageTransformTest(zds.MaskGenerator):
 
 def input_target_transform(x, t, dtype=np.float32):
     return x.astype(dtype), t.astype(dtype)
-
-
-def remove_directory(dir=None):
-    if dir is not None and os.path.isdir(dir):
-        shutil.rmtree(dir)
 
 
 def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
@@ -63,6 +55,7 @@ def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
 
     # Generate a mask from the image
     mask = img.mean(axis=0) < mask_threshold
+    mask = mask[::2, ::2]
 
     # Label the regions of `img`
     labs = np.log2(img.mean(axis=0) + 1).round().astype(np.uint32)
@@ -263,248 +256,6 @@ def generate_empty_file(dst_dir, image_specs):
     return filename, None, None, None
 
 
-def generate_image_data(image_specs):
-    if isinstance(image_specs["source"], str):
-        pass
-    else:
-        shape = arr_src.shape
-
-        if store is not None:
-            store.close()
-
-        img_src = image_specs["source"]
-        mask_src = None
-        labels_src = None
-        classes_src = None
-
-        destroy_func = lambda: None
-
-    args = dict(
-        filename=img_src,
-        data_group=image_specs["specs"]["data_group"],
-        source_axes=image_specs["specs"]["source_axes"],
-        roi=None,
-        mask_filename=mask_src,
-        mask_data_group=image_specs["specs"].get("mask_group", None),
-        mask_source_axes="YX",
-        labels_filename=labels_src,
-        labels_data_group=image_specs["specs"].get("labels_group", None),
-        labels_source_axes="YX",
-        labels_roi=None,
-        classes_filename=classes_src,
-        classes_data_group=image_specs["specs"].get("classes_group", None),
-        classes_source_axes="CYX",
-    )
-
-    return args, shape, destroy_func
-
-
-def randomize_roi(source_axes, image_shape):
-    # Generate a ROI from the image at random
-    roi = {}
-
-    np.random.seed(478963)
-    for ax, s in zip(source_axes, image_shape):
-        if np.random.rand() < 0.5 and ax in "ZYX":
-            if s > 1:
-                ax_start = np.random.randint(0, s - 2)
-                ax_length = np.random.randint(1, s - ax_start)
-            else:
-                ax_start = 0
-                ax_length = 1
-
-        else:
-            ax_start = 0
-            ax_length = -1
-
-        roi[ax] = (ax_start, ax_length)
-
-    return roi
-
-
-def generate_roi(roi, axes, shape):
-    parsable_roi = "("
-    parsable_roi += ",".join([
-        str(roi[ax][0]) if roi[ax][0] is not None else "0"
-        for ax in axes
-        ])
-    parsable_roi += "):("
-    parsable_roi += ",".join([
-        str(roi[ax][1]) if roi[ax][1] is not None else "-1"
-        for ax in axes
-        ])
-    parsable_roi += ")"
-
-    new_shape = [
-        roi[ax][1] if roi[ax][1] > 0 else s
-        for ax, s in zip(axes, shape)
-    ]
-
-    return parsable_roi, new_shape
-
-
-def permute_axes(image_shape, source_axes, axes):
-    axes_perm = zds.map_axes_order(source_axes=source_axes,
-                                   target_axes=axes)
-    drop_axes_count = len(source_axes) - len(axes)
-    permuted_shape = [image_shape[a] for a in axes_perm[drop_axes_count:]]
-    return permuted_shape
-
-
-def randomize_axes(source_axes, shape):
-    np.random.seed(478963)
-    axes = np.random.permutation(list(source_axes))
-    axes = "".join(
-        ax
-        for ax in axes
-        if (shape[source_axes.index(ax)] > 1
-          or (shape[source_axes.index(ax)] <= 1 and np.random.rand() < 0.5))
-    )
-    return axes
-
-
-def generate_sample_image(image_specs, random_roi=False, random_axes=False):
-    image_args, shape, destroy_func = generate_image_data(image_specs)
-
-    if random_roi:
-        roi = randomize_roi(image_args["source_axes"], shape)
-
-        (image_args["roi"],
-         expected_shape) = generate_roi(roi, image_args["source_axes"], shape)
-    else:
-        expected_shape = shape
-
-    if random_axes:
-        image_args["axes"] = randomize_axes(image_args["source_axes"],
-                                            expected_shape)
-        expected_shape = permute_axes(expected_shape,
-                                      image_args["source_axes"],
-                                      image_args["axes"])
-    else:
-        image_args["axes"] = image_args["source_axes"]
-
-    return image_args, expected_shape, destroy_func
-
-
-def generate_sample_dataset(dataset_specs, random_roi=False,
-                            random_axes=False,
-                            apply_transform=False,
-                            input_dtype=np.float32,
-                            target_dtype=np.int64,
-                            input_target_dtype=np.float64):
-    dataset_shapes = []
-    dataset_destroyers = []
-    dataset_args = None
-
-    for image_specs in dataset_specs:
-        (image_args,
-         shape,
-         destroy_func) = generate_image_data(image_specs)
-
-        dataset_shapes.append(shape)
-        dataset_destroyers.append(destroy_func)
-
-        if dataset_args is None:
-            dataset_args = image_args
-            dataset_args["filenames"] = [image_args["filename"]]
-            if image_args["labels_filename"] is not None:
-                dataset_args["labels_filenames"] =\
-                    [image_args["labels_filename"]]
-            if image_args["mask_filename"] is not None:
-                dataset_args["mask_filenames"] =\
-                    [image_args["mask_filename"]]
-        else:
-            dataset_args["filenames"].append(image_args["filename"])
-
-            if image_args["labels_filename"] is not None:
-                dataset_args["labels_filenames"].append(
-                    image_args["labels_filename"]
-                )
-
-            if image_args["mask_filename"] is not None:
-                dataset_args["mask_filenames"].append(
-                    image_args["mask_filename"]
-                )
-
-    min_shape = np.stack(dataset_shapes).min(axis=0)
-
-    if random_roi:
-        roi = randomize_roi(dataset_args["source_axes"], min_shape)
-        expected_shapes = []
-        expected_labels_shapes = []
-
-        for curr_shape in dataset_shapes:
-            (dataset_args["roi"],
-             curr_expected_shape) = generate_roi(
-                 roi, dataset_args["source_axes"], curr_shape)
-
-            curr_lables_shape = [
-                curr_shape[dataset_args["source_axes"].index(ax)]
-                for ax in dataset_args["labels_source_axes"]
-                if ax in dataset_args["source_axes"]
-            ]
-            (dataset_args["labels_roi"],
-             curr_label_expected_shape) = generate_roi(
-                 roi, dataset_args["labels_source_axes"], curr_lables_shape)
-
-            expected_shapes.append(curr_expected_shape)
-            expected_labels_shapes.append(curr_label_expected_shape)
-
-        _, min_labels_shape = generate_roi(roi,
-                                           dataset_args["labels_source_axes"],
-                                           min_shape)
-
-        _, min_shape = generate_roi(roi, dataset_args["source_axes"],
-                                    min_shape)
-
-    else:
-        expected_shapes = dataset_shapes
-        expected_labels_shapes = [
-            [
-                img_shape[dataset_args["source_axes"].index(ax)]
-                for ax in dataset_args["labels_source_axes"]
-                if ax in dataset_args["source_axes"]
-            ]
-            for img_shape in dataset_shapes
-        ]
-
-        min_labels_shape = [
-            min_shape[dataset_args["source_axes"].index(ax)]
-            for ax in dataset_args["labels_source_axes"]
-            if ax in dataset_args["source_axes"]
-        ]
-
-    if random_axes:
-        dataset_args["axes"] = randomize_axes(dataset_args["source_axes"],
-                                              min_shape)
-        dataset_args["labels_axes"] = randomize_axes(
-            dataset_args["labels_source_axes"], min_labels_shape)
-
-        expected_shapes = [
-            permute_axes(img_shape, dataset_args["source_axes"],
-                         dataset_args["axes"])
-            for img_shape in expected_shapes
-        ]
-
-        expected_labels_shapes = [
-            permute_axes(labels_shape, dataset_args["labels_source_axes"],
-                         dataset_args["labels_axes"])
-            for labels_shape in expected_labels_shapes
-        ]
-
-    if apply_transform:
-        dataset_args["transform"] = zds.ToDtype(dtype=input_dtype)
-
-        if dataset_args["labels_filename"] is not None:
-            dataset_args["target_transform"] = zds.ToDtype(dtype=target_dtype)
-
-            dataset_args["input_target_transform"] = partial(
-                input_target_transform, dtype=input_target_dtype)
-
-    return (dataset_args, expected_shapes, expected_labels_shapes,
-            dataset_destroyers)
-
-
 IMAGE_SPECS = [
     {
         "dst_dir": None,
@@ -653,7 +404,7 @@ IMAGE_SPECS = [
             "mask_group": "masks/0",
             "labels_group": "labels/0",
             "classes_group": "classes/0",
-            "shape": [1, 3, 1125, 512, 1],
+            "shape": [1, 3, 1024, 512, 1],
             "chunks": [1, 3, 256, 128, 1],
             "source_axes": "ZCXYT",
             "dtype": np.float32
@@ -665,7 +416,7 @@ IMAGE_SPECS = [
         "credit": None,
         "specs": {
             "data_group": None,
-            "shape": [1, 3, 1125, 512, 1],
+            "shape": [1, 3, 1024, 512, 1],
             "chunks": [1, 3, 256, 128, 1],
             "source_axes": "ZCXYT",
             "dtype": np.float32
@@ -690,66 +441,66 @@ UNSUPPORTED_IMAGE_SPECS = [
         "dst_dir": "tests/test_unsupported",
         "source": generate_empty_file,
         "credit": None,
-        "wrong_data_group": None,
         "specs": {
             "filename": "image.unknown",
+            "wrong_data_group": None,
         }
     },
     {
         "dst_dir": "tests/test_unsupported",
         "source": generate_empty_file,
         "credit": None,
-        "wrong_data_group": None,
         "specs": {
             "filename": "image.txt",
+            "wrong_data_group": None,
         }
     },
     {
         "dst_dir": "tests/test_unsupported",
         "source": generate_empty_file,
         "credit": None,
-        "wrong_data_group": None,
         "specs": {
             "filename": "image.zip",
+            "wrong_data_group": None,
         }
     },
     {
         "dst_dir": "tests/test_zarrs",
         "source": generate_zarr_group,
         "credit": None,
-        "wrong_data_group": None,
         "specs": {
             "data_group": "0",
             "shape": [1, 2, 2],
             "chunks": [1, 2, 2],
             "source_axes": "CYX",
-            "dtype": np.uint8
+            "dtype": np.uint8,
+            "wrong_data_group": None,
         }
     },
     {
         "dst_dir": "tests/test_zarrs",
         "source": generate_zarr_file,
         "credit": None,
-        "wrong_data_group": None,
         "specs": {
             "data_group": "0",
             "shape": [1, 2, 2],
             "chunks": [1, 2, 2],
             "source_axes": "CYX",
-            "dtype": np.uint8
+            "dtype": np.uint8,
+            "wrong_data_group": None,
         }
     },
     {
         "dst_dir": "tests/test_tiffs",
         "source": generate_tiffs,
         "credit": None,
-        "wrong_data_group": dict(data_group="0"),
         "specs": {
             "data_group": "0",
             "shape": [2, 2, 3],
             "chunks": [2, 2, 3],
             "source_axes": "YXC",
-            "dtype": np.uint8
+            "dtype": np.uint8,
+            "wrong_data_group": dict(data_group="0"),
         }
     },
 ]
@@ -878,8 +629,8 @@ def base_test_zarrdataset(dataset_specs, patch_sampler_class, dataset_class,
 
     patch_sampler_classes = {
         "None": lambda patch_size: None,
-        "GridPatchSampler": \
-            lambda patch_size: zds.GridPatchSampler(patch_size),
+        "PatchSampler": \
+            lambda patch_size: zds.PatchSampler(patch_size),
         "BlueNoisePatchSampler": \
             lambda patch_size: zds.BlueNoisePatchSampler(patch_size),
     }
@@ -997,8 +748,8 @@ def base_test_zarrdataset_pytorch(dataset_specs, patch_sampler_class,
 
     patch_sampler_classes = {
         "None": lambda patch_size: None,
-        "GridPatchSampler": \
-            lambda patch_size: zds.GridPatchSampler(patch_size),
+        "PatchSampler": \
+            lambda patch_size: zds.PatchSampler(patch_size),
         "BlueNoisePatchSampler": \
             lambda patch_size: zds.BlueNoisePatchSampler(patch_size),
     }
@@ -1136,8 +887,8 @@ def base_test_zarrdataset_chain_pytorch(dataset_specs, patch_sampler_class,
 
     patch_sampler_classes = {
         "None": lambda patch_size: None,
-        "GridPatchSampler": \
-            lambda patch_size: zds.GridPatchSampler(patch_size),
+        "PatchSampler": \
+            lambda patch_size: zds.PatchSampler(patch_size),
         "BlueNoisePatchSampler": \
             lambda patch_size: zds.BlueNoisePatchSampler(patch_size),
     }
@@ -1329,7 +1080,7 @@ if __name__ == "__main__":
     # random_roi_pars = [True]
     # random_axes_pars = [True]
     # dataset_class_pars = ["MaskedZarrDataset"]
-    # patch_sampler_class_pars = ["GridPatchSampler"]
+    # patch_sampler_class_pars = ["PatchSampler"]
     # apply_transform_pars = [True]
     # input_dtype_pars = [np.float32]
     # target_dtype_pars = [np.int64]

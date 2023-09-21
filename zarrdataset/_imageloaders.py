@@ -473,7 +473,7 @@ class ImageCollection(object):
         ))
 
         self._generate_mask()
-        self._assign_scales()
+        self.reset_scales()
 
     def _generate_mask(self):
         if ("mask" in self.collection.keys()
@@ -499,7 +499,7 @@ class ImageCollection(object):
                                              source_axes=mask_axes,
                                              mode="masks")
 
-    def _assign_scales(self):
+    def reset_scales(self):
         img_shape = self.collection["images"].shape
         img_source_axes = self.collection["images"].source_axes
         img_axes = self.collection["images"].axes

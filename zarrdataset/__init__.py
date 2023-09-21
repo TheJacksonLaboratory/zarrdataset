@@ -1,5 +1,4 @@
 from ._samplers import (PatchSampler,
-                        GridPatchSampler,
                         BlueNoisePatchSampler)
 
 from ._maskfuncs import (MaskGenerator,
@@ -21,22 +20,23 @@ from ._utils import (parse_rois,
 
 from ._augs import ToDtype
 
-from ._zarrdataset import (ZarrDataset,
-                           LabeledZarrDataset,
-                           MaskedZarrDataset,
-                           MaskedLabeledZarrDataset,
+from ._zarrdataset import (DatasetSpecs,
+                           ImagesDatasetSpecs,
+                           LabelsDatasetSpecs,
+                           MasksDatasetSpecs,
+                           ZarrDataset,
                            zarrdataset_worker_init,
                            chained_zarrdataset_worker_init)
 
 
-__all__ = ['ZarrDataset',
-           'LabeledZarrDataset',
-           'MaskedZarrDataset',
-           'MaskedLabeledZarrDataset',
+__all__ = ['DatasetSpecs',
+           'ImagesDatasetSpecs',
+           'LabelsDatasetSpecs',
+           'MasksDatasetSpecs',
+           'ZarrDataset',
            'zarrdataset_worker_init',
            'chained_zarrdataset_worker_init',
            'PatchSampler',
-           'GridPatchSampler',
            'BlueNoisePatchSampler',
            'ToDtype',
            'parse_rois',

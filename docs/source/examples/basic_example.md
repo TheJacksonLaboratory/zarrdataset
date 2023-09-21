@@ -67,7 +67,7 @@ Sample the image uniformly in a grid pattern
 
 ```{code-cell} ipython3
 patch_size = dict(Y=512, X=512)
-patch_sampler = zds.GridPatchSampler(patch_size=patch_size)
+patch_sampler = zds.PatchSampler(patch_size=patch_size)
 ```
 
 Create a dataset from the list of filenames. All those files should be stored within their respective group "0".

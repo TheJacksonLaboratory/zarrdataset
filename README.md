@@ -81,14 +81,14 @@ my_dataset = zds.LabeledZarrDataset(filenames,
 The **ZarrDataset** and **LabeledZarrDataset** retrieve the full array contained in *data_group* by default.
 To retrieve patches from that array instead, use any of the two samplers provided within this package, or implement a custom one derived from the **PatchSampler** class.
 
-The two existing samplers are **GridPatchSampler** and **BlueNoisePatchSampler**.
-**GridPatchSampler** generates a evenly distributed grid of non-overlapping squared patches of side *patch_size*. **BlueNoisePatchSampler** generates a random sample of non-overlapping squared patches of side *patch_size* that uniformly covers the image.
+The two existing samplers are **PatchSampler** and **BlueNoisePatchSampler**.
+**PatchSampler** generates a evenly distributed grid of non-overlapping squared patches of side *patch_size*. **BlueNoisePatchSampler** generates a random sample of non-overlapping squared patches of side *patch_size* that uniformly covers the image.
 The patch sampler can be integated into a **ZarrDataset** or **LabeledZarrDataset** object as follows.
 ```
 import zarrdataset as zds
 
 # Retrieve patches of size patch_size in an evenly spaced grid from the image.
-my_patch_sampler = zds.GridPatchSampler(patch_size)
+my_patch_sampler = zds.PatchSampler(patch_size)
 
 my_dataset = zds.ZarrDataset(filenames,
                              data_group="0",

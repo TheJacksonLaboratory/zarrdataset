@@ -3,7 +3,7 @@ import operator
 
 import zarrdataset as zds
 
-from sample_images_generator import remove_directory
+import shutil
 from pathlib import Path
 import zarr
 import boto3
@@ -176,18 +176,20 @@ def test_consolidated():
     root_path = Path("tests/test_zarrs")
     root_path.mkdir(parents=True, exist_ok=True)
 
-    root = zarr.open(root_path, mode="w")
-    root.create_dataset("test/test_arr", shape=10, dtype="i8")
+    try:
+        root = zarr.open(root_path, mode="w")
+        root.create_dataset("test/test_arr", shape=10, dtype="i8")
 
-    zarr.consolidate_metadata(root_path)
+        zarr.consolidate_metadata(root_path)
 
-    isconsolidated = zds.isconsolidated(str(root_path))
+        isconsolidated = zds.isconsolidated(str(root_path))
 
-    assert isconsolidated, \
-        (f"Expected {root_path} be consolidated, got {isconsolidated} "
-         f"instead.")
+        assert isconsolidated, \
+            (f"Expected {root_path} be consolidated, got {isconsolidated} "
+             f"instead.")
 
-    remove_directory(root_path)
+    finally:
+        shutil.rmtree(root_path)
 
 
 @pytest.mark.parametrize("arr_src, expected_consolidated", [

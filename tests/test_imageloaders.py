@@ -2,15 +2,15 @@ import zarrdataset as zds
 from unittest import mock
 import pytest
 import importlib
+import os
+import shutil
 import tifffile
 import random
 
 from pathlib import Path
 import zarr
 import numpy as np
-from sample_images_generator import (IMAGE_SPECS,
-                                     UNSUPPORTED_IMAGE_SPECS,
-                                     remove_directory)
+from sample_images_generator import IMAGE_SPECS, UNSUPPORTED_IMAGE_SPECS
 
 @pytest.fixture
 def dummy_array():
@@ -19,30 +19,39 @@ def dummy_array():
     return source_data, source_axes
 
 
-@pytest.mark.parametrize("image_specs", IMAGE_SPECS)
-def test_image_formats(image_specs):
-    dst_dir = None
-    store = None
-
-    if isinstance(image_specs["source"], str):
-        img_src = image_specs["source"]
+@pytest.fixture(scope="function")
+def input_image(request):
+    if isinstance(request.param["source"], str):
+        yield request.param["source"], request.param["specs"]
 
     else:
-        if image_specs["dst_dir"] is not None:
-            dst_dir = Path(image_specs["dst_dir"])
+        dst_dir = request.param["dst_dir"]
+
+        if dst_dir is not None:
+            dst_dir = Path(request.param["dst_dir"])
             dst_dir.mkdir(parents=True, exist_ok=True)
 
-        img_src, _, _, _ = image_specs["source"](image_specs["dst_dir"],
-                                                 image_specs["specs"])
+        yield (request.param["source"](request.param["dst_dir"],
+                                       request.param["specs"])[0],
+               request.param["specs"])
+
+        if dst_dir is not None and os.path.isdir(dst_dir):
+            shutil.rmtree(dst_dir)
 
 
-    expected_shape = tuple(image_specs["specs"]["shape"])
-    expected_chunks = tuple(image_specs["specs"]["chunks"])
+@pytest.mark.parametrize("input_image", IMAGE_SPECS, indirect=["input_image"])
+def test_image_formats(input_image):
+    image_src, image_specs = input_image
+
+    expected_shape = tuple(image_specs["shape"])
+    expected_chunks = tuple(image_specs["chunks"])
+
+    store = None
 
     try:
         arr, store = zds.image2array(
-            img_src,
-            data_group=image_specs["specs"]["data_group"]
+            image_src,
+            data_group=image_specs["data_group"]
         )
 
         assert arr.shape == expected_shape, \
@@ -55,23 +64,15 @@ def test_image_formats(image_specs):
         if store is not None:
             store.close()
 
-        remove_directory(dir=dst_dir)
 
-
-@pytest.mark.parametrize("image_specs", UNSUPPORTED_IMAGE_SPECS)
-def test_unsupported_image_formats(image_specs):
-    if image_specs["dst_dir"] is not None:
-        dst_dir = Path(image_specs["dst_dir"])
-        dst_dir.mkdir(parents=True, exist_ok=True)
-
-    img_src, _, _, _ = image_specs["source"](image_specs["dst_dir"],
-                                             image_specs["specs"])
+@pytest.mark.parametrize("input_image", UNSUPPORTED_IMAGE_SPECS,
+                         indirect=["input_image"])
+def test_unsupported_image_formats(input_image):
+    image_src, image_specs = input_image
 
     with pytest.raises(ValueError):
-        arr, _ = zds.image2array(img_src,
-                                 data_group=image_specs["wrong_data_group"])
-
-    remove_directory(dir=dst_dir)
+        _ = zds.image2array(image_src,
+                            data_group=image_specs["wrong_data_group"])
 
 
 @pytest.mark.parametrize("shape, chunk_size, source_axes, expected_chunk_size",
@@ -230,32 +231,18 @@ def test_ImageLoader_function(dummy_array):
          f" instead.")
 
 
-@pytest.mark.parametrize("image_specs", IMAGE_SPECS)
-def test_ImageLoader_formats(image_specs):
-    dst_dir = None
-    store = None
+@pytest.mark.parametrize("input_image", IMAGE_SPECS, indirect=["input_image"])
+def test_ImageLoader_formats(input_image):
+    image_src, image_specs = input_image
 
-    if isinstance(image_specs["source"], str):
-        img_src = image_specs["source"]
+    expected_shape = image_specs["shape"]
 
-    else:
-        if image_specs["dst_dir"] is not None:
-            dst_dir = Path(image_specs["dst_dir"])
-            dst_dir.mkdir(parents=True, exist_ok=True)
-
-        img_src, _, _, _ = image_specs["source"](image_specs["dst_dir"],
-                                                 image_specs["specs"])
-
-    expected_shape = image_specs["specs"]["shape"]
-
-    img = zds.ImageLoader(img_src,
-                          source_axes=image_specs["specs"]["source_axes"],
-                          data_group=image_specs["specs"]["data_group"])
+    img = zds.ImageLoader(image_src,
+                          source_axes=image_specs["source_axes"],
+                          data_group=image_specs["data_group"])
 
     assert img.shape == expected_shape, \
         (f"Expected image of shape {expected_shape}, got {img.shape}")
-
-    remove_directory(dir=dst_dir)
 
 
 def test_ImageCollection():

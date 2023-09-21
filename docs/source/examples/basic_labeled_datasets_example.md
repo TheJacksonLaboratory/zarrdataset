@@ -51,7 +51,7 @@ LabeledZarrDataset can retrieve the associated label to each patch extracted as 
 
 ```{code-cell} ipython3
 patch_size = dict(Y=512, X=512)
-patch_sampler = zds.GridPatchSampler(patch_size=patch_size)
+patch_sampler = zds.PatchSampler(patch_size=patch_size)
 ```
 
 ### Weakly labeled exmaple

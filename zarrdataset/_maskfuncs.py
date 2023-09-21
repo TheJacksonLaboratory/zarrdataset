@@ -8,20 +8,33 @@ class MaskGenerator(object):
     def __init__(self, axes):
         self.axes = axes
 
-    def _compute_transform(self, image: np.ndarray):
+    def _compute_transform(self, image: np.ndarray) -> np.ndarray:
         raise NotImplementedError("This is a virtual method and has to be "
                                   "implemented by a derived image "
                                   "transformation class")
 
-    def __call__(self, image: np.ndarray):
+    def __call__(self, image: np.ndarray) -> np.ndarray:
         return self._compute_transform(image)
 
 
 class WSITissueMaskGenerator(MaskGenerator):
+    """Mask generator for tissue objects in Whole Slide Images (WSI).
 
-    def __init__(self, mask_scale=1/16, min_size=16, area_threshold=128,
-                 thresh=None,
-                 axes="YX"):
+    This will compute a mask of scale `mask_scale` from the input image where
+    tissue (darker pixels than white background) are present.
+
+    Parameters
+    ----------
+    mask_scale : float
+    min_size : int
+    area_threshold : int,
+    thresh : float, None
+    axes : str
+    """
+    def __init__(self, mask_scale : float = 1/16, min_size : int = 16,
+                 area_threshold : int = 128,
+                 thresh : (float, None) = None,
+                 axes : str = "YX"):
         super(WSITissueMaskGenerator, self).__init__(axes=axes)
 
         self._mask_scale = mask_scale
@@ -29,7 +42,7 @@ class WSITissueMaskGenerator(MaskGenerator):
         self._area_threshold_2 = area_threshold ** 2
         self._thresh = thresh
 
-    def _compute_transform(self, image: np.ndarray):
+    def _compute_transform(self, image: np.ndarray) -> np.ndarray:
         gray = color.rgb2gray(image)
         scaled_gray = transform.rescale(gray, scale=self._mask_scale, order=0,
                                         preserve_range=True)
