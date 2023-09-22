@@ -33,7 +33,7 @@ my_dataset = zds.ZarrDataset(...)
 my_dataloader = DataLoader(my_dataset,
                            batch_size=16,
                            num_workers=4,
-                           worker_init_fn=zds.zarrdataset_worker_init)
+                           worker_init_fn=zds.zarrdataset_worker_init_fn)
 
 for x, t in my_dataloader:
     # The training loop
@@ -43,7 +43,7 @@ for x, t in my_dataloader:
     ...
 ```
 ### Multithread data loading
-Use of multiple workers through multithread requires the use of the **zarrdataset_worker_init** function provided in this package.
+Use of multiple workers through multithread requires the use of the **zarrdataset_worker_init_fn** function provided in this package.
 This allows to load only a fraction of the dataset on each worker instead of the full dataset.
 
 ### Labeled datasets

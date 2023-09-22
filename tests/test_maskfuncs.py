@@ -28,7 +28,8 @@ def test_MaskGenerator(input_image):
         _ = mask_generator(img)
 
 
-@pytest.mark.parametrize("mask_scale, min_size, area_threshold, thresh, axes", [
+@pytest.mark.parametrize("mask_scale, min_size, area_threshold, thresh, axes",
+[
     (0.5, 5, 10, None, "YX"),
     (2, 5, 10, 0.5, "ZYX"),
 ])

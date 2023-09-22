@@ -124,11 +124,11 @@ my_dataset = zds.ZarrDataset(filenames,
 
 ZarrDataset performs some special operations for enabling multithread data loading without replicating the full dataset on each worker.
 
-For this reason, ZarrDataset requires its own `worker_init_fn` initialization function: `zarrdataset_worker_init`.
+For this reason, ZarrDataset requires its own `worker_init_fn` initialization function: `zarrdataset_worker_init_fn`.
 
 ```{code-cell} ipython3
 my_dataloader = DataLoader(my_dataset, num_workers=4,
-                           worker_init_fn=zds.zarrdataset_worker_init)
+                           worker_init_fn=zds.zarrdataset_worker_init_fn)
 ```
 
 Now the data can be safely loaded using multiple workers.

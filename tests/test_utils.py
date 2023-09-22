@@ -42,7 +42,9 @@ def test_parse_rois(rois_str, expected_rois):
             data_group="",
             roi=None)
     ]),
-    ("test.png;0/0;CYX:YXC;(0,0,1):(-1,-1,3)", "YCX", None, None, [(slice(0, 2), slice(0, 2), slice(None)), (slice(None), slice(None), slice(None))], False, [
+    ("test.png;0/0;CYX:YXC;(0,0,1):(-1,-1,3)", "YCX", None, None,
+     [(slice(0, 2), slice(0, 2), slice(None)),
+      (slice(None), slice(None), slice(None))], False, [
         dict(
             filename="test.png",
             source_axes="CYX",
@@ -51,7 +53,9 @@ def test_parse_rois(rois_str, expected_rois):
             roi=(slice(None), slice(None), slice(1, 4))
         ),
     ]),
-    ("test.png;0/0;CYX:YXC;(0,0,1):(-1,-1,3)", "YCX", None, None, [(slice(0, 2), slice(0, 2), slice(None)), (slice(None), slice(None), slice(None))], True, [
+    ("test.png;0/0;CYX:YXC;(0,0,1):(-1,-1,3)", "YCX", None, None,
+     [(slice(0, 2), slice(0, 2), slice(None)),
+      (slice(None), slice(None), slice(None))], True, [
         dict(
             filename="test.png",
             source_axes="YCX",
@@ -67,7 +71,8 @@ def test_parse_rois(rois_str, expected_rois):
             roi=(slice(None), slice(None), slice(None))
         ),
     ]),
-    ("test.png;0/0;CYX:YXC;(0,0,1):(-1,-1,3);(2,3,1):(2,2,-1)", None, None, None, None, False, [
+    ("test.png;0/0;CYX:YXC;(0,0,1):(-1,-1,3);(2,3,1):(2,2,-1)", None, None,
+     None, None, False, [
         dict(
             filename="test.png",
             source_axes="CYX",
@@ -128,7 +133,8 @@ def test_map_axes_order(source_axes, target_axes, expected_order):
 
 @pytest.mark.parametrize("source_axes, axes_selection, expected_sel_slices, "
                          "expected_unfixed_axes", [
-    ("YX", dict(Y=slice(None), X=slice(None)), (slice(None), slice(None)), "YX"),
+    ("YX", dict(Y=slice(None), X=slice(None)), (slice(None), slice(None)),
+     "YX"),
     ("Y", dict(Y=None), (slice(None), ), "Y"),
 ])
 def test_select_axes(source_axes, axes_selection, expected_sel_slices,
@@ -168,8 +174,8 @@ def test_connect_s3(filename_sample, expected_s3_obj):
              f"{s3_obj['endpoint_url']} instead.")
         assert (s3_obj["s3"]._endpoint.host
                 == expected_s3_obj["s3"]._endpoint.host), \
-            (f"Expected client endpoint {expected_s3_obj['s3']._endpoint.host}, "
-             f"got {s3_obj['s3']._endpoint.host} instead.")
+            (f"Expected client endpoint {expected_s3_obj['s3']._endpoint.host}"
+             f", got {s3_obj['s3']._endpoint.host} instead.")
 
 
 def test_consolidated():
@@ -229,12 +235,15 @@ def test_unsupported_scale_coords(selection_range, scale):
 
 
 @pytest.mark.parametrize("index, roi, source_axes, axes, expected_roi", [
-    (dict(Y=slice(None), X=slice(None)), (slice(None), slice(None)), "YX", "YX", (slice(None), slice(None))),
+    (dict(Y=slice(None), X=slice(None)), (slice(None), slice(None)), "YX",
+     "YX", (slice(None), slice(None))),
     (dict(Y=slice(0, 5)), (slice(None), ), "Y", "Y", (slice(0, 5), )),
     (dict(Y=slice(0, 5)), (slice(5, 10), ), "Y", "Y", (slice(5, 10), )),
     (dict(Y=slice(0, 5)), (slice(5, 7), ), "Y", "Y", (slice(5, 7), )),
-    (dict(Y=slice(0, 5)), (slice(None), slice(None)), "YZ", "Y", (slice(0, 5), slice(None))),
-    (dict(W=slice(0, 5)), (slice(None), slice(None)), "YZ", "Z", (slice(None), slice(None))),
+    (dict(Y=slice(0, 5)), (slice(None), slice(None)), "YZ", "Y",
+     (slice(0, 5), slice(None))),
+    (dict(W=slice(0, 5)), (slice(None), slice(None)), "YZ", "Z",
+     (slice(None), slice(None))),
 ])
 def test_translate2roi(index, roi, source_axes, axes, expected_roi):
     translated_roi = zds.translate2roi(index, roi, source_axes, axes)

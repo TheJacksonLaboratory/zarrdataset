@@ -1,3 +1,4 @@
+from typing import Union
 import numpy as np
 from skimage import morphology, color, filters, transform
 
@@ -28,12 +29,12 @@ class WSITissueMaskGenerator(MaskGenerator):
     mask_scale : float
     min_size : int
     area_threshold : int,
-    thresh : float, None
+    thresh : Union[float, None]
     axes : str
     """
     def __init__(self, mask_scale : float = 1/16, min_size : int = 16,
                  area_threshold : int = 128,
-                 thresh : (float, None) = None,
+                 thresh : Union[float, None] = None,
                  axes : str = "YX"):
         super(WSITissueMaskGenerator, self).__init__(axes=axes)
 

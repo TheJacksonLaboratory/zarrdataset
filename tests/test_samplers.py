@@ -247,14 +247,3 @@ def test_BlueNoisePatchSampler_mask_not2scale(image_collection_mask_not2scale):
 
     assert len(patches_toplefts) == 0, \
         (f"Expected 0 patches, got {len(patches_toplefts)} instead.")
-
-
-if __name__ == "__main__":
-    class Request():
-        def __init__(self, param):
-            self.param = param
-
-    patch_size = dict(X=32, Y=32, Z=1)
-
-    for img_coll in image_collection_mask_not2scale(Request(IMAGE_SPECS[10])):
-        test_BlueNoisePatchSampler_mask_not2scale(img_coll)

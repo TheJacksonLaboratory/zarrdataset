@@ -9,7 +9,7 @@ class ToDtype(object):
     dtype : numpy.dtype
         The data type to cast the input array.
     """
-    def __init__(self, dtype) -> None:
+    def __init__(self, dtype: np.dtype) -> None:
         self._dtype = dtype
 
     def __call__(self, image:np.ndarray) -> np.ndarray:

@@ -312,7 +312,3 @@ def test_compatibility_no_tifffile():
     with mock.patch.dict('sys.modules', {'tifffile': tifffile}):
         importlib.reload(zds._imageloaders)
         importlib.reload(zds)
-
-
-if __name__ == "__main__":
-    test_ImageLoader_supported_rois(dummy_array(), None, slice(None), (16, 16, 3))

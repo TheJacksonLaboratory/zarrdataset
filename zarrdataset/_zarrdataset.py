@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Iterable, Callable
+from typing import Iterable, Union, Callable
 from functools import reduce, partial
 import operator
 import random
@@ -33,7 +33,7 @@ try:
     import torch
     from torch.utils.data import IterableDataset
 
-    def zarrdataset_worker_init(worker_id):
+    def zarrdataset_worker_init_fn(worker_id):
         worker_info = torch.utils.data.get_worker_info()
         w_sel = slice(worker_id, None, worker_info.num_workers)
 
@@ -48,7 +48,7 @@ try:
         dataset_obj._worker_id = worker_id
         dataset_obj._num_workers = worker_info.num_workers
 
-    def chained_zarrdataset_worker_init(worker_id):
+    def chained_zarrdataset_worker_init_fn(worker_id):
         worker_info = torch.utils.data.get_worker_info()
         dataset_obj = worker_info.dataset
 
@@ -71,27 +71,26 @@ except ModuleNotFoundError:
                     'still work as a python iterator')
     IterableDataset = object
 
-    def zarrdataset_worker_init(*args):
+    def zarrdataset_worker_init_fn(*args):
         pass
 
-    def chained_zarrdataset_worker_init(*args):
+    def chained_zarrdataset_worker_init_fn(*args):
         pass
 
 
 class ImageSample():
-    def __init__(self, im_id, chk_id, shuffle=False):
+    _current_patch_idx = 0
+    _ordering = None
+    _rng_seed = None
+    num_patches = None
+
+    def __init__(self, im_id: int, chk_id: int, shuffle: bool = False):
         self.im_id = im_id
         self.chk_id = chk_id
         self._shuffle = shuffle
-        self._ordering = None
 
         if self._shuffle:
             self._rng_seed = random.randint(1, 100000)
-        else:
-            self._rng_seed = None
-
-        self._current_patch_idx = 0
-        self.num_patches = None
 
     def free_sampler(self):
         del self._ordering
@@ -123,46 +122,51 @@ class DatasetSpecs(object):
     ----------
     mode: str
         Specifies the use of this dataset (input image data, labels, masks).
-    filenames: (str, Iterable[str], zarr.Group, Iterable[zarr.Group],
-                zarr.Array, Iterable[zarr.Array], np.ndarray,
-                Iterable[np.ndarray])
+    filenames: Union[str,
+                     Iterable[str],
+                     zarr.Group,
+                     Iterable[zarr.Group],
+                     zarr.Array,
+                     Iterable[zarr.Array],
+                     np.ndarray,
+                     Iterable[np.ndarray]]
         The input source either specified by a path/url to a file or a
         supported array-like object, or list of them.
     source_axes: str
         The orignal array axes ordering.
-    axes: (str, None)
+    axes: Union[str, None]
         The axes ordering as it being used from the array (may involve
         permuting, dropping unused axes, and creating new axes).
-    data_group: (str, int, None)
+    data_group: Union[str, int, None]
         The group for zarr images, or key for tiff files
-    roi: (str, slice, Iterable[slice])
+    roi: Union[str, slice, Iterable[slice], None]
         Regions of interest from the input array that can be used for data
         sampling.
-    image_loader_func: (Callable, None)
+    image_loader_func: Union[Callable, None]
         A transformation applied to the input array before sampling. Could be
         used to define a mask generation function. This is not a data
         augmentation transform. To specify a data augmetation transform use
         `transform` instead.
-    zarr_store: (zarr.storage.Store, None)
+    zarr_store: Union[zarr.storage.Store, None]
         A specific zarr.storage.Store class to be used to load zarr files.
-    transform: (Callable, None)
+    transform: Union[Callable, None]
         A transform applied to the array before returning it after sampling.
         This can be used to specify data augmentation transforms.
     """
     def __init__(self, mode: str,
-                 filenames: (str, Iterable[str], zarr.Group,
-                             Iterable[zarr.Group],
-                             zarr.Array,
-                             Iterable[zarr.Array],
-                             np.ndarray,
-                             Iterable[np.ndarray]),
+                 filenames: Union[str, Iterable[str], zarr.Group,
+                                  Iterable[zarr.Group],
+                                  zarr.Array,
+                                  Iterable[zarr.Array],
+                                  np.ndarray,
+                                  Iterable[np.ndarray]],
                  source_axes: str,
-                 axes: (str, None) = None,
-                 data_group: (str, int, None) = None,
-                 roi: (str, slice, Iterable[slice]) = None,
-                 image_loader_func: (Callable, None) = None,
-                 zarr_store: (zarr.storage.Store, None) = None,
-                 transform: (Callable, None) = None):
+                 axes: Union[str, None] = None,
+                 data_group: Union[str, int, None] = None,
+                 roi: Union[str, slice, Iterable[slice], None] = None,
+                 image_loader_func: Union[Callable, None] = None,
+                 zarr_store: Union[zarr.storage.Store, None] = None,
+                 transform: Union[Callable, None] = None):
 
         self.specs = dict(
             mode=mode,
@@ -197,48 +201,53 @@ class ImagesDatasetSpecs(DatasetSpecs):
 
     Parameters
     ----------
-    filenames: (str, Iterable[str], zarr.Group, Iterable[zarr.Group],
-                zarr.Array, Iterable[zarr.Array], np.ndarray,
-                Iterable[np.ndarray])
+    filenames: Union[str,
+                     Iterable[str],
+                     zarr.Group,
+                     Iterable[zarr.Group],
+                     zarr.Array,
+                     Iterable[zarr.Array],
+                     np.ndarray,
+                     Iterable[np.ndarray]]
         The input source either specified by a path/url to a file or a
         supported array-like object, or list of them.
     source_axes: str
         The orignal array axes ordering.
-    axes: (str, None)
+    axes: Union[str, None]
         The axes ordering as it being used from the array (may involve
         permuting, dropping unused axes, and creating new axes).
-    data_group: (str, int, None)
+    data_group: Union[str, int, None]
         The group for zarr images, or key for tiff files
-    roi: (str, slice, Iterable[slice])
+    roi: Union[str, slice, Iterable[slice], None]
         Regions of interest from the input array that can be used for data
         sampling.
-    image_loader_func: (Callable, None)
+    image_loader_func: Union[Callable, None]
         A transformation applied to the input array before sampling. Could be
         used to define a mask generation function. This is not a data
         augmentation transform. To specify a data augmetation transform use
         `transform` instead.
-    zarr_store: (zarr.storage.Store, None)
+    zarr_store: Union[zarr.storage.Store, None]
         A specific zarr.storage.Store class to be used to load zarr files.
-    transform: (Callable, None)
+    transform: Union[Callable, None]
         A transform applied to the array before returning it after sampling.
         This can be used to specify data augmentation transforms.
     """
     def __init__(self,
-                 filenames: (str, Iterable[str], zarr.Group,
-                             Iterable[zarr.Group],
-                             zarr.Array,
-                             Iterable[zarr.Array],
-                             np.ndarray,
-                             Iterable[np.ndarray]),
+                 filenames: Union[str, Iterable[str], zarr.Group,
+                                  Iterable[zarr.Group],
+                                  zarr.Array,
+                                  Iterable[zarr.Array],
+                                  np.ndarray,
+                                  Iterable[np.ndarray]],
                  source_axes: str,
-                 axes: (str, None) = None,
-                 data_group: (str, int, None) = None,
-                 roi: (str, slice, Iterable[slice]) = None,
-                 image_loader_func: (Callable, None) = None,
-                 zarr_store: (zarr.storage.Store, None) = None,
-                 transform: (Callable, None) = None):
+                 axes: Union[str, None] = None,
+                 data_group: Union[str, int, None] = None,
+                 roi: Union[str, slice, Iterable[slice], None] = None,
+                 image_loader_func: Union[Callable, None] = None,
+                 zarr_store: Union[zarr.storage.Store, None] = None,
+                 transform: Union[Callable, None] = None):
 
-        super(ImagesDatasetSpecs, self).__init__(
+        super().__init__(
             "Images",
             filenames,
             source_axes,
@@ -256,52 +265,57 @@ class LabelsDatasetSpecs(DatasetSpecs):
 
     Parameters
     ----------
-    filenames: (str, Iterable[str], zarr.Group, Iterable[zarr.Group],
-                zarr.Array, Iterable[zarr.Array], np.ndarray,
-                Iterable[np.ndarray])
+    filenames: Union[str,
+                     Iterable[str],
+                     zarr.Group,
+                     Iterable[zarr.Group],
+                     zarr.Array,
+                     Iterable[zarr.Array],
+                     np.ndarray,
+                     Iterable[np.ndarray]]
         The input source either specified by a path/url to a file or a
         supported array-like object, or list of them.
     source_axes: str
         The orignal array axes ordering.
-    axes: (str, None)
+    axes: Union[str, None]
         The axes ordering as it being used from the array (may involve
         permuting, dropping unused axes, and creating new axes).
-    data_group: (str, int, None)
+    data_group: Union[str, int, None]
         The group for zarr images, or key for tiff files
-    roi: (str, slice, Iterable[slice])
+    roi: Union[str, slice, Iterable[slice], None]
         Regions of interest from the input array that can be used for data
         sampling.
-    image_loader_func: (Callable, None)
+    image_loader_func: Union[Callable, None]
         A transformation applied to the input array before sampling. Could be
         used to define a mask generation function. This is not a data
         augmentation transform. To specify a data augmetation transform use
         `transform` instead.
-    zarr_store: (zarr.storage.Store, None)
+    zarr_store: Union[zarr.storage.Store, None]
         A specific zarr.storage.Store class to be used to load zarr files.
-    transform: (Callable, None)
+    transform: Union[Callable, None]
         A transform applied to the array before returning it after sampling.
         This can be used to specify data augmentation transforms.
-    input_target_transform: (Callable, None)
+    input_target_transform: Union[Callable, None]
         A function that is applied to both, input and target images. This can
         be used to specify data augmentation transforms that affect the target.
     """
     def __init__(self,
-                 filenames: (str, Iterable[str], zarr.Group,
-                             Iterable[zarr.Group],
-                             zarr.Array,
-                             Iterable[zarr.Array],
-                             np.ndarray,
-                             Iterable[np.ndarray]),
+                 filenames: Union[str, Iterable[str], zarr.Group,
+                                  Iterable[zarr.Group],
+                                  zarr.Array,
+                                  Iterable[zarr.Array],
+                                  np.ndarray,
+                                  Iterable[np.ndarray]],
                  source_axes: str,
-                 axes: (str, None) = None,
-                 data_group: (str, int, None) = None,
-                 roi: (str, slice, Iterable[slice]) = None,
-                 image_loader_func: (Callable, None) = None,
-                 zarr_store: (zarr.storage.Store, None) = None,
-                 transform: (Callable, None) = None,
-                 input_target_transform: (Callable, None) = None):
+                 axes: Union[str, None] = None,
+                 data_group: Union[str, int, None] = None,
+                 roi: Union[str, slice, Iterable[slice], None] = None,
+                 image_loader_func: Union[Callable, None] = None,
+                 zarr_store: Union[zarr.storage.Store, None] = None,
+                 transform: Union[Callable, None] = None,
+                 input_target_transform:Union[Callable, None] = None):
 
-        super(LabelsDatasetSpecs, self).__init__(
+        super().__init__(
             "labels",
             filenames,
             source_axes,
@@ -324,44 +338,49 @@ class MasksDatasetSpecs(DatasetSpecs):
 
     Parameters
     ----------
-    filenames: (str, Iterable[str], zarr.Group, Iterable[zarr.Group],
-                zarr.Array, Iterable[zarr.Array], np.ndarray,
-                Iterable[np.ndarray])
+    filenames: Union[str,
+                     Iterable[str],
+                     zarr.Group,
+                     Iterable[zarr.Group],
+                     zarr.Array,
+                     Iterable[zarr.Array],
+                     np.ndarray,
+                     Iterable[np.ndarray]]
         The input source either specified by a path/url to a file or a
         supported array-like object, or list of them.
     source_axes: str
         The orignal array axes ordering.
-    axes: (str, None)
+    axes: Union[str, None]
         The axes ordering as it being used from the array (may involve
         permuting, dropping unused axes, and creating new axes).
-    data_group: (str, int, None)
+    data_group: Union[str, int, None]
         The group for zarr images, or key for tiff files
-    roi: (str, slice, Iterable[slice])
+    roi: Union[str, slice, Iterable[slice], None]
         Regions of interest from the input array that can be used for data
         sampling.
-    image_loader_func: (Callable, None)
+    image_loader_func: Union[Callable, None]
         A transformation applied to the input array before sampling. Could be
         used to define a mask generation function. This is not a data
         augmentation transform. To specify a data augmetation transform use
         `transform` instead.
-    zarr_store: (zarr.storage.Store, None)
+    zarr_store: Union[zarr.storage.Store, None]
         A specific zarr.storage.Store class to be used to load zarr files.
     """
     def __init__(self,
-                 filenames: (str, Iterable[str], zarr.Group,
-                             Iterable[zarr.Group],
-                             zarr.Array,
-                             Iterable[zarr.Array],
-                             np.ndarray,
-                             Iterable[np.ndarray]),
+                 filenames: Union[str, Iterable[str], zarr.Group,
+                                  Iterable[zarr.Group],
+                                  zarr.Array,
+                                  Iterable[zarr.Array],
+                                  np.ndarray,
+                                  Iterable[np.ndarray]],
                  source_axes: str,
-                 axes: (str, None) = None,
-                 data_group: (str, int, None) = None,
-                 roi: (str, slice, Iterable[slice]) = None,
-                 image_loader_func: (Callable, None) = None,
-                 zarr_store: (zarr.storage.Store, None) = None):
+                 axes: Union[str, None] = None,
+                 data_group: Union[str, int, None] = None,
+                 roi: Union[str, slice, Iterable[slice], None] = None,
+                 image_loader_func: Union[Callable, None] = None,
+                 zarr_store: Union[zarr.storage.Store, None] = None):
 
-        super(MasksDatasetSpecs, self).__init__(
+        super().__init__(
             "masks",
             filenames,
             source_axes,
@@ -427,7 +446,7 @@ class BaseZarrDataset(IterableDataset):
         modes = self._collections.keys()
 
         for collection in zip(*self._collections.values()):
-            collection = dict(map(tuple, zip(modes, collection)))
+            collection = dict([(m, c) for m, c in zip(modes, collection)])
             for mode in collection.keys():
                 collection[mode]["zarr_store"] = self._zarr_store[mode]
                 collection[mode]["image_func"] = self._image_loader_func[mode]
@@ -554,15 +573,16 @@ class BaseZarrDataset(IterableDataset):
                 else:
                     patches_tls = [chunk_tlbr]
 
+                samples[curr_chk].num_patches = len(patches_tls)
+
                 if not len(patches_tls):
                     samples.pop(curr_chk)
                     prev_chk = -1
                     continue
 
-            # Initialize the count of top-left positions for patches inside
-            # this chunk.
-            if samples[curr_chk].num_patches is None:
-                samples[curr_chk].num_patches = len(patches_tls)
+            # # Initialize the count of top-left positions for patches inside
+            # # this chunk.
+            # if samples[curr_chk].num_patches is None:
 
             curr_patch, is_empty = samples[curr_chk].next_patch()
 
@@ -598,148 +618,45 @@ class BaseZarrDataset(IterableDataset):
             yield patches
 
 
-# class LabeledZarrDataset(BaseZarrDataset):
-#     """A labeled dataset based on the zarr dataset class.
-#     The densely labeled targets are extracted from group "labels_data_group".
-#     """
-#     def __init__(self, filenames, source_axes, axes=None, data_group=None,
-#                  roi=None,
-#                  labels_filenames=None,
-#                  labels_data_group=None,
-#                  labels_source_axes=None,
-#                  labels_axes=None,
-#                  labels_roi=None,
-#                  target_transform=None,
-#                  input_target_transform=None,
-#                  labels_zarr_store=None,
-#                  **kwargs):
-#         # Override the selection to always return labels with this class
-#         kwargs["return_any_label"] = False
-
-#         if not isinstance(labels_filenames, list):
-#             labels_filenames = [labels_filenames]
-
-#         if labels_data_group is None:
-#             labels_data_group = data_group
-
-#         if labels_source_axes is None:
-#             labels_source_axes = source_axes
-
-#         if labels_axes is None:
-#             labels_axes = labels_source_axes
-
-#         if labels_roi is None:
-#             if labels_data_group == data_group:
-#                 labels_roi = roi
-#             else:
-#                 labels_roi = [[slice(None)] * len(labels_source_axes)]
-
-#         super(LabeledZarrDataset, self).__init__(filenames, source_axes,
-#                                                  axes=axes,
-#                                                  data_group=data_group,
-#                                                  roi=roi,
-#                                                  **kwargs)
-
-#         labels_filenames = reduce(
-#             operator.add,
-#             map(partial(parse_metadata, default_source_axes=labels_source_axes,
-#                         default_data_group=labels_data_group,
-#                         default_axes=labels_axes,
-#                         default_rois=labels_roi,
-#                         override_meta=True),
-#                 labels_filenames),
-#             [])
-
-#         self._collections["target"] = labels_filenames
-#         self._image_loader_func["target"] = None
-#         self._zarr_store["target"] = labels_zarr_store
-
-#         # This is a transform that affects the geometry of the input, and then
-#         # it has to be applied to the target as well.
-#         self._transforms[("images", "target")] = input_target_transform
-#         self._transforms_order.append(("images", "target"))
-
-#         # This is a transform that only affects the target
-#         self._transforms[("target", )] = target_transform
-#         self._transforms_order.append(("target",))
-
-#         self._output_order.append("target")
-
-
-# class MaskedZarrDataset(BaseZarrDataset):
-#     """A masked dataset based on the zarr dataset class.
-#     """
-#     def __init__(self, filenames, source_axes, axes=None, data_group=None,
-#                  roi=None,
-#                  mask_filenames=None,
-#                  mask_data_group=None,
-#                  mask_source_axes=None,
-#                  mask_axes=None,
-#                  mask_roi=None,
-#                  mask_func=None,
-#                  mask_zarr_store=None,
-#                  **kwargs):
-
-#         if not isinstance(mask_filenames, list):
-#             mask_filenames = [mask_filenames]
-
-#         if mask_data_group is None:
-#             mask_data_group = data_group
-
-#         if mask_source_axes is None:
-#             mask_source_axes = source_axes
-
-#         if mask_axes is None:
-#             mask_axes = mask_source_axes
-
-#         if mask_roi is None:
-#             if mask_data_group == data_group:
-#                 mask_roi = roi
-#             else:
-#                 mask_roi = [[slice(None)] * len(mask_source_axes)]
-
-#         super(MaskedZarrDataset, self).__init__(filenames, source_axes,
-#                                                 axes=axes,
-#                                                 data_group=data_group,
-#                                                 roi=roi,
-#                                                 **kwargs)
-
-#         if not isinstance(mask_filenames, list):
-#             mask_filenames = [mask_filenames]
-
-#         mask_filenames = reduce(
-#             operator.add,
-#             map(partial(parse_metadata, default_source_axes=mask_source_axes,
-#                         default_data_group=mask_data_group,
-#                         default_axes=mask_axes,
-#                         default_rois=mask_roi,
-#                         override_meta=True),
-#                 mask_filenames),
-#             [])
-
-#         self._collections["masks"] = mask_filenames
-#         self._image_loader_func["masks"] = mask_func
-#         self._zarr_store["masks"] = mask_zarr_store
-
-
 class ZarrDataset(BaseZarrDataset):
     """A dataset based on the zarr dataset class capable of handling labeled
     datasets from masked inputs.
 
     Parameters
     ----------
-    dataset_specs: OrderedDict,
-    patch_sampler: (PatchSampler, None)
+    dataset_specs: OrderedDict
+        An ordered dictionary containing the specifications of the datasets
+        used as inputs. The order of the content of the dictionary determines
+        the order patches are extracted, processed and concatenated to generate
+        a single output when this dataset is iterated. Normal dictionaries can
+        be passed inside `dataset_specs`; however, DataSpecs can be used as
+        guideline of the parameters that are expected.
+    patch_sampler: Union[PatchSampler, None]
+        The patch sampling algorithm used to extract patches from images.
     shuffle: bool
+        Whether samples are extracted in order or at random.
     progress_bar: bool
+        Display a progress bar to show the status of data initialization.
+        Requires `tqdm` to be installed in the environment.
     return_positions: bool
+        Return the top-left positions from where the samples where extracted
+        along with the set of patches.
     return_any_label: bool
+        Return a label `0` along with the samples extracted, when no `labels`
+        dataset specifications are passed. This is useful if this dataset is
+        used as a generator from which a pair (input, target) is expected.
     return_worker_id: bool
+        Return the worker id that extracted the sample.
     draw_same_chunk: bool
+        Whether continue extracting samples from the same chunk, until
+        depleting the posible patches to extract, before extract samples from
+        a different chunk. This can be used to reduce the overhead of
+        retrieving different chunks when sampling patches at random locations
+        whithin the input image.
     """
     def __init__(self,
                  dataset_specs: OrderedDict,
-                 patch_sampler: (PatchSampler, None) = None,
+                 patch_sampler: Union[PatchSampler, None] = None,
                  shuffle: bool = False,
                  progress_bar: bool = False,
                  return_positions: bool = False,
@@ -747,7 +664,7 @@ class ZarrDataset(BaseZarrDataset):
                  return_worker_id: bool = False,
                  draw_same_chunk: bool = False):
 
-        super(ZarrDataset, self).__init__(
+        super().__init__(
             patch_sampler=patch_sampler,
             shuffle=shuffle,
             progress_bar=progress_bar,
@@ -763,11 +680,6 @@ class ZarrDataset(BaseZarrDataset):
 
         # Iterate the modes in the dataset specifications
         for mode, specs in dataset_specs.items():
-            if not isinstance(specs["filenames"], list):
-                filenames_src = [specs["filenames"]]
-            else:
-                filenames_src = specs["filenames"]
-
             source_axes = specs["source_axes"]
             data_group = specs.get("data_group", None)
             axes = specs.get("axes", None)
@@ -780,7 +692,9 @@ class ZarrDataset(BaseZarrDataset):
                             default_data_group=data_group,
                             default_axes=axes,
                             default_rois=roi),
-                    filenames_src),
+                    specs["filenames"]
+                    if isinstance(specs["filenames"], list) else
+                    [specs["filenames"]]),
                 []
             )
 

@@ -1,22 +1,24 @@
+from typing import Iterable, Union, List
 import os
 import math
 from itertools import repeat
 from urllib.parse import urlparse
 import requests
 import boto3
+import zarr
 
 
-def parse_rois(rois_str):
+def parse_rois(rois_str: Iterable[str]) -> List[slice]:
     """Parse a list of strings defining ROIs.
 
     Parameters
     ----------
-    rois_str : str or list of str
+    rois_str : Iterable[str]
         A list of regions of interest parsed from the input string.
 
     Returns
     -------
-    rois : list of slices
+    rois : List[slice]
         A list of slices to select regions from arrays.
     """
     rois = []
@@ -53,10 +55,11 @@ def parse_rois(rois_str):
     return rois
 
 
-def parse_metadata(filename, default_source_axes, default_data_group=None,
-                   default_axes=None,
-                   default_rois=None,
-                   override_meta=False):
+def parse_metadata(filename: str, default_source_axes: str,
+                   default_data_group: Union[str, int, None]=None,
+                   default_axes: Union[str, None]=None,
+                   default_rois: Union[Iterable[slice], None]=None,
+                   override_meta: bool=False) -> List[dict]:
     """Parse the filename, data groups, axes ordering, ROIs from `filename`.
 
     The different fields must be separated by a semicolon (;).
@@ -70,13 +73,13 @@ def parse_metadata(filename, default_source_axes, default_data_group=None,
     default_source_axes : src
         Default source axes ordering used when no axes are present in the
         filename string.
-    default_data_group : src or None
+    default_data_group : Union[str, int, None]
         Default data group used when data group is present in the filename
         string.
-    default_axes : src or None
+    default_axes : Union[str, None]
         Default output axes ordering used when no target axes are present in
         the filename string.
-    default_rois : list of tuple of slices or None
+    default_rois : Union[Iterable[slice], None]
         Default roi used when no rois are present in the filename string.
     override_meta : bool
         Whether to override the values parsed from the filename with the
@@ -204,7 +207,7 @@ def parse_metadata(filename, default_source_axes, default_data_group=None,
     return parsed_metadata
 
 
-def map_axes_order(source_axes, target_axes="YX"):
+def map_axes_order(source_axes: str, target_axes: str="YX"):
     """Get the indices of a set of axes that reorders it to match another set
     of axes.
 
@@ -284,7 +287,7 @@ def select_axes(source_axes : str, axes_selection : dict):
     return sel_slices, unfixed_axes
 
 
-def connect_s3(filename_sample):
+def connect_s3(filename_sample: str):
     """Stablish a connection with a S3 bucket.
 
     Parameters
@@ -319,12 +322,12 @@ def connect_s3(filename_sample):
     return s3_obj
 
 
-def isconsolidated(arr_src):
+def isconsolidated(arr_src: Union[str, zarr.Group, zarr.Array]):
     """Check if the zarr file is consolidated so it is faster to open.
 
     Parameters
     ----------
-    arr_src : str, zarr.Group, or zarr.Array
+    arr_src : Union[str, zarr.Group, zarr.Array]
         The image filename, or zarr object, to be checked.
 
     Returns
@@ -344,18 +347,18 @@ def isconsolidated(arr_src):
     return is_consolidated
 
 
-def scale_coords(selection_range : (list, tuple),
-                 scale : (float, list, tuple) = 1.0):
+def scale_coords(selection_range : Iterable[slice],
+                 scale : Union[float, Iterable[float]] = 1.0):
     """Scale a set of top-lefts, bottom-rights coordinates, in any dimension,
     by `scale` factor.
 
     Parameters
     ----------
-    selection_range : iterator of tuple or list of ints or slices
+    selection_range : Iterable[slice]
         The selection range from an n-dimensional array to scale. This can be a
         range (start, end), single index, or None, defining the range of
         indices taken from each axis.
-    scale : float or iterator of floats
+    scale : Union[float, Iterable[float]]
         The factor to rescale the selection range of each axes. If a single
         value is passed, all axes are rescaled by that factor.
 

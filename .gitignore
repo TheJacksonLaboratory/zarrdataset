@@ -135,3 +135,4 @@ tests/test_images/*
 tests/test_zarrs/*
 tests/test_tiffs/*
 tests/*.png
+.vscode/settings.json

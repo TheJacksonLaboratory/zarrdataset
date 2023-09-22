@@ -91,12 +91,12 @@ my_datasets = [zds.ZarrDataset(fn,
 my_chain_dataset = ChainDataset(my_datasets)
 ```
 
-Make sure the chained_zarrdataset_worker_init function is passed to the DataLoader, so the workers can initialize the dataset correctly
+Make sure the chained_zarrdataset_worker_init_fn function is passed to the DataLoader, so the workers can initialize the dataset correctly
 
 ```{code-cell} ipython3
 my_dataloader = DataLoader(my_chain_dataset,
                            num_workers=4,
-                           worker_init_fn=zds.chained_zarrdataset_worker_init,
+                           worker_init_fn=zds.chained_zarrdataset_worker_init_fn,
                            batch_size=2
                            )
 ```

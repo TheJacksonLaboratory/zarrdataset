@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Union
 import math
 import numpy as np
 from itertools import repeat
@@ -16,7 +16,7 @@ class PatchSampler(object):
 
     Parameters
     ----------
-    patch_size : int or iterator of ints, dict
+    patch_size : Union[int, Iterable[int], dict]
         Size in pixels of the patches extracted on each axis. Only rectangular
         patches (hyper-cuboids) are supported by now. If a single int is
         passed, that size is used for all dimensions. If an iterable (list,
@@ -29,7 +29,7 @@ class PatchSampler(object):
     spatial_axes : str
         The spatial axes from where patches can be extracted.
     """
-    def __init__(self, patch_size: (int, Iterable[int], dict),
+    def __init__(self, patch_size: Union[int, Iterable[int], dict],
                  spatial_axes: str ="ZYX"):
         # The maximum chunk sizes are used to generate a reference sampling
         # position array used fo every sampled chunk.
@@ -62,7 +62,7 @@ class PatchSampler(object):
         )
 
     def _get_samplable_positions(self, mask: ImageBase,
-                                 chunk_tlbr: (dict, None)) -> np.ndarray:
+                                 chunk_tlbr: Union[dict, None]) -> np.ndarray:
         # Expand the mask array to treat the positions as corners
         # mask_corners = transform.rescale(mask[chunk_tlbr], scale=2)
         chunk_mask = mask[chunk_tlbr]
@@ -267,7 +267,7 @@ class BlueNoisePatchSampler(PatchSampler):
     allow_overlap : bool
         Whether overlapping of patches is allowed or not.
     """
-    def __init__(self, patch_size: (int, Iterable[int], dict),
+    def __init__(self, patch_size: Union[int, Iterable[int], dict],
                  resample_positions=False,
                  allow_overlap=False,
                  **kwargs):
@@ -276,7 +276,14 @@ class BlueNoisePatchSampler(PatchSampler):
         self._resample_positions = resample_positions
         self._allow_overlap = allow_overlap
  
-    def compute_sampling_positions(self, force=False):
+    def compute_sampling_positions(self, force=False) -> None:
+        """Compute the sampling positions using blue-noise sampling.
+
+        Parameters
+        ----------
+        force: bool, defaults to False
+            Whether force resampling positions, or reuse existing positions.
+        """
         if self._base_chunk_tls is not None and not force:
             return
 

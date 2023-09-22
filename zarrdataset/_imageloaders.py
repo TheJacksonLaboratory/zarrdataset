@@ -1,3 +1,5 @@
+from typing import Union, Iterable, Callable
+
 import math
 import zarr
 import numpy as np
@@ -18,18 +20,20 @@ except ModuleNotFoundError:
     TIFFFILE_SUPPORT = False
 
 
-def image2array(arr_src, data_group=None, zarr_store=None):
+def image2array(arr_src: Union[str, zarr.Group, zarr.Array, np.ndarray],
+                data_group: Union[str, int, None] = None,
+                zarr_store: Union[zarr.storage.Store, None] = None):
     """Open images stored in zarr format or any image format that can be opened
     by PIL as an array.
 
     Parameters
     ----------
-    arr_src : str, zarr.Group, or zarr.Array
+    arr_src : Union[str, zarr.Group, zarr.Array, np.ndarray]
         The image filename, or zarr object, to be loaded as a zarr array.
-    data_group : src or None
+    data_group : Union[str, int, None]
         The group within the zarr file from where the array is loaded. This is
         used only when the input file is a zarr object.
-    zarr_store : zarr.storage.Store or None
+    zarr_store : Union[zarr.storage.Store, None]
         The class used to open the zarr file. Leave it as None to let this
         function to use the most suitable depending to the data location
         (s3/remote: FSStore, local disk: DirectoryStore).
@@ -140,8 +144,8 @@ def image2array(arr_src, data_group=None, zarr_store=None):
         if s3_obj is not None:
             # The image is stored in a S3 bucket
             filename = arr_src.split(s3_obj["endpoint_url"]
-                                    + "/"
-                                    + s3_obj["bucket_name"])[1][1:]
+                                     + "/"
+                                     + s3_obj["bucket_name"])[1][1:]
             im_bytes = s3_obj["s3"].get_object(
                 Bucket=s3_obj["bucket_name"],
                 Key=filename)["Body"].read()
@@ -174,7 +178,6 @@ class ImageBase(object):
     spatial_axes = "ZYX"
     source_axes = None
     axes = None
-    chunk_size = None
     mode = ""
     permute_order = None
     _store = None
@@ -188,7 +191,10 @@ class ImageBase(object):
     _cached_coords = None
     _image_func = None
 
-    def __init__(self, shape, chunk_size=None, source_axes=None, mode=""):
+    def __init__(self, shape: Iterable[int],
+                 chunk_size: Union[Iterable[int], None]=None,
+                 source_axes: str="",
+                 mode: str=""):
         if chunk_size is None:
             chunk_size = shape
 
@@ -198,6 +204,7 @@ class ImageBase(object):
         self.arr = zarr.ones(shape=shape, dtype=bool, chunks=chunk_size)
         self.roi = tuple([slice(None)] * len(source_axes))
         self.mode = mode
+        self._chunk_size = chunk_size
 
     def _iscached(self, coords):
         if self._cached_coords is None:
@@ -238,7 +245,7 @@ class ImageBase(object):
 
         return cached_index
 
-    def __getitem__(self, index : (slice, tuple, dict)) -> np.ndarray:
+    def __getitem__(self, index : Union[slice, tuple, dict]) -> np.ndarray:
         if self._spatial_reference_axes is not None:
             spatial_reference_axes = self._spatial_reference_axes
         else:
@@ -326,8 +333,18 @@ class ImageBase(object):
                 if ax in self.spatial_axes
                 ]
 
-    def rescale(self, spatial_reference_shape=None,
-                spatial_reference_axes=None):
+    def rescale(self, spatial_reference_shape: Union[Iterable[int], None]=None,
+                spatial_reference_axes: Union[str, None]=None) -> None:
+        """Rescale this image using the `spatial_reference_shape` as reference.
+
+        Parameters
+        ----------
+        spatial_reference_shape: Union[Iterable[int], None]
+            Reference image shape used to match extracted regions from this
+            image (e.g., when calling __getitem__, or ImageBase[slice(...)])
+        spatial_reference_axes: Union[str, None]
+            Rescale only this axes from the image, keeping the rest unscaled.
+        """
         if (self._scale is not None
            and spatial_reference_shape is None
            and spatial_reference_axes is None):
@@ -353,12 +370,12 @@ class ImageBase(object):
                 self._scale[ax] = 1.0
 
     @property
-    def shape(self) -> list:
+    def shape(self) -> Iterable[int]:
         self._compute_shapes()
         return self._shape
 
     @property
-    def chunk_size(self) -> list:
+    def chunk_size(self) -> Iterable[int]:
         self._compute_shapes()
         return self._chunk_size
 
@@ -373,13 +390,27 @@ class ImageLoader(ImageBase):
 
     Opens the zarr file, or any image that can be open by TiffFile or PIL, as a
     Zarr array.
+
+    Parameters
+    ----------
+    filename: str
+    source_axes: str
+    data_group: Union[str, None]
+    axes: Union[str, None]
+    roi: Union[str, slice, Iterable[slice], None]
+    image_func: Union[Callable, None]
+    zarr_store: Union[zarr.storage.Store, None]
+    spatial_axes: str
+    mode: str
     """
-    def __init__(self, filename, source_axes, data_group=None, axes=None,
-                 roi=None,
-                 image_func=None,
-                 zarr_store=None,
-                 spatial_axes="ZYX",
-                 mode=""):
+    def __init__(self, filename: str, source_axes: str,
+                 data_group: Union[str, None] = None,
+                 axes: Union[str, None] = None,
+                 roi: Union[str, slice, Iterable[slice], None] = None,
+                 image_func: Union[Callable, None] = None,
+                 zarr_store: Union[zarr.storage.Store, None] = None,
+                 spatial_axes: str = "ZYX",
+                 mode: str = ""):
         self.mode = mode
         self.spatial_axes = spatial_axes
 
@@ -461,8 +492,21 @@ class ImageLoader(ImageBase):
 
 
 class ImageCollection(object):
-    def __init__(self, collection_args,
-                 spatial_axes="ZYX"):
+    """A class to contain a collection of inputs from different modalities.
+
+    This is used to match images with their respective labels and masks.
+
+    Parameters
+    ----------
+    collection_args : dict
+        Collection arguments containing specifications to open `images`,
+        `masks`, `labels`, etc.
+    spatial_axes : str
+        Spatial axes of the dataset, which are used to match different
+        modalities using as reference these axes from the `images` collection.
+    """
+    def __init__(self, collection_args : dict,
+                 spatial_axes: str = "ZYX"):
 
         self.spatial_axes = spatial_axes
 
@@ -499,7 +543,10 @@ class ImageCollection(object):
                                              source_axes=mask_axes,
                                              mode="masks")
 
-    def reset_scales(self):
+    def reset_scales(self) -> None:
+        """Reset the scales between data modalities to match the `images`
+        collection shape on the `spatial_axes` only.
+        """
         img_shape = self.collection["images"].shape
         img_source_axes = self.collection["images"].source_axes
         img_axes = self.collection["images"].axes
