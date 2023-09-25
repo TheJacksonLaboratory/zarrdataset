@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-# Labeled dataset loading with LabeledZarrDataset
+# Labeled dataset loading with ZarrDataset
 
 +++
 
@@ -63,13 +63,22 @@ Weakly labeled means that there is a few labels (or only one) associated to the 
 These labels could be loaded directly from a list or arrays.
 
 ```{code-cell} ipython3
-my_dataset = zds.LabeledZarrDataset(filenames,
-                                    data_group="1",
-                                    source_axes="TCZYX",
-                                    patch_sampler=patch_sampler,
-                                    labels_filenames=[np.array([1])],
-                                    labels_source_axes="C",
-                                    shuffle=True)
+image_specs = zds.ImagesDatasetSpecs(
+  filenames=filenames,
+  data_group="0",
+  source_axes="TCZYX",
+)
+
+# The LabelsDatasetSpecs class can be used as guide to include the minimum specifications to load the labels from the dataset.
+# This example uses a single label for the whole image.
+labels_specs = zds.LabelsDatasetSpecs(
+  filenames=[np.array([1])],
+  source_axes="L",
+)
+
+my_dataset = zds.ZarrDataset([image_specs, labels_specs],
+                             patch_sampler=patch_sampler,
+                             shuffle=True)
 ```
 
 ```{code-cell} ipython3
@@ -108,7 +117,7 @@ labels = morphology.binary_erosion(labels, morphology.disk(3))
 labels = morphology.binary_dilation(labels, morphology.disk(16))
 ```
 
-The label image would be something like the following
+The label image can be something like the following
 
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
@@ -122,13 +131,21 @@ plt.show()
 In this case, the labels are passed as a list of Numpy NDArrays, but these could be also stored in Zarr, either locally or in a remote S3 bucket.
 
 ```{code-cell} ipython3
-my_dataset = zds.LabeledZarrDataset(filenames,
-                                    data_group="1",
-                                    source_axes="TCZYX",
-                                    patch_sampler=patch_sampler,
-                                    labels_filenames=[labels],
-                                    labels_source_axes="YX",
-                                    shuffle=True)
+image_specs = zds.ImagesDatasetSpecs(
+  filenames=filenames,
+  data_group="0",
+  source_axes="TCZYX",
+)
+
+# A list with a labeled image, for the single image in the dataset, is passed as `filenames` argument.
+labels_specs = zds.LabelsDatasetSpecs(
+  filenames=[labels],
+  source_axes="YX",
+)
+
+my_dataset = zds.ZarrDataset([image_specs, labels_specs],
+                             patch_sampler=patch_sampler,
+                             shuffle=True)
 ```
 
 ```{code-cell} ipython3

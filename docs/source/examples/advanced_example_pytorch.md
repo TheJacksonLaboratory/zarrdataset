@@ -73,16 +73,23 @@ Pass the pre-processing function to ZarrDataset to be used when generating the s
 Also, enable return of each patch positions, and the worker ID that generated each patch. 
 
 ```{code-cell} ipython3
-my_datasets = [zds.ZarrDataset(fn,
-                               transform=img_preprocessing,
-                               data_group="0",
-                               source_axes="TCZYX",
-                               patch_sampler=patch_sampler,
-                               shuffle=True,
-                               return_any_label=False,
-                               return_positions=True,
-                               return_worker_id=True)
-              for fn in filenames]
+my_datasets = [
+  zds.ZarrDataset(
+    [
+      zds.ImagesDatasetSpecs(
+        filenames=fn,
+        data_group="0",
+        source_axes="TCZYX",
+        transform=img_preprocessing,
+      )
+    ],
+    patch_sampler=patch_sampler,
+    shuffle=True,
+    return_positions=True,
+    return_worker_id=True
+  )
+  for fn in filenames
+]
 ```
 
 ### Create a ChainDataset from a set of ZarrDatasets that can be put together a single large dataset

@@ -49,7 +49,7 @@ random.seed(478965)
 Sample the image randomly
 
 ```{code-cell} ipython3
-patch_size = dict(Y=768, X=1024)
+patch_size = dict(Y=1024, X=1024)
 patch_sampler = zds.BlueNoisePatchSampler(patch_size=patch_size)
 ```
 
@@ -58,12 +58,35 @@ Create a dataset from the list of filenames. All those files should be stored wi
 Also, specify that the axes order in the image is Time-Channel-Depth-Height-Width (TCZYX), so the data can be handled correctly
 
 ```{code-cell} ipython3
-my_dataset = zds.ZarrDataset(filenames,
-                             data_group="0",
-                             source_axes="TCZYX",
+image_specs = zds.ImagesDatasetSpecs(
+  filenames=filenames,
+  data_group="0",
+  source_axes="TCZYX",
+)
+
+my_dataset = zds.ZarrDataset(image_specs,
                              patch_sampler=patch_sampler,
-                             shuffle=True,
-                             return_any_label=False)
+                             shuffle=True)
+```
+
+```{code-cell} ipython3
+my_dataset
+```
+
+Add a pre-processing step before creating the image batches, where the input arrays are casted from int16 to float32.
+
+```{code-cell} ipython3
+import torchvision
+
+img_preprocessing = torchvision.transforms.Compose([
+    zds.ToDtype(dtype=np.float32),
+])
+
+my_dataset.add_transform("images", img_preprocessing)
+```
+
+```{code-cell} ipython3
+my_dataset
 ```
 
 ## Create a DataLoader from the dataset object
@@ -94,7 +117,7 @@ samples = np.hstack(samples)
 ```{code-cell} ipython3
 import matplotlib.pyplot as plt
 
-plt.imshow(samples)
+plt.imshow(samples / 255.0)
 plt.show()
 ```
 
@@ -114,12 +137,15 @@ Create a dataset from the list of filenames. All those files should be stored wi
 Also, specify that the axes order in the image is Time-Channel-Depth-Height-Width (TCZYX), so the data can be handled correctly
 
 ```{code-cell} ipython3
-my_dataset = zds.ZarrDataset(filenames,
-                             data_group="3",
-                             source_axes="TCZYX",
+image_specs = zds.ImagesDatasetSpecs(
+  filenames=filenames,
+  data_group="3",
+  source_axes="TCZYX",
+)
+
+my_dataset = zds.ZarrDataset(image_specs,
                              patch_sampler=patch_sampler,
-                             shuffle=True,
-                             return_any_label=False)
+                             shuffle=True)
 ```
 
 ZarrDataset performs some special operations for enabling multithread data loading without replicating the full dataset on each worker.

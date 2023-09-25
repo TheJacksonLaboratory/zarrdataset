@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-# Basic masked dataset loading with MaskedZarrDataset
+# Loading patches/windows from masked regions of images with ZarrDataset
 
 +++
 
@@ -102,28 +102,35 @@ plt.show()
 
 +++
 
-Sample the image uniformly in a squared grid pattern
+Sample the image uniformly in a squared grid pattern using a `PatchSampler`
 
 ```{code-cell} ipython3
 patch_size = dict(Y=512, X=512)
 patch_sampler = zds.PatchSampler(patch_size=patch_size)
 ```
 
-Use the MaskedZarrDataset class to enable extraction of samples from masked regions.
+Use the ZarrDataset class to enable extraction of samples from masked regions by specifying two modalities: images, and masks.
 
 Enable sampling patched from random locations with `shuffle=True`
 
 ```{code-cell} ipython3
-my_dataset = zds.MaskedZarrDataset(filenames,
-                                   data_group="1",
-                                   source_axes="TCZYX",
-                                   patch_sampler=patch_sampler,
-                                   draw_same_chunk=False,
-                                   return_any_label=False,
-                                   mask_filenames=[mask],
-                                   mask_source_axes="YX",
-                                   mask_data_group="",
-                                   shuffle=True)
+image_specs = zds.ImagesDatasetSpecs(
+  filenames=filenames,
+  data_group="0",
+  source_axes="TCZYX",
+)
+
+# Use the MasksDatasetSpecs to add the specifications of the masks.
+# Filenames can receive different types of variables, in this case a list with a single mask for the only image in image_specs.
+masks_specs = zds.MasksDatasetSpecs(
+  filenames=[mask],
+  source_axes="YX",
+)
+
+my_dataset = zds.ZarrDataset([image_specs, masks_specs],
+                             patch_sampler=patch_sampler,
+                             draw_same_chunk=False,
+                             shuffle=True)
 ```
 
 ```{code-cell} ipython3

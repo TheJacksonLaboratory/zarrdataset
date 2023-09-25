@@ -12,10 +12,16 @@ from ._samplers import PatchSampler
 
 try:
     from tqdm import tqdm
+    TQDM_SUPPORT=True
 
 except ModuleNotFoundError:
+    TQDM_SUPPORT=False
+
     # This removes the dependency on tqdm when it is not installed
     class tqdm(object):
+        """Placeholder used to remove dependency in `tqdm`, so ZarrDataset can
+        still be used when `tqdm` is not installed.
+        """
         def __init__(self, *args, **kwargs):
             pass
 
@@ -32,50 +38,58 @@ except ModuleNotFoundError:
 try:
     import torch
     from torch.utils.data import IterableDataset
-
-    def zarrdataset_worker_init_fn(worker_id):
-        worker_info = torch.utils.data.get_worker_info()
-        w_sel = slice(worker_id, None, worker_info.num_workers)
-
-        dataset_obj = worker_info.dataset
-
-        # Reset the random number generators in each worker.
-        torch_seed = torch.initial_seed()
-        random.seed(torch_seed)
-        np.random.seed(torch_seed % (2**32 - 1))
-
-        dataset_obj._worker_sel = w_sel
-        dataset_obj._worker_id = worker_id
-        dataset_obj._num_workers = worker_info.num_workers
-
-    def chained_zarrdataset_worker_init_fn(worker_id):
-        worker_info = torch.utils.data.get_worker_info()
-        dataset_obj = worker_info.dataset
-
-        # Reset the random number generators in each worker.
-        torch_seed = torch.initial_seed()
-        random.seed(torch_seed)
-        np.random.seed(torch_seed % (2**32 - 1))
-
-        # Open a copy of the dataset on each worker.
-        dataset_obj.datasets = \
-            dataset_obj.datasets[worker_id::worker_info.num_workers]
-
-        for ds in dataset_obj.datasets:
-            ds._worker_id = worker_id
-            ds._num_workers = 1
+    PYTORCH_SUPPORT=True
 
 except ModuleNotFoundError:
     import logging
     logging.warning('PyTorch is not installed, the BaseZarrDataset class will '
                     'still work as a python iterator')
     IterableDataset = object
+    PYTORCH_SUPPORT=False
 
-    def zarrdataset_worker_init_fn(*args):
-        pass
 
-    def chained_zarrdataset_worker_init_fn(*args):
-        pass
+def zarrdataset_worker_init_fn(worker_id):
+    """ZarrDataset multithread workers initialization function.
+    """
+    if not PYTORCH_SUPPORT:
+        return
+
+    worker_info = torch.utils.data.get_worker_info()
+    w_sel = slice(worker_id, None, worker_info.num_workers)
+
+    dataset_obj = worker_info.dataset
+
+    # Reset the random number generators in each worker.
+    torch_seed = torch.initial_seed()
+    random.seed(torch_seed)
+    np.random.seed(torch_seed % (2**32 - 1))
+
+    dataset_obj._worker_sel = w_sel
+    dataset_obj._worker_id = worker_id
+    dataset_obj._num_workers = worker_info.num_workers
+
+def chained_zarrdataset_worker_init_fn(worker_id):
+    """ZarrDataset multithread workers initialization function for PyTorch's
+    ChainedDatasets.
+    """
+    if not PYTORCH_SUPPORT:
+        return
+
+    worker_info = torch.utils.data.get_worker_info()
+    dataset_obj = worker_info.dataset
+
+    # Reset the random number generators in each worker.
+    torch_seed = torch.initial_seed()
+    random.seed(torch_seed)
+    np.random.seed(torch_seed % (2**32 - 1))
+
+    # Open a copy of the dataset on each worker.
+    dataset_obj.datasets = \
+        dataset_obj.datasets[worker_id::worker_info.num_workers]
+
+    for ds in dataset_obj.datasets:
+        ds._worker_id = worker_id
+        ds._num_workers = 1
 
 
 class ImageSample():
@@ -115,12 +129,12 @@ class ImageSample():
         return curr_patch, is_empty
 
 
-class DatasetSpecs(object):
-    """Data specification guidelines to add a mode to a ZarrDataset.
+class DatasetSpecs(dict):
+    """Data specification guidelines to add image modalities to a ZarrDataset.
 
     Parameters
     ----------
-    mode: str
+    modality: str
         Specifies the use of this dataset (input image data, labels, masks).
     filenames: Union[str,
                      Iterable[str],
@@ -152,8 +166,12 @@ class DatasetSpecs(object):
     transform: Union[Callable, None]
         A transform applied to the array before returning it after sampling.
         This can be used to specify data augmentation transforms.
+    add_to_output: bool
+        Whether add this modality to the output after sampling or not. For
+        example, labels would be added to the output along with the input
+        image array, while masks might not be needed.
     """
-    def __init__(self, mode: str,
+    def __init__(self, modality: str,
                  filenames: Union[str, Iterable[str], zarr.Group,
                                   Iterable[zarr.Group],
                                   zarr.Array,
@@ -166,34 +184,24 @@ class DatasetSpecs(object):
                  roi: Union[str, slice, Iterable[slice], None] = None,
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
-                 transform: Union[Callable, None] = None):
+                 transform: Union[Callable, None] = None,
+                 add_to_output: bool = True):
 
-        self.specs = dict(
-            mode=mode,
-            filenames=filenames,
-            source_axes = source_axes,
-            axes=axes,
-            data_group=data_group,
-            roi=roi,
-            image_loader_func=image_loader_func,
-            transforms=OrderedDict(),
-            zarr_store=zarr_store
-        )
+        super().__init__()
+
+        self["modality"] = modality
+        self["filenames"] = filenames
+        self["source_axes"] = source_axes
+        self["axes"] = axes
+        self["data_group"] = data_group
+        self["roi"] = roi
+        self["image_loader_func"] = image_loader_func
+        self["transforms"] = OrderedDict()
+        self["zarr_store"] = zarr_store
+        self["add_to_output"] = add_to_output
 
         if transform is not None:
-            self.specs["transforms"][(mode, )] = transform
-
-    def __getitem__(self, key):
-        return self.specs[key]
-
-    def keys(self):
-        return self.specs.keys()
-
-    def items(self):
-        return self.specs.items()
-
-    def get(self, key, default=None):
-        return self.specs.get(key, default)
+            self["transforms"][(modality, )] = transform
 
 
 class ImagesDatasetSpecs(DatasetSpecs):
@@ -231,6 +239,8 @@ class ImagesDatasetSpecs(DatasetSpecs):
     transform: Union[Callable, None]
         A transform applied to the array before returning it after sampling.
         This can be used to specify data augmentation transforms.
+    modality: str
+        Specifies the use of this dataset (default is `images` for image data).
     """
     def __init__(self,
                  filenames: Union[str, Iterable[str], zarr.Group,
@@ -245,10 +255,11 @@ class ImagesDatasetSpecs(DatasetSpecs):
                  roi: Union[str, slice, Iterable[slice], None] = None,
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
-                 transform: Union[Callable, None] = None):
+                 transform: Union[Callable, None] = None,
+                 modality: str ="images"):
 
         super().__init__(
-            "Images",
+            modality,
             filenames,
             source_axes,
             axes,
@@ -256,7 +267,8 @@ class ImagesDatasetSpecs(DatasetSpecs):
             roi,
             image_loader_func,
             zarr_store,
-            transform
+            transform,
+            add_to_output=True
         )
 
 
@@ -295,9 +307,11 @@ class LabelsDatasetSpecs(DatasetSpecs):
     transform: Union[Callable, None]
         A transform applied to the array before returning it after sampling.
         This can be used to specify data augmentation transforms.
-    input_target_transform: Union[Callable, None]
-        A function that is applied to both, input and target images. This can
-        be used to specify data augmentation transforms that affect the target.
+    input_label_transform: Union[Callable, None]
+        A transform applied to the array before returning it after sampling.
+        This can be used to specify data augmentation transforms.
+    modality: str
+        Specifies the use of this dataset (default is `labels`).
     """
     def __init__(self,
                  filenames: Union[str, Iterable[str], zarr.Group,
@@ -313,10 +327,12 @@ class LabelsDatasetSpecs(DatasetSpecs):
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
                  transform: Union[Callable, None] = None,
-                 input_target_transform:Union[Callable, None] = None):
+                 input_label_transform: Union[Callable, None] = None,
+                 input_mode: str = "images",
+                 modality: str = "labels"):
 
         super().__init__(
-            "labels",
+            modality,
             filenames,
             source_axes,
             axes,
@@ -324,13 +340,14 @@ class LabelsDatasetSpecs(DatasetSpecs):
             roi,
             image_loader_func,
             zarr_store,
-            transform
+            transform,
+            add_to_output=True
         )
 
-        if input_target_transform is not None:
-            self.specs["transforms"][("labels", )] = transform
-            self.specs["transforms"][("images", "labels")] =\
-                input_target_transform
+        if input_label_transform is not None:
+            self["transforms"][("labels", )] = transform
+            self["transforms"][(input_mode, "labels")] =\
+                input_label_transform
 
 
 class MasksDatasetSpecs(DatasetSpecs):
@@ -365,6 +382,8 @@ class MasksDatasetSpecs(DatasetSpecs):
         `transform` instead.
     zarr_store: Union[zarr.storage.Store, None]
         A specific zarr.storage.Store class to be used to load zarr files.
+    modality: str
+        Specifies the use of this dataset (default is `masks`).
     """
     def __init__(self,
                  filenames: Union[str, Iterable[str], zarr.Group,
@@ -378,10 +397,11 @@ class MasksDatasetSpecs(DatasetSpecs):
                  data_group: Union[str, int, None] = None,
                  roi: Union[str, slice, Iterable[slice], None] = None,
                  image_loader_func: Union[Callable, None] = None,
-                 zarr_store: Union[zarr.storage.Store, None] = None):
+                 zarr_store: Union[zarr.storage.Store, None] = None,
+                 modality: str = "masks"):
 
         super().__init__(
-            "masks",
+            modality,
             filenames,
             source_axes,
             axes,
@@ -389,21 +409,50 @@ class MasksDatasetSpecs(DatasetSpecs):
             roi,
             image_loader_func,
             zarr_store,
-            None
+            None,
+            add_to_output=False
         )
 
 
-class BaseZarrDataset(IterableDataset):
-    """A zarr-based dataset.
+class ZarrDataset(IterableDataset):
+    """A Zarr-based dataset class capable of handling large volumes of image
+    data stored in OME-NGFF Zarr format. This class can match the coordinates
+    of the different image modalities to those in the `images` mode, so labels
+    and masks are retrieved from these same coordinates. All spatial axes are
+    scaled using the `images` mode as reference, therefore labels and masks do
+    not need to share the same sizes as the arrays in the `images` mode.
 
-    Sampling from  spatial (+color channels) axes is supported by now.
+    Parameters
+    ----------
+    dataset_specs: Union[dict, Iterable[dict], None]
+        A list of dictionaries containing the specifications of the datasets
+        used as inputs.
+    patch_sampler: Union[PatchSampler, None]
+        The patch sampling algorithm used to extract patches from images.
+    shuffle: bool
+        Whether samples are extracted in order or at random.
+    progress_bar: bool
+        Display a progress bar to show the status of data initialization.
+        Requires `tqdm` to be installed in the environment.
+    return_positions: bool
+        Return the top-left positions from where the samples where extracted
+        along with the set of patches.
+    return_worker_id: bool
+        Return the worker id that extracted the sample.
+    draw_same_chunk: bool
+        Whether continue extracting samples from the same chunk, until
+        depleting the posible patches to extract, before extract samples from
+        a different chunk. This can be used to reduce the overhead of
+        retrieving different chunks when sampling patches at random locations
+        whithin the input image.
     """
-    def __init__(self, patch_sampler=None, shuffle=False, progress_bar=False,
-                 return_positions=False,
-                 return_any_label=True,
-                 return_worker_id=False,
-                 draw_same_chunk=False,
-                 **kwargs):
+    def __init__(self, dataset_specs: Union[Iterable[dict], None] = None,
+                 patch_sampler: Union[PatchSampler, None] = None,
+                 shuffle: bool = False,
+                 progress_bar: bool = False,
+                 return_positions: bool = False,
+                 return_worker_id: bool = False,
+                 draw_same_chunk: bool = False):
 
         self._worker_sel = slice(None)
         self._worker_id = 0
@@ -412,14 +461,12 @@ class BaseZarrDataset(IterableDataset):
         self._shuffle = shuffle
         self._progress_bar = progress_bar
         self._return_positions = return_positions
-        self._return_any_label = return_any_label
         self._return_worker_id = return_worker_id
         self._draw_same_chunk = draw_same_chunk
 
         self._patch_sampler = patch_sampler
 
         self._transforms = OrderedDict()
-        self._transforms_order = []
         self._output_order = []
 
         self._collections = {}
@@ -429,9 +476,25 @@ class BaseZarrDataset(IterableDataset):
         self._arr_lists = []
         self._toplefts = []
 
+        self._ref_mod = None
+
         self._initialized = False
 
+        if dataset_specs is not None:
+            # Iterate the modalities in the dataset specifications
+            if not isinstance(dataset_specs, list):
+                dataset_specs = [dataset_specs]
+
+            for specs in dataset_specs:
+                self.add_modality(**specs)
+
     def _initialize(self, force=False):
+        if self._ref_mod is None:
+            raise ValueError("No image modalities have been added to the "
+                             "dataset. Use `.add_modality` to add at least one"
+                             " modality to this dataset prior to "
+                             "initialization.")
+
         if self._initialized and not force:
             return
 
@@ -440,7 +503,7 @@ class BaseZarrDataset(IterableDataset):
 
         if self._progress_bar:
             q = tqdm(desc="Preloading zarr files",
-                     total=len(self._collections["images"]),
+                     total=len(self._collections[self._ref_mod]),
                      position=self._worker_id)
 
         modes = self._collections.keys()
@@ -465,7 +528,7 @@ class BaseZarrDataset(IterableDataset):
             else:
                 toplefts.append([
                     dict((ax, slice(None))
-                         for ax in curr_img.collection["images"].axes)
+                         for ax in curr_img.collection[self._ref_mod].axes)
                     ]
                 )
 
@@ -510,11 +573,6 @@ class BaseZarrDataset(IterableDataset):
                 patches[mode] = mode_res
 
         patches = [patches[mode] for mode in self._output_order]
-
-        if "target" not in self._output_order and self._return_any_label:
-            # Returns anything as label, this is just to return a tuple of
-            # input, target that is expected for most of training pipelines.
-            patches.append(0)
 
         return patches
 
@@ -602,7 +660,7 @@ class BaseZarrDataset(IterableDataset):
                      patch_tlbr[ax].stop
                      if patch_tlbr[ax].stop is not None else -1
                     ] if ax in patch_tlbr else [0, -1]
-                    for ax in self._collections["images"][0]["axes"]
+                    for ax in self._collections[self._ref_mod][0]["axes"]
                 ]
                 patches = [np.array(pos, dtype=np.int64)] + patches
 
@@ -617,98 +675,129 @@ class BaseZarrDataset(IterableDataset):
 
             yield patches
 
+    def add_transform(self, modalities: Union[str, Iterable[str]],
+                      transform: Callable):
+        """Add a pre-processing transform pipeline to the dataset, applied to
+        the arrays from modalities specified with `modes`. This will be
+        performed after any other pre-processing transforms already registered.
 
-class ZarrDataset(BaseZarrDataset):
-    """A dataset based on the zarr dataset class capable of handling labeled
-    datasets from masked inputs.
+        Parameters
+        ----------
+        modalities: Union[str, Iterable[str]]
+            The modalities on which this transform is applied (e.g., ``images``
+            to apply only on image arrays, or (``images``, ``labels``) to apply
+            it to both, images and labels arrays)
+        transform: Callable
+            A function that receives the same number of inputs as specified in
+            `modalities`, and returns that same number of outputs.
+        """
+        if isinstance(modalities, str):
+            modalities = (modalities, )
 
-    Parameters
-    ----------
-    dataset_specs: OrderedDict
-        An ordered dictionary containing the specifications of the datasets
-        used as inputs. The order of the content of the dictionary determines
-        the order patches are extracted, processed and concatenated to generate
-        a single output when this dataset is iterated. Normal dictionaries can
-        be passed inside `dataset_specs`; however, DataSpecs can be used as
-        guideline of the parameters that are expected.
-    patch_sampler: Union[PatchSampler, None]
-        The patch sampling algorithm used to extract patches from images.
-    shuffle: bool
-        Whether samples are extracted in order or at random.
-    progress_bar: bool
-        Display a progress bar to show the status of data initialization.
-        Requires `tqdm` to be installed in the environment.
-    return_positions: bool
-        Return the top-left positions from where the samples where extracted
-        along with the set of patches.
-    return_any_label: bool
-        Return a label `0` along with the samples extracted, when no `labels`
-        dataset specifications are passed. This is useful if this dataset is
-        used as a generator from which a pair (input, target) is expected.
-    return_worker_id: bool
-        Return the worker id that extracted the sample.
-    draw_same_chunk: bool
-        Whether continue extracting samples from the same chunk, until
-        depleting the posible patches to extract, before extract samples from
-        a different chunk. This can be used to reduce the overhead of
-        retrieving different chunks when sampling patches at random locations
-        whithin the input image.
-    """
-    def __init__(self,
-                 dataset_specs: OrderedDict,
-                 patch_sampler: Union[PatchSampler, None] = None,
-                 shuffle: bool = False,
-                 progress_bar: bool = False,
-                 return_positions: bool = False,
-                 return_any_label: bool = True,
-                 return_worker_id: bool = False,
-                 draw_same_chunk: bool = False):
+        self._transforms[modalities] = transform
 
-        super().__init__(
-            patch_sampler=patch_sampler,
-            shuffle=shuffle,
-            progress_bar=progress_bar,
-            return_positions=return_positions,
-            return_any_label=return_any_label,
-            return_worker_id=return_worker_id,
-            draw_same_chunk=draw_same_chunk
+    def add_modality(self,
+                     modality: str,
+                     filenames: Union[str, Iterable[str], zarr.Group,
+                                  Iterable[zarr.Group],
+                                  zarr.Array,
+                                  Iterable[zarr.Array],
+                                  np.ndarray,
+                                  Iterable[np.ndarray]],
+                     source_axes: str,
+                     axes: Union[str, None] = None,
+                     data_group: Union[str, int, None] = None,
+                     roi: Union[str, slice, Iterable[slice], None] = None,
+                     image_loader_func: Union[Callable, None] = None,
+                     zarr_store: Union[zarr.storage.Store, None] = None,
+                     transforms: Union[OrderedDict, None] = None,
+                     add_to_output: bool = True):
+        """Add a new modality to the dataset.
+
+        Parameters
+        ----------
+        modality: str
+            The name of the new modality added (e.g., ``images``, ``labels``,
+            ``masks``, etc.).
+        filenames: Union[str,
+                        Iterable[str],
+                        zarr.Group,
+                        Iterable[zarr.Group],
+                        zarr.Array,
+                        Iterable[zarr.Array],
+                        np.ndarray,
+                        Iterable[np.ndarray]]
+            The input source either specified by a path/url to a file or a
+            supported array-like object, or list of them.
+        source_axes: str
+            The orignal array axes ordering.
+        axes: Union[str, None]
+            The axes ordering as it being used from the array (may involve
+            permuting, dropping unused axes, and creating new axes).
+        data_group: Union[str, int, None]
+            The group for zarr images, or key for tiff files
+        roi: Union[str, slice, Iterable[slice], None]
+            Regions of interest from the input array that can be used for data
+            sampling.
+        image_loader_func: Union[Callable, None]
+            A transformation applied to the input array before sampling. Could
+            be used to define a mask generation function. This is not a data
+            augmentation transform. To specify a data augmetation transform use
+            `transform` instead.
+        zarr_store: Union[zarr.storage.Store, None]
+            A specific zarr.storage.Store class to be used to load zarr files.
+        transform: Union[OrderedDict, None]
+            A list of transforms applied to arrays before yielding them. This
+            can be used to specify data augmentation transforms, and can be
+            applied to this and other existing modalities in this dataset.
+            For example, to add a transform affecting images and labels, use
+            the tuple ('images', 'labels') as key for that transform, and make
+            sure the function associated to that key receives, and returns the
+            same number of inputs and ouputs as specified in the key.
+        add_to_output: bool
+            Whether add this modality to the output after sampling or not. For
+            example, labels would be added to the output along with the input
+            image array, while masks might not be needed.
+        """
+        if self._ref_mod is None:
+            self._ref_mod = modality
+
+        self._collections[modality] = reduce(
+            operator.add,
+            map(partial(parse_metadata,
+                        default_source_axes=source_axes,
+                        default_data_group=data_group,
+                        default_axes=axes,
+                        default_rois=roi),
+                filenames if isinstance(filenames, list) else [filenames]),
+            []
         )
 
-        if "images" not in dataset_specs:
-            raise ValueError("Data specifications must contain at least the "
-                             "information about input images")
+        if transforms is not None:
+            for t_ord, t in transforms.items():
+                self.add_transform(modalities=t_ord, transform=t)
 
-        # Iterate the modes in the dataset specifications
-        for mode, specs in dataset_specs.items():
-            source_axes = specs["source_axes"]
-            data_group = specs.get("data_group", None)
-            axes = specs.get("axes", None)
-            roi = specs.get("roi", None)
+        if add_to_output:
+            self._output_order.append(modality)
 
-            self._collections[mode] = reduce(
-                operator.add,
-                map(partial(parse_metadata,
-                            default_source_axes=source_axes,
-                            default_data_group=data_group,
-                            default_axes=axes,
-                            default_rois=roi),
-                    specs["filenames"]
-                    if isinstance(specs["filenames"], list) else
-                    [specs["filenames"]]),
-                []
-            )
+        self._zarr_store[modality] = zarr_store
 
-            if "transforms" in specs.keys():
-                for t_ord, t in specs["transforms"].items():
-                    self._transforms[t_ord] = t
+        self._image_loader_func[modality] = image_loader_func
 
-            if "mask" not in mode:
-                self._output_order.append(mode)
+    def __repr__(self) -> str:
+        """ZarrDataset string representation.
+        """
+        repr_str = (f"ZarrDataset (PyTorch support:{PYTORCH_SUPPORT}, tqdm "
+                    f"support :{TQDM_SUPPORT})"
+                    + "\n"
+                    + f"Modalities: {','.join(self._collections.keys())}"
+                    + "\n"
+                    + f"Transforms order: {list(self._transforms.keys())}"
+                    + "\n"
+                    + f"Using {self._ref_mod} modality as reference.")
 
-            self._zarr_store[mode] = specs.get("zarr_store", None)
+        if self._patch_sampler is not None:
+            repr_str += ("\n"
+                         + f"Using {str(self._patch_sampler)}")
 
-            self._image_loader_func[mode] = specs.get("image_loader_func",
-                                                      None)
-
-        if "labels" in dataset_specs:
-            self._return_any_label = False
+        return repr_str

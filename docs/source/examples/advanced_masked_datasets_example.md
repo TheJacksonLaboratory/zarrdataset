@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-# Custom masks for sampling with MaskedZarrDataset
+# Custom masks for sampling specific regions from images with ZarrDataset
 
 ```{code-cell} ipython3
 import zarrdataset as zds
@@ -89,20 +89,26 @@ patch_size = dict(Y=512, X=512)
 patch_sampler = zds.PatchSampler(patch_size=patch_size)
 ```
 
-Use the MaskedZarrDataset class to enable extraction of samples from masked regions.
+Use the ZarrDataset class to enable extraction of samples from masked regions.
 
 An extra dimension is added to the mask, so it matches the number of spatial axes in the image
 
 ```{code-cell} ipython3
-my_dataset = zds.MaskedZarrDataset(filenames,
-                                   data_group="1",
-                                   source_axes="TCZYX",
-                                   patch_sampler=patch_sampler,
-                                   return_any_label=False,
-                                   mask_filenames=[mask[None, ...]],
-                                   mask_source_axes="ZYX",
-                                   mask_axes="ZYX",
-                                   mask_data_group="")
+image_specs = zds.ImagesDatasetSpecs(
+  filenames=filenames,
+  data_group="1",
+  source_axes="TCZYX",
+)
+
+# Use the MasksDatasetSpecs to add the specifications of the masks.
+masks_specs = zds.MasksDatasetSpecs(
+  filenames=[mask],
+  source_axes="YX",
+  axes="ZYX",
+)
+
+my_dataset = zds.ZarrDataset([image_specs, masks_specs],
+                             patch_sampler=patch_sampler)
 ```
 
 ```{code-cell} ipython3
@@ -158,21 +164,27 @@ For that reason, use a donwsampled version of that image instead by pointing `ma
 
 The `mask_axes` should match the ones that WSITissueMaskGenerator requies as input ("YXC"). To do that, a ROI can be specified to take just the spatial and channel axes from the input image with `mask_roi="(0,0,0,0,0):(1,-1,1,-1,-1)"`, and rearrange the output axes with `mask_axes="YXC"`.
 
-This is achieved by defining a ROI that extracts only the spatial axes, and color channels from the image.
-
 ```{code-cell} ipython3
-my_dataset = zds.MaskedZarrDataset(filenames,
-                                   data_group="1",
-                                   source_axes="TCZYX",
-                                   patch_sampler=patch_sampler,
-                                   return_any_label=False,
-                                   mask_func=mask_func,
-                                   mask_filenames=None,
-                                   mask_data_group="4",
-                                   mask_source_axes="TCZYX",
-                                   mask_roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
-                                   mask_axes="YXC",
-                                   shuffle=True)
+image_specs = zds.ImagesDatasetSpecs(
+  filenames=filenames,
+  data_group="1",
+  source_axes="TCZYX",
+)
+
+# Use the MasksDatasetSpecs to add the specifications of the masks.
+# The mask generation function is added as `image_loader_func` parameter of the dataset specification for masks.
+masks_specs = zds.MasksDatasetSpecs(
+  filenames=filenames,
+  data_group="4",
+  source_axes="TCZYX",
+  axes="YXC",
+  roi="(0,0,0,0,0):(1,-1,1,-1,-1)",
+  image_loader_func=mask_func,
+)
+
+my_dataset = zds.ZarrDataset([image_specs, masks_specs],
+                             patch_sampler=patch_sampler,
+                             shuffle=True)
 ```
 
 ```{code-cell} ipython3

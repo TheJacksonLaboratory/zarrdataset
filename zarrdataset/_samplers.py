@@ -182,8 +182,8 @@ class PatchSampler(object):
         """
         # Use the mask as base to determine the valid patches that can be
         # retrieved from the image.
-        image = image_collection.collection["images"]
-        mask = image_collection.collection["masks"]
+        image = image_collection.collection[image_collection.reference_mode]
+        mask = image_collection.collection[image_collection.mask_mode]
 
         spatial_chunk_sizes = dict(
             (ax, chk)
@@ -228,8 +228,8 @@ class PatchSampler(object):
 
     def compute_patches(self, image_collection: ImageCollection,
                         chunk_tlbr: dict) -> Iterable[dict]:
-        image = image_collection.collection["images"]
-        mask = image_collection.collection["masks"]
+        image = image_collection.collection[image_collection.reference_mode]
+        mask = image_collection.collection[image_collection.mask_mode]
         image_shape = dict(map(tuple, zip(image.axes, image.shape)))
 
         mask_toplefts = self._get_samplable_positions(mask,
@@ -251,6 +251,12 @@ class PatchSampler(object):
         )
 
         return patches_slices
+
+    def __repr__(self) -> str:
+        """String representation of classes derived from PatchSampler.
+        """
+        return (f"{type(self)} for sampling patches of size "
+                f"{self._patch_size}.")
 
 
 class BlueNoisePatchSampler(PatchSampler):
@@ -281,7 +287,7 @@ class BlueNoisePatchSampler(PatchSampler):
 
         Parameters
         ----------
-        force: bool, defaults to False
+        force: bool
             Whether force resampling positions, or reuse existing positions.
         """
         if self._base_chunk_tls is not None and not force:

@@ -82,6 +82,25 @@ def image_collection_mask_not2scale(request):
         shutil.rmtree(dst_dir)
 
 
+@pytest.mark.parametrize("patch_size", [
+    512,
+])
+def test_string_PatchSampler(patch_size):
+    patch_sampler = zds.PatchSampler(patch_size=patch_size)
+    ps_str_repr = str(patch_sampler)
+
+    assert f"patches of size {patch_sampler._patch_size}" in ps_str_repr,\
+        (f"Expected string representation of PatchSampler to show the patch"
+         f" size, got `{ps_str_repr}` instead.")
+
+    patch_sampler = zds.BlueNoisePatchSampler(patch_size=patch_size)
+    ps_str_repr = str(patch_sampler)
+
+    assert f"patches of size {patch_sampler._patch_size}" in ps_str_repr,\
+        (f"Expected string representation of BlueNoisePatchSampler to show the"
+         f" patch size, got `{ps_str_repr}` instead.")
+
+
 @pytest.mark.parametrize("patch_size, spatial_axes, expected_patch_size", [
     (512, "X", dict(X=512)),
     ((128, 64), "XY", dict(X=128, Y=64)),

@@ -508,6 +508,8 @@ class ImageCollection(object):
     def __init__(self, collection_args : dict,
                  spatial_axes: str = "ZYX"):
 
+        self.reference_mode = list(collection_args.keys())[0]
+
         self.spatial_axes = spatial_axes
 
         self.collection = dict((
@@ -520,13 +522,19 @@ class ImageCollection(object):
         self.reset_scales()
 
     def _generate_mask(self):
-        if ("mask" in self.collection.keys()
-          or "masks" in self.collection.keys()):
+        mask_modes = list(
+            filter(lambda k: "mask" in k,
+                   self.collection.keys()
+            )
+        )
+
+        if len(mask_modes) > 0:
+            self.mask_mode = mask_modes[0]
             return
 
-        ref_axes = self.collection["images"].axes
-        ref_shape = self.collection["images"].shape
-        ref_chunk_size = self.collection["images"].chunk_size
+        ref_axes = self.collection[self.reference_mode].axes
+        ref_shape = self.collection[self.reference_mode].shape
+        ref_chunk_size = self.collection[self.reference_mode].chunk_size
 
         mask_axes = list(set(self.spatial_axes).intersection(ref_axes))
         mask_axes_ord = map_axes_order(mask_axes, ref_axes)
@@ -542,14 +550,15 @@ class ImageCollection(object):
                                              chunk_size=mask_chunk_size,
                                              source_axes=mask_axes,
                                              mode="masks")
+        self.mask_mode = "masks"
 
     def reset_scales(self) -> None:
         """Reset the scales between data modalities to match the `images`
         collection shape on the `spatial_axes` only.
         """
-        img_shape = self.collection["images"].shape
-        img_source_axes = self.collection["images"].source_axes
-        img_axes = self.collection["images"].axes
+        img_shape = self.collection[self.reference_mode].shape
+        img_source_axes = self.collection[self.reference_mode].source_axes
+        img_axes = self.collection[self.reference_mode].axes
 
         spatial_reference_axes = [
             ax
@@ -565,8 +574,9 @@ class ImageCollection(object):
             img.rescale(spatial_reference_shape, spatial_reference_axes)
 
     def __getitem__(self, index):
-        collection_set = dict((mode, img[index])
-                              for mode, img in self.collection.items()
-                              if mode != "masks")
+        collection_set = dict(
+            (mode, img[index])
+            for mode, img in self.collection.items()
+        )
 
         return collection_set

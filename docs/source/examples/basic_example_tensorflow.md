@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-# Integration of ZarrDataset with Tensofrlow Datasets
+# Integration of ZarrDataset with Tensorflow Datasets
 
 ```{code-cell} ipython3
 import zarrdataset as zds
@@ -46,7 +46,7 @@ random.seed(478965)
 Sample the image randomly using a [Blue Noise](https://blog.demofox.org/2017/10/20/generating-blue-noise-sample-points-with-mitchells-best-candidate-algorithm/) sampling.
 
 ```{code-cell} ipython3
-patch_size = dict(Y=768, X=1024)
+patch_size = dict(Y=1024, X=1024)
 patch_sampler = zds.BlueNoisePatchSampler(patch_size=patch_size)
 ```
 
@@ -55,13 +55,21 @@ Create a dataset from the list of filenames. All those files should be stored wi
 Also, specify that the axes order in the image is Time-Channel-Depth-Height-Width (TCZYX), so the data can be handled correctly
 
 ```{code-cell} ipython3
-my_dataset = zds.LabeledZarrDataset(filenames,
-                                    data_group="3",
-                                    source_axes="TCZYX",
-                                    labels_filenames=[np.ones(1)],
-                                    labels_source_axes="C",
-                                    patch_sampler=patch_sampler,
-                                    shuffle=True)
+image_specs = zds.ImagesDatasetSpecs(
+  filenames=filenames,
+  data_group="3",
+  source_axes="TCZYX",
+)
+
+# A list with a labeled image, for the single image in the dataset, is passed as `filenames` argument.
+labels_specs = zds.LabelsDatasetSpecs(
+  filenames=[np.ones(1)],
+  source_axes="L",
+)
+
+my_dataset = zds.ZarrDataset([image_specs, labels_specs],
+                             patch_sampler=patch_sampler,
+                             shuffle=True)
 ```
 
 ## Create a Tensoflow Dataset from the ZarrDataset object

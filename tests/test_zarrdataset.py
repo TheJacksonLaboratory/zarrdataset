@@ -67,39 +67,45 @@ def image_dataset_specs(request):
             mask_group = par["specs"]["mask_group"]
 
         if labels_filename is not None:
-            input_target_transform = input_target_dtype_fn
+            input_label_transform = input_target_dtype_fn
             target_transform = zds.ToDtype(np.int64)
             labels_filenames.append(labels_filename)
             labels_group = par["specs"]["labels_group"]
 
         specs.append(par["specs"])
 
-    dataset_specs=OrderedDict(
-        images=zds.ImagesDatasetSpecs(
+    dataset_specs = [
+        zds.ImagesDatasetSpecs(
             filenames=filenames,
             data_group=data_group,
             source_axes=source_axes,
         )
-    )
+    ]
 
     if mask_filenames:
-        dataset_specs["masks"] = zds.MasksDatasetSpecs(
-            filenames=mask_filenames,
-            data_group=mask_group,
-            source_axes="YX",
+        dataset_specs.append(
+            zds.MasksDatasetSpecs(
+                filenames=mask_filenames,
+                data_group=mask_group,
+                source_axes="YX",
+            )
         )
 
     if labels_filenames:
-        dataset_specs["images"]["transforms"][("images", )] =\
-                zds.ToDtype(np.float32)
+        dataset_specs[0]["transforms"][("images", )] = zds.ToDtype(np.float32)
 
-        dataset_specs["labels"] = zds.LabelsDatasetSpecs(
-            filenames=labels_filenames,
-            data_group=labels_group,
-            source_axes="YX",
-            transform=target_transform,
-            input_target_transform=input_target_transform,
+        dataset_specs.append(
+            zds.LabelsDatasetSpecs(
+                filenames=labels_filenames,
+                data_group=labels_group,
+                source_axes="YX",
+                transform=target_transform,
+                input_label_transform=input_label_transform,
+            )
         )
+
+    if len(dataset_specs) == 1:
+        dataset_specs = dataset_specs[0]
 
     yield dataset_specs, specs[0]
 
@@ -118,27 +124,28 @@ def test_compatibility_no_pytroch():
     with mock.patch.dict('sys.modules', {'torch': None}):
         importlib.reload(zds._zarrdataset)
 
-        dataset = zds._zarrdataset.BaseZarrDataset()
+        dataset = zds._zarrdataset.ZarrDataset()
 
         assert isinstance(object, type(dataset).__bases__), \
             (f"When pytorch is not installed, ZarrDataset should be inherited"
              f" from object, not {type(dataset).__bases__}")
 
         try:
-            zds._zarrdataset.zarrdataset_worker_init_fn()
-            
+            zds._zarrdataset.zarrdataset_worker_init_fn(None)
+
         except Exception as e:
             raise AssertionError(f"No exceptions where expected when using "
-                                 f"`zarrdataset_worker_init_fn` without pytorch "
-                                 f"installed, got {e} instead.")
+                                 f"`zarrdataset_worker_init_fn` without "
+                                 f"pytorch installed, got {e} instead.")
 
         try:
-            zds._zarrdataset.chained_zarrdataset_worker_init_fn()
-            
+            zds._zarrdataset.chained_zarrdataset_worker_init_fn(None)
+
         except Exception as e:
             raise AssertionError(f"No exceptions where expected when using "
-                                 f"`chained_zarrdataset_worker_init_fn` without "
-                                 f"pytorch installed, got {e} instead.")
+                                 f"`chained_zarrdataset_worker_init_fn` "
+                                 f"without pytorch installed, got {e} "
+                                 f"instead.")
 
     with mock.patch.dict('sys.modules', {'torch': torch}):
         importlib.reload(zds._zarrdataset)
@@ -170,27 +177,33 @@ def test_compatibility_no_tqdm(image_dataset_specs):
             
         except Exception as e:
             raise AssertionError(f"No exceptions where expected, got {e} "
-                                 "instead.")
+                                 f"instead.")
 
     with mock.patch.dict('sys.modules', {'tqdm': tqdm}):
         importlib.reload(zds._zarrdataset)
         importlib.reload(zds)
 
 
-def test_DataSpecs():
-    generic_specs = zds.DatasetSpecs(
-        mode="generic",
-        filenames=None,
+@pytest.mark.parametrize("dataset_spec_class", [
+    zds.DatasetSpecs,
+    zds.ImagesDatasetSpecs,
+    zds.MasksDatasetSpecs,
+    zds.LabelsDatasetSpecs
+])
+def test_DataSpecs(dataset_spec_class):
+    generic_specs = dataset_spec_class(
+        modality="generic",
+        filenames="",
         source_axes=""
     )
 
-    assert generic_specs["mode"] == "generic",\
+    assert generic_specs["modality"] == "generic",\
         (f"Expected mode to be `generic`, as assigned during initialization of"
-         f" the dataset specification, got {generic_specs['mode']} "
+         f" the dataset specification, got {generic_specs['modality']} "
          f"instead.")
 
-    assert generic_specs["filenames"] is None,\
-        (f"Expected filenames to be None, as assigned during initialization of"
+    assert generic_specs["filenames"] == "",\
+        (f"Expected filenames to be ````, as assigned during initialization of"
          f" the dataset specification, got {generic_specs['filenames']} "
          f"instead.")
 
@@ -202,41 +215,68 @@ def test_DataSpecs():
         (f"Expected DatasetSpecs to return `dict_items` when called `.items()`"
          f", got {type(generic_specs.items())} instead.")
 
+    ds = zds.ZarrDataset()
+    try:
+        ds.add_modality(**generic_specs)
+
+    except Exception as e:
+        raise AssertionError(f"No exceptions where expected, got {e} "
+                             f"instead.")
+
+
+def test_no_images_ZarrDataset():
+    ds = zds.ZarrDataset()
+
+    with pytest.raises(ValueError):
+        ds_iter = iter(ds)
+        sample = next(ds_iter)
+
 
 @pytest.mark.parametrize("image_dataset_specs", [
     IMAGE_SPECS[10],
 ], indirect=["image_dataset_specs"])
-def test_no_images_ZarrDataset(image_dataset_specs):
-    dataset_specs, _ = image_dataset_specs
+def test_string_ZarrDataset(image_dataset_specs):
+    dataset_specs, specs = image_dataset_specs
 
-    dataset_specs.pop("images")
+    patch_sampler = zds.PatchSampler(0)
+    ds = zds.ZarrDataset(dataset_specs,
+                         patch_sampler=patch_sampler)
 
-    with pytest.raises(ValueError):
-        ds = zds.ZarrDataset(dataset_specs=dataset_specs)
+    ds_str_repr = str(ds)
+    assert (ds_str_repr.startswith("ZarrDataset")
+            and all([mode['modality'] in ds_str_repr
+                     for mode in dataset_specs])
+            and f"Using {dataset_specs[0]['modality']}" in ds_str_repr
+            and f"{patch_sampler}" in ds_str_repr), \
+        (f"Spected string representation start with `ZarrDataset`, list all "
+         f"modalities, and state what modality is being used as reference. "
+         f"Got `{ds_str_repr}` instead.")
 
 
 @pytest.mark.parametrize(
-    "image_dataset_specs, shuffle, return_positions, return_any_label,"
-    "return_worker_id", [
-        (IMAGE_SPECS[10], False, False, False, False),
-        (IMAGE_SPECS[10], True, True, True, True),
-        (IMAGE_SPECS[11], False, False, False, False),
-        (IMAGE_SPECS[11], False, False, True, False),
+    "image_dataset_specs, shuffle, return_positions, return_worker_id", [
+        (IMAGE_SPECS[10], False, False, False),
+        (IMAGE_SPECS[10], True, True, True),
+        (IMAGE_SPECS[11], False, False, False),
+        (IMAGE_SPECS[11], False, False, False),
     ],
     indirect=["image_dataset_specs"]
 )
 def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
-                     return_any_label,
                      return_worker_id):
     dataset_specs, specs = image_dataset_specs
 
     ds = zds.ZarrDataset(
         dataset_specs=dataset_specs,
-        return_any_label=return_any_label,
         return_positions=return_positions,
         return_worker_id=return_worker_id,
         shuffle=shuffle,
     )
+
+    if not isinstance(dataset_specs, list):
+        dataset_specs = [dataset_specs]
+
+    ds.add_transform(dataset_specs[0]["modality"], zds.ToDtype(np.float64))
 
     array_idx = 0
     label_idx = 1
@@ -250,13 +290,13 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
         label_idx += 1
 
     for sample in ds:
-        if ("labels" in dataset_specs or return_any_label or return_positions
+        if (any(["labels" in mode["modality"] for mode in dataset_specs])
+          or return_positions
           or return_worker_id):
             assert isinstance(sample, tuple), \
-                (f"When `return_any_label`, `return_positions`, "
-                 f"`return_worker_id` or a labels dataset specification is "
-                 f"passed to ZarrDataset, samples should be a tuple, got "
-                 f"{type(sample)} instead.")
+                (f"When `return_positions`, `return_worker_id` or a labels "
+                 f"dataset specification is passed to ZarrDataset, retrieved "
+                 f"samples should be a tuple, got {type(sample)} instead.")
 
             sample_array = sample[array_idx]
 
@@ -264,8 +304,12 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
             sample_array = sample
 
         assert isinstance(sample_array, np.ndarray), \
-            (f"Sample should be a Numpy NDArray, got {type(sample[array_idx])}"
+            (f"Sample should be a Numpy NDArray, got {type(sample_array)}"
              f" instead.")
+
+        assert sample_array.dtype == np.float64, \
+            (f"Sample data type should be numpy.float64, got "
+             f"{sample_array.dtype} instead.")
 
         assert sample_array.shape == tuple(specs["shape"]), \
             (f"Sample expected to have shape {tuple(specs['shape'])}, got "
@@ -282,12 +326,6 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
             assert labels_array.shape == expected_labels_shape, \
                 (f"Labels expected to have shape {expected_labels_shape}, got "
                 f"{labels_array.shape} instead")
-
-        elif return_any_label:
-            assert isinstance(sample[label_idx], int), \
-                (f"Expected label returned when `return_any_labels` and no "
-                 f"actual labels dataset specifications were passed to "
-                 f"ZarrDataset to be {int}, got {type(sample[label_idx])}.")
 
 
 @pytest.mark.parametrize(
@@ -317,9 +355,9 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
 
     for sample in ds:
         assert isinstance(sample, tuple), \
-            (f"When `return_any_label`, `return_positions`, `return_worker_id`"
-             f", or a labels dataset specification is passed to ZarrDataset, "
-             f"samples should be a tuple, got {type(sample)} instead.")
+            (f"When `return_positions`, `return_worker_id` or a labels dataset"
+             f" specification is passed to ZarrDataset, retrieved samples "
+             f"should be a tuple, got {type(sample)} instead.")
 
         assert isinstance(sample[0], np.ndarray), \
             (f"Sample should be a Numpy NDArray, got {type(sample[0])} "
@@ -352,9 +390,9 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
     # Second iteration
     for sample in ds:
         assert isinstance(sample, tuple), \
-            (f"When `return_any_label`, `return_positions`, `return_worker_id`"
-             f", or a labels dataset specification is passed to ZarrDataset, "
-             f"samples should be a tuple, got {type(sample)} instead.")
+            (f"When `return_positions`, `return_worker_id` or a labels dataset"
+             f" specification is passed to ZarrDataset, retrieved samples "
+             f"should be a tuple, got {type(sample)} instead.")
 
         assert isinstance(sample[0], np.ndarray), \
             (f"Sample should be a Numpy NDArray, got {type(sample[0])} "
@@ -535,3 +573,26 @@ def test_multithread_chained_ZarrDataset(image_dataset_specs,
                        expected_labels_shape)), \
             (f"Labels expected to have shape {expected_labels_shape}, got "
              f"{labels_array.shape} instead")
+
+
+if __name__ == "__main__":
+    class Request():
+        def __init__(self, param):
+            self.param = param
+
+    parameters =[
+        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 1),
+        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 2),
+        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 3),
+    ]
+
+
+    for data_specs, patch_size, shuffle, draw_same_chunk, batch_size, num_workers, repeat_dataset in parameters:
+        for dataset_specs in image_dataset_specs(Request(data_specs)):
+            test_multithread_chained_ZarrDataset(dataset_specs, 
+                                             patch_sampler_specs(Request(patch_size)),
+                                             shuffle,
+                                             draw_same_chunk,
+                                             batch_size,
+                                             num_workers,
+                                             repeat_dataset)

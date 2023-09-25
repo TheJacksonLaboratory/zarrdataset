@@ -59,39 +59,86 @@ plt.imshow(np.moveaxis(z_img["5"][0, :, 0], 0, -1))
 plt.show()
 ```
 
-## Extracting patches of size 512x512 pixels from a Whole Slide Image (WSI)
+## Retrieving whole images
 
 +++
 
-Sample the image uniformly in a grid pattern
+Create a ZarrDataset to handle the image dataset instead of opening all the dataset images by separate and hold them in memory until they are not used anymore.
 
 ```{code-cell} ipython3
-patch_size = dict(Y=512, X=512)
-patch_sampler = zds.PatchSampler(patch_size=patch_size)
+my_dataset = zds.ZarrDataset()
 ```
 
-Create a dataset from the list of filenames. All those files should be stored within their respective group "0".
-
-Also, specify that the axes order in the image is Time-Channel-Depth-Height-Width (TCZYX), so the data can be handled correctly
+Start by retrieving whole images, from a subsampled (pyramid) group (e.g. group 6) within the zarr image file, instead the full resolution image at group "0".
+The source array axes should be specified in order to handle images properly, in this case Time-Channel-Depth-Height-Width (TCZYX).
 
 ```{code-cell} ipython3
-my_dataset = zds.ZarrDataset(filenames,
-                             data_group="0",
-                             source_axes="TCZYX",
-                             patch_sampler=patch_sampler,
-                             return_any_label=False)
+my_dataset.add_modality(
+  modality="image",
+  filenames=filenames,
+  source_axes="TCZYX",
+  data_group="6"
+)
 ```
 
-Create a generator from the dataset object
+The ZarrDataset class can be used as a Python's generator, and can be accessed by `iter` and subsequently `next` operations.
 
 ```{code-cell} ipython3
 ds_iterator = iter(my_dataset)
 ds_iterator
 ```
 
-Extract a sample from the image using the generator
+```{code-cell} ipython3
+sample = next(ds_iterator)
+
+print(type(sample), sample.shape)
+```
+
+Compare the shape of the retreived sample with the shape of the original image in group "6"
+```{code-cell} ipython3
+z_img["6"].info
+```
+
+## Extracting patches of size 512x512 pixels from a Whole Slide Image (WSI)
+
++++
+
+The PatchSampler class can be used along with ZarrDataset to retrieve patches from WSIs without having to tiling them in a pre-process step.
 
 ```{code-cell} ipython3
+patch_size = dict(Y=512, X=512)
+patch_sampler = zds.PatchSampler(patch_size=patch_size)
+
+patch_sampler
+```
+
+Create a new dataset using the ZarrDataset class, and pass the PatchSampler as `patch_sampler` argument.
+Because patches are being exracted instead of whole images, the full resolution image at group "0" can be used as input.
+
+```{code-cell} ipython3
+my_dataset = zds.ZarrDataset(patch_sampler=patch_sampler)
+
+my_dataset.add_modality(
+  modality="image",
+  filenames=filenames,
+  source_axes="TCZYX",
+  data_group="0"
+)
+
+my_dataset
+```
+
+Create a generator from the dataset object and extract some patches
+
+```{code-cell} ipython3
+ds_iterator = iter(my_dataset)
+
+sample = next(ds_iterator)
+type(sample), sample.shape, sample.dtype
+
+sample = next(ds_iterator)
+type(sample), sample.shape, sample.dtype
+
 sample = next(ds_iterator)
 type(sample), sample.shape, sample.dtype
 ```
@@ -101,7 +148,7 @@ plt.imshow(np.moveaxis(sample[0, :, 0], 0, -1))
 plt.show()
 ```
 
-## Using ZarrDataset as a generator
+## Using ZarrDataset in a for loop
 
 +++
 
@@ -124,14 +171,27 @@ plt.imshow(samples_stack)
 plt.show()
 ```
 
-Try now with sampling patches from random locations by setting `shuffle=True`
+## Create a ZarrDataset with all the dataset specifications.
+
+Use a dictionary (or a list of them for multiple modalities) to define the dataset specifications.
+Alternatively, use a list of DatasetSpecs (or derived classes) to define the dataset specifications that ZarrDataset requires.
+
+For example, `ImagesDatasetSpecs` can be used to define an _image_ data modality. Other pre-defined modalities are `LabelsDatasetSpecs` for _labels_, and `MaskDatasetSpecs` for _masks_.
 
 ```{code-cell} ipython3
-my_dataset = zds.ZarrDataset(filenames,
-                             data_group="0",
-                             source_axes="TCZYX",
+image_specs = zds.ImagesDatasetSpecs(
+  filenames=filenames,
+  data_group="0",
+  source_axes="TCZYX",
+)
+```
+
+Also, try sampling patches from random locations by setting `shuffle=True`.
+
+```{code-cell} ipython3
+
+my_dataset = zds.ZarrDataset(dataset_specs=[image_specs],
                              patch_sampler=patch_sampler,
-                             return_any_label=False,
                              shuffle=True)
 ```
 
