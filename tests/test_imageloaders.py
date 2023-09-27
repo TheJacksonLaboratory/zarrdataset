@@ -12,6 +12,7 @@ import zarr
 import numpy as np
 from sample_images_generator import IMAGE_SPECS, UNSUPPORTED_IMAGE_SPECS
 
+
 @pytest.fixture
 def dummy_array():
     source_data = np.ones(shape=(16, 16, 3), dtype=np.uint8)

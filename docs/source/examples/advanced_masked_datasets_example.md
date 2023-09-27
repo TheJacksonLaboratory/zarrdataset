@@ -101,10 +101,12 @@ image_specs = zds.ImagesDatasetSpecs(
 )
 
 # Use the MasksDatasetSpecs to add the specifications of the masks.
-masks_specs = zds.MasksDatasetSpecs(
+#masks_specs = zds.MasksDatasetSpecs(
+masks_specs = zds.LabelsDatasetSpecs(
   filenames=[mask],
   source_axes="YX",
   axes="ZYX",
+  modality="masks",
 )
 
 my_dataset = zds.ZarrDataset([image_specs, masks_specs],
@@ -117,24 +119,33 @@ ds_iterator = iter(my_dataset)
 
 ```{code-cell} ipython3
 sample = next(ds_iterator)
-type(sample), sample.shape, sample.dtype
+type(sample[0]), sample[0].shape, sample[0].dtype
+type(sample[1]), sample[1].shape, sample[1].dtype
 ```
 
 ```{code-cell} ipython3
-plt.imshow(np.moveaxis(sample[0, :, 0], 0, -1))
+plt.imshow(np.moveaxis(sample[0][0, :, 0], 0, -1))
+plt.show()
+```
+
+```{code-cell} ipython3
+plt.imshow(sample[1][0])
 plt.show()
 ```
 
 ```{code-cell} ipython3
 samples = []
+labels = []
 for i, sample in enumerate(my_dataset):
-    samples.append(np.moveaxis(sample[0, :, 0], 0, -1))
+    samples.append(np.moveaxis(sample[0][0, :, 0], 0, -1))
+    labels.append(sample[1][0])
 
     if i >= 4:
         # Take only five samples for illustration purposes
         break
 
 samples = np.hstack(samples)
+labels = np.hstack(labels)
 ```
 
 ```{code-cell} ipython3
@@ -142,11 +153,17 @@ plt.imshow(samples)
 plt.show()
 ```
 
+```{code-cell} ipython3
+plt.imshow(labels)
+plt.show()
+```
+
 ## Use a function to generate the masks for each image in the dataset
 
+Get only patches that are covered by at least 1/16th of their area by the mask
 ```{code-cell} ipython3
 patch_size = dict(Y=512, X=512)
-patch_sampler = zds.PatchSampler(patch_size=patch_size)
+patch_sampler = zds.PatchSampler(patch_size=patch_size, min_area=1/16)
 ```
 
 Apply WSITissueMaskGenerator transform to each image in the dataset to define each sampling mask
@@ -188,21 +205,8 @@ my_dataset = zds.ZarrDataset([image_specs, masks_specs],
 ```
 
 ```{code-cell} ipython3
-ds_iterator = iter(my_dataset)
-```
-
-```{code-cell} ipython3
-sample = next(ds_iterator)
-type(sample), sample.shape, sample.dtype
-```
-
-```{code-cell} ipython3
-plt.imshow(np.moveaxis(sample[0, :, 0], 0, -1))
-plt.show()
-```
-
-```{code-cell} ipython3
 samples = []
+
 for i, sample in enumerate(my_dataset):
     samples.append(np.moveaxis(sample[0, :, 0], 0, -1))
 

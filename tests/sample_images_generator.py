@@ -440,6 +440,27 @@ IMAGE_SPECS = [
     },
 ]
 
+MASKABLE_IMAGE_SPECS = [
+    {
+        "dst_dir": None,
+        "source": ("https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/"
+                   "9798462.zarr"),
+        "credit": ("© 2016-2023 University of Dundee & Open Microscopy "
+                   "Environment. Creative Commons Attribution 4.0 "
+                   "International License"),
+        "specs": {
+            "data_group": "0",
+            "shape": [1, 3, 1, 16433, 21115],
+            "chunks": [1, 1, 1, 1024, 1024],
+            "source_axes": "TCZYX",
+            "axes": "YXC",
+            "roi": "(0,0,0,0,0):(1,-1,1,-1,-1)",
+            "dtype": np.uint16
+        }
+    },
+]
+
+
 UNSUPPORTED_IMAGE_SPECS = [
     {
         "dst_dir": "tests/test_unsupported",

@@ -5,7 +5,7 @@ from pathlib import Path
 import operator
 
 from skimage import transform
-from sample_images_generator import IMAGE_SPECS
+from sample_images_generator import IMAGE_SPECS, MASKABLE_IMAGE_SPECS
 
 import zarrdataset as zds
 import math
@@ -20,24 +20,35 @@ def image_collection(request):
         dst_dir = Path(request.param["dst_dir"])
         dst_dir.mkdir(parents=True, exist_ok=True)
 
-    (img_src,
-     mask_src,
-     labels_src,
-     classes_src) = request.param["source"](request.param["dst_dir"],
-                                            request.param["specs"])
-    
-    collection_args = dict(
-        images=dict(
-            filename=img_src,
-            source_axes=request.param["specs"]["source_axes"],
-            data_group=request.param["specs"]["data_group"],
-        ),
-        masks=dict(
+    if not isinstance(request.param["source"], str):
+        (img_src,
+         mask_src,
+         labels_src,
+         classes_src) = request.param["source"](request.param["dst_dir"],
+                                                request.param["specs"])
+
+        mask_args = dict(
             filename=mask_src,
             source_axes="YX",
             data_group=request.param["specs"]["mask_group"],
         )
+
+    else:
+        img_src = request.param["source"]
+        mask_args = None
+
+    collection_args = dict(
+        images=dict(
+            filename=img_src,
+            source_axes=request.param["specs"]["source_axes"],
+            axes=request.param["specs"].get("axes", None),
+            data_group=request.param["specs"].get("data_group", None),
+            roi=request.param["specs"].get("roi", None),
+        ),
     )
+
+    if mask_args is not None:
+        collection_args["masks"] = mask_args
 
     image_collection = zds.ImageCollection(collection_args=collection_args)
 
@@ -60,7 +71,7 @@ def image_collection_mask_not2scale(request):
      labels_src,
      classes_src) = request.param["source"](request.param["dst_dir"],
                                             request.param["specs"])
-    
+
     collection_args = dict(
         images=dict(
             filename=img_src,
@@ -68,7 +79,7 @@ def image_collection_mask_not2scale(request):
             data_group=request.param["specs"]["data_group"],
         ),
         masks=dict(
-            filename=np.ones((5, 3), dtype=bool),
+            filename=np.ones((3, 5), dtype=bool),
             source_axes="YX",
             data_group=None,
         )
@@ -266,3 +277,140 @@ def test_BlueNoisePatchSampler_mask_not2scale(image_collection_mask_not2scale):
 
     assert len(patches_toplefts) == 0, \
         (f"Expected 0 patches, got {len(patches_toplefts)} instead.")
+
+
+@pytest.mark.parametrize("patch_size, image_collection, specs", [
+    (512, MASKABLE_IMAGE_SPECS[0], MASKABLE_IMAGE_SPECS[0])
+], indirect=["image_collection"])
+def test_unique_sampling_PatchSampler(patch_size, image_collection, specs):
+    from skimage import color, filters, morphology
+    import zarr
+
+    z_img = zarr.open(specs["source"], mode="r")
+
+    im_gray = color.rgb2gray(z_img["4"][0, :, 0], channel_axis=0)
+    thresh = filters.threshold_otsu(im_gray)
+
+    mask = im_gray > thresh
+    mask = morphology.remove_small_objects(mask == 0, min_size=16 ** 2,
+                                           connectivity=2)
+    mask = morphology.remove_small_holes(mask, area_threshold=128)
+    mask = morphology.binary_erosion(mask, morphology.disk(8))
+    mask = morphology.binary_dilation(mask, morphology.disk(8))
+
+    image_collection.collection["masks"] = zds.ImageLoader(filename=mask,
+                                                           source_axes="YX",
+                                                           mode="masks")
+    image_collection.reset_scales()
+
+    patch_sampler = zds.PatchSampler(patch_size, min_area=1/16 ** 2)
+
+    chunks_toplefts = patch_sampler.compute_chunks(image_collection)
+
+    all_patches_tls = []
+    all_chunks_tls = []
+
+    for ctl in chunks_toplefts:
+        patches_toplefts = patch_sampler.compute_patches(image_collection,
+                                                         chunk_tlbr=ctl)
+
+        for ptl in patches_toplefts:
+            assert ptl not in all_patches_tls,\
+                (f"Expected no repetitions in patch sampling, got {ptl} "
+                 f"twice instead at chunk {ctl}. Possible duplicate of patch "
+                 f"{all_patches_tls.index(ptl)}, from chunk "
+                 f"{all_chunks_tls[all_patches_tls.index(ptl)]}")
+            all_patches_tls.append(ptl)
+            all_chunks_tls.append(ctl)
+
+
+@pytest.mark.parametrize("patch_size, image_collection, specs", [
+    (512, MASKABLE_IMAGE_SPECS[0], MASKABLE_IMAGE_SPECS[0])
+], indirect=["image_collection"])
+def test_unique_sampling_BlueNoisePatchSampler(patch_size, image_collection,
+                                               specs):
+    from skimage import color, filters, morphology
+    import zarr
+
+    z_img = zarr.open(specs["source"], mode="r")
+
+    im_gray = color.rgb2gray(z_img["4"][0, :, 0], channel_axis=0)
+    thresh = filters.threshold_otsu(im_gray)
+
+    mask = im_gray > thresh
+    mask = morphology.remove_small_objects(mask == 0, min_size=16 ** 2,
+                                           connectivity=2)
+    mask = morphology.remove_small_holes(mask, area_threshold=128)
+    mask = morphology.binary_erosion(mask, morphology.disk(8))
+    mask = morphology.binary_dilation(mask, morphology.disk(8))
+
+    image_collection.collection["masks"] = zds.ImageLoader(filename=mask,
+                                                           source_axes="YX",
+                                                           mode="masks")
+    image_collection.reset_scales()
+
+    patch_sampler = zds.BlueNoisePatchSampler(patch_size)
+
+    chunks_toplefts = patch_sampler.compute_chunks(image_collection)
+
+    all_patches_tls = []
+    all_chunks_tls = []
+
+    for ctl in chunks_toplefts:
+        patches_toplefts = patch_sampler.compute_patches(image_collection,
+                                                         chunk_tlbr=ctl)
+
+        for ptl in patches_toplefts:
+            assert ptl not in all_patches_tls,\
+                (f"Expected no repetitions in patch sampling, got {ptl} "
+                 f"twice instead at chunk {ctl}. Possible duplicate of patch "
+                 f"{all_patches_tls.index(ptl)}, from chunk "
+                 f"{all_chunks_tls[all_patches_tls.index(ptl)]}")
+            all_patches_tls.append(ptl)
+            all_chunks_tls.append(ctl)
+
+
+@pytest.mark.parametrize("min_area, patch_size, "
+                         "image_collection_mask_not2scale", [
+    (0.5, 512, IMAGE_SPECS[11]),
+    (4096, 512, IMAGE_SPECS[11])
+], indirect=["image_collection_mask_not2scale"])
+def test_min_area_sampling_PatchSampler(min_area, patch_size,
+                                        image_collection_mask_not2scale):
+    patch_sampler = zds.PatchSampler(patch_size, min_area=min_area)
+
+    chunks_toplefts = patch_sampler.compute_chunks(
+        image_collection_mask_not2scale
+    )
+
+    all_patches_tls = []
+    all_chunks_tls = []
+
+    for ctl in chunks_toplefts:
+        patches_toplefts = patch_sampler.compute_patches(
+            image_collection_mask_not2scale,
+            chunk_tlbr=ctl
+        )
+
+        for ptl in patches_toplefts:
+            assert ptl not in all_patches_tls,\
+                (f"Expected no repetitions in patch sampling, got {ptl} "
+                 f"twice instead at chunk {ctl}. Possible duplicate of patch "
+                 f"{all_patches_tls.index(ptl)}, from chunk "
+                 f"{all_chunks_tls[all_patches_tls.index(ptl)]}")
+            all_patches_tls.append(ptl)
+            all_chunks_tls.append(ctl)
+
+
+if __name__ == "__main__":
+    class Request():
+        def __init__(self, param):
+            self.param = param
+
+    parameters = [
+        (512, MASKABLE_IMAGE_SPECS[0], MASKABLE_IMAGE_SPECS[0])
+    ]
+
+    for patch_size, img_coll_pars, specs in parameters:
+        for img_coll in image_collection(Request(img_coll_pars)):
+            test_unique_sampling_PatchSampler(patch_size, img_coll, specs)
