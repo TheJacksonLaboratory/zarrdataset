@@ -20,6 +20,7 @@ def image_collection(request):
         dst_dir = Path(request.param["dst_dir"])
         dst_dir.mkdir(parents=True, exist_ok=True)
 
+    mask_args = None
     if not isinstance(request.param["source"], str):
         (img_src,
          mask_src,
@@ -27,15 +28,15 @@ def image_collection(request):
          classes_src) = request.param["source"](request.param["dst_dir"],
                                                 request.param["specs"])
 
-        mask_args = dict(
-            filename=mask_src,
-            source_axes="YX",
-            data_group=request.param["specs"]["mask_group"],
-        )
+        if mask_src is not None:
+            mask_args = dict(
+                filename=mask_src,
+                source_axes="YX",
+                data_group=request.param["specs"]["mask_group"],
+            )
 
     else:
         img_src = request.param["source"]
-        mask_args = None
 
     collection_args = dict(
         images=dict(
@@ -372,8 +373,9 @@ def test_unique_sampling_BlueNoisePatchSampler(patch_size, image_collection,
 
 @pytest.mark.parametrize("min_area, patch_size, "
                          "image_collection_mask_not2scale", [
-    (0.5, 512, IMAGE_SPECS[11]),
-    (4096, 512, IMAGE_SPECS[11])
+    (0.5, 32, IMAGE_SPECS[11]),
+    (4096, 512, IMAGE_SPECS[11]),
+    (0.5, 1024, IMAGE_SPECS[11])
 ], indirect=["image_collection_mask_not2scale"])
 def test_min_area_sampling_PatchSampler(min_area, patch_size,
                                         image_collection_mask_not2scale):
@@ -408,9 +410,10 @@ if __name__ == "__main__":
             self.param = param
 
     parameters = [
-        (512, MASKABLE_IMAGE_SPECS[0], MASKABLE_IMAGE_SPECS[0])
+        (0.5, 32, IMAGE_SPECS[11]),
+        (0.5, 1024, IMAGE_SPECS[11])
     ]
 
-    for patch_size, img_coll_pars, specs in parameters:
+    for min_area, patch_size, img_coll_pars in parameters:
         for img_coll in image_collection(Request(img_coll_pars)):
-            test_unique_sampling_PatchSampler(patch_size, img_coll, specs)
+            test_min_area_sampling_PatchSampler(min_area, patch_size, img_coll)
