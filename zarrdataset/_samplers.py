@@ -138,6 +138,18 @@ class PatchSampler(object):
             shape = mask_relative_shape
 
             mask_is_greater = False
+            
+            patch_ratio = [
+                    image_size[ax] // ps
+                    for ax, ps in zip(mask_axes, patch_shape.astype(np.int64))
+                    if ax in self.spatial_axes
+            ]
+
+            if not all(patch_ratio):
+                return np.empty(
+                    [0] * len(set(mask_axes).intersection(self.spatial_axes)),
+                    dtype=np.int64
+                )
 
         else:
             active_coordinates = np.meshgrid(
@@ -194,13 +206,6 @@ class PatchSampler(object):
         if not mask_is_greater:
             # Collapse to unique coordinates since there will be multiple
             # instances of the same patch.
-
-            patch_ratio = [
-                    image_size[ax] // ps
-                    for ax, ps in zip(mask_axes, patch_shape.astype(np.int64))
-                    if ax in self.spatial_axes
-            ]
-
             minumum_covered_tls = np.ravel_multi_index(
                 tuple(minumum_covered_tls.T),
                 patch_ratio,

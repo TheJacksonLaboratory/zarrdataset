@@ -581,18 +581,12 @@ if __name__ == "__main__":
             self.param = param
 
     parameters =[
-        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 1),
-        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 2),
-        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 3),
+        (IMAGE_SPECS[10], 1024, True, True),
     ]
 
 
-    for data_specs, patch_size, shuffle, draw_same_chunk, batch_size, num_workers, repeat_dataset in parameters:
+    for data_specs, patch_size, shuffle, draw_same_chunk in parameters:
         for dataset_specs in image_dataset_specs(Request(data_specs)):
-            test_multithread_chained_ZarrDataset(dataset_specs, 
-                                             patch_sampler_specs(Request(patch_size)),
-                                             shuffle,
-                                             draw_same_chunk,
-                                             batch_size,
-                                             num_workers,
-                                             repeat_dataset)
+            test_patched_ZarrDataset(dataset_specs, patch_sampler_specs(Request(patch_size)),
+                                     shuffle,
+                                     draw_same_chunk)

@@ -419,9 +419,9 @@ IMAGE_SPECS = [
         "credit": None,
         "specs": {
             "data_group": None,
-            "shape": [3, 1024, 1024],
-            "chunks": [3, 512, 512],
-            "source_axes": "CYX",
+            "shape": [1, 3, 1024, 1024, 1],
+            "chunks": [1, 3, 256, 256, 1],
+            "source_axes": "ZCXYT",
             "dtype": np.float32
         }
     },
