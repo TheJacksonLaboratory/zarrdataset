@@ -410,10 +410,9 @@ if __name__ == "__main__":
             self.param = param
 
     parameters = [
-        (0.5, 32, IMAGE_SPECS[11]),
-        (0.5, 1024, IMAGE_SPECS[11])
+        (512, MASKABLE_IMAGE_SPECS[0], MASKABLE_IMAGE_SPECS[0])
     ]
 
-    for min_area, patch_size, img_coll_pars in parameters:
+    for patch_size, img_coll_pars, specs in parameters:
         for img_coll in image_collection(Request(img_coll_pars)):
-            test_min_area_sampling_PatchSampler(min_area, patch_size, img_coll)
+            test_unique_sampling_PatchSampler(patch_size, img_coll, specs)

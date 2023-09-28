@@ -1,4 +1,4 @@
-from typing import Iterable, Union
+from typing import Iterable, Union, Tuple
 import math
 import numpy as np
 from itertools import repeat
@@ -71,198 +71,46 @@ class PatchSampler(object):
 
         self._min_area = min_area
 
-    def _get_samplable_positions(self, non_zero_chunk_mask: tuple,
-                                 mask_axes: str,
-                                 mask_scale: dict) -> np.ndarray:
-        # Scale the positions of the corners to the size of the reference image
-        mask_toplefts = np.stack(non_zero_chunk_mask).T
-        mask_toplefts = mask_toplefts.astype(np.float32)
+    def _compute_corners(self, non_zero_pos: tuple, axes: str) -> np.ndarray:
+        toplefts = np.stack(non_zero_pos).T
+        toplefts = toplefts.astype(np.float32)
 
-        # Add the coordinates of the corners of the mask pixels
-        mask_toplefts_corners = []
+        toplefts_corners = []
 
-        mask_dim = len(mask_axes)
-        factors = 2 ** np.arange(mask_dim + 1)
-        for d in range(2 ** mask_dim):
+        dim = len(axes)
+        factors = 2 ** np.arange(dim + 1)
+        for d in range(2 ** dim):
             corner_value =  np.array((d % factors[1:]) // factors[:-1],
                                      dtype=np.float32)
-            mask_toplefts_corners.append(
-                mask_toplefts + (1 - 1e-4) * corner_value
+            toplefts_corners.append(
+                toplefts + (1 - 1e-4) * corner_value
             )
 
-        mask_corners = np.stack(mask_toplefts_corners)
+        corners = np.stack(toplefts_corners)
 
-        spatial_mask_ratios = np.array(
-            [[[1 / m_s
-               for ax, m_s in mask_scale.items()
-               if ax in self.spatial_axes
-            ]]],
-            dtype=np.float32
-        )
+        return corners
 
-        mask_corners = mask_corners * spatial_mask_ratios
+    def _compute_overlap(self, corners: np.ndarray, shape: np.ndarray,
+                         ref_shape: np.ndarray) -> Tuple[np.ndarray,
+                                                         np.ndarray]:
+        scaled_corners = corners * shape[None, None]
+        tls_scaled = scaled_corners / ref_shape[None, None]
+        tls_idx = np.floor(tls_scaled)
 
-        return mask_corners
+        corners_cut = np.maximum(tls_scaled[0], tls_idx[-1])
 
-    def _compute_coverages(self, corners: np.ndarray,
-                           spatial_sizes: np.ndarray,
-                           spatial_patch_ratios: np.ndarray):
-        # Get the intersection of the masks with the patch grid
-        tls_scaled = corners / spatial_sizes[None, None]
-        tls_idx = np.floor(tls_scaled).astype(np.int64)
+        dist2cut = np.fabs(scaled_corners - corners_cut[None])
+        coverage = np.prod(dist2cut, axis=-1)
 
-        corners_cut = np.maximum(corners[0], tls_idx[-1] * spatial_sizes[None])
-
-        coverage = np.prod(np.abs(corners - corners_cut[None]), axis=-1).T
-
-        return coverage, tls_idx
-
-
-    def _compute_grid_mask_less(self,
-                                mask_corners: np.ndarray,
-                                spatial_patch_sizes: np.ndarray,
-                                spatial_patch_ratios: np.ndarray,
-                                min_area: float,
-                                mask_axes: str,
-                                patch_size: dict):
-        # Rescale the positions to determine the chunks that contain any
-        # portion of the mask
-
-        non_zero_patch_pos = np.meshgrid(*[
-            np.arange(patch_size[ax])
-            for ax in mask_axes
-            if ax in self.spatial_axes
-        ])
-
-        non_zero_patch_pos = tuple(
-            mesh_pos.flatten()
-            for mesh_pos in non_zero_patch_pos
-        )
-
-        mask_coverage, mask_tls = self._compute_coverages(mask_corners,
-                                                          spatial_patch_sizes,
-                                                          spatial_patch_ratios)
-
-        mask_tls = np.ravel_multi_index(
-            tuple(mask_tls.astype(np.int64).T),
-            spatial_patch_ratios,
-            mode="clip"
-        )
-
-        # A position can appear multiple times when more than one pixel of the
-        # mask is inside the same patch. Removing these duplicates will leave
-        # only those patches that contain masked regions.
-        unique_mask_tls = np.unique(mask_tls)
-
-        # Remove patches that are not covered by the minimum masked area.
-        mask_coverage = np.bincount(mask_tls.flatten(),
-                                    weights=mask_coverage.flatten())
-
-        mask_coverage = np.take(mask_coverage, unique_mask_tls)
-
-        mask_covered = mask_coverage > min_area
-
-        mask_tls_idx = np.unravel_index(unique_mask_tls[mask_covered],
-                                        spatial_patch_ratios)
-
-        mask_toplefts = np.stack(mask_tls_idx).T * spatial_patch_sizes[None]
-
-        return mask_toplefts.astype(np.int64)
-
-    def _compute_grid_mask_greater(self,
-                                   chunk_mask: np.ndarray,
-                                   spatial_patch_sizes: np.ndarray,
-                                   spatial_patch_ratios: np.ndarray,
-                                   spatial_mask_sizes: np.ndarray,
-                                   spatial_mask_ratios: np.ndarray,
-                                   min_area: float,
-                                   mask_axes: str,
-                                   patch_size: dict):
-        # Rescale the positions to determine the chunks that contain any
-        # portion of the mask
-
-        non_zero_patch_pos = np.meshgrid(*[
-            np.arange(ps_ratio)
-            for ps_ratio in spatial_patch_ratios
-        ])
-
-        non_zero_patch_pos = tuple(
-            mesh_pos.flatten()
-            for mesh_pos in non_zero_patch_pos
-        )
-
-        patch_axes = "".join([
-            ax
-            for ax in mask_axes
-            if ax in self.spatial_axes
-        ])
-
-        patch_scale = dict(
-            (ax, 1 / patch_size[ax])
-            for ax in mask_axes
-            if ax in self.spatial_axes
-        )
-
-        patch_corners = self._get_samplable_positions(non_zero_patch_pos,
-                                                      patch_axes,
-                                                      patch_scale)
-
-        (patch_coverage,
-         patch_tls_idx) = self._compute_coverages(patch_corners,
-                                                  spatial_mask_sizes,
-                                                  spatial_mask_ratios)
-
-        patch_mask_overlay_idx = np.ravel_multi_index(tuple(patch_tls_idx.T),
-                                                      chunk_mask.shape)
-
-        mask_values = np.take(chunk_mask, patch_mask_overlay_idx)
-
-        patch_tls_idx = np.arange(spatial_patch_ratios.prod())
-        patch_coverage = np.bincount(
-            patch_tls_idx,
-            weights=np.sum(patch_coverage * mask_values, axis=1)
-        )
-
-        patch_tls_idx = tuple(
-            non_zero_patch_pos_axis[patch_coverage > min_area]
-            for non_zero_patch_pos_axis in non_zero_patch_pos
-        )
-
-        mask_toplefts = np.stack(patch_tls_idx).T * spatial_patch_sizes[None]
-
-        return mask_toplefts.astype(np.int64)
+        return coverage, tls_idx.astype(np.int64)
 
     def _compute_grid(self, chunk_mask: np.ndarray,
-                      mask_corners: np.ndarray,
                       mask_axes: str,
                       mask_scale: dict,
-                      image_shape: dict,
-                      patch_size: dict):
+                      patch_size: dict,
+                      image_size: dict):
 
-        spatial_patch_sizes = np.array(
-            [patch_size[ax]
-             for ax in mask_axes
-             if ax in self.spatial_axes
-            ],
-            dtype=np.float32
-        )
-
-        spatial_patch_ratios = np.array(
-            [math.ceil(image_shape[ax] / patch_size[ax]) for ax in mask_axes],
-            dtype=np.int64
-        )
-
-        # Compute minimum area covered by masked regions to sample a patch.
-        min_area = self._min_area
-        if min_area < 1:
-            min_area *= spatial_patch_sizes.prod()
-
-        spatial_mask_ratios = np.array(
-            chunk_mask.shape,
-            dtype=np.int64
-        )
-
-        spatial_mask_sizes = np.array(
+        mask_relative_shape = np.array(
             [1 / m_scl
              for ax, m_scl in mask_scale.items()
              if ax in self.spatial_axes
@@ -270,41 +118,113 @@ class PatchSampler(object):
             dtype=np.float32
         )
 
-        if all(map(operator.ge, spatial_mask_sizes, spatial_patch_sizes)):
-            return self._compute_grid_mask_greater(
-                chunk_mask,
-                spatial_patch_sizes,
-                spatial_patch_ratios,
-                spatial_mask_sizes,
-                spatial_mask_ratios,
-                min_area,
-                mask_axes,
-                patch_size
-            )
+        patch_shape = np.array(
+            [patch_size[ax]
+             for ax in mask_axes
+             if ax in self.spatial_axes
+            ],
+            dtype=np.float32
+        )
+
+        # If the patch sizes are greater than the relative shape of the mask
+        # with respect to the input image, use the mask coordinates as
+        # reference to overlap the coordinates of the sampling patches.
+        # Otherwise, use the patches coordinates instead.
+        if all(map(operator.ge, patch_shape, mask_relative_shape)):
+            active_coordinates = np.nonzero(chunk_mask)
+            ref_axes = mask_axes
+
+            ref_shape = patch_shape
+            shape = mask_relative_shape
+
+            mask_is_greater = False
+
         else:
-            return self._compute_grid_mask_less(
-                mask_corners,
-                spatial_patch_sizes,
-                spatial_patch_ratios,
-                min_area,
-                mask_axes,
-                patch_size
+            active_coordinates = np.meshgrid(
+                *[np.arange(image_size[ax] // ps)
+                  for ax, ps in zip(mask_axes, patch_shape)
+                  if ax in self.spatial_axes]
             )
 
+            active_coordinates = tuple(
+                coord_ax.flatten()
+                for coord_ax in active_coordinates
+            )
 
-    def _compute_valid_toplefts(self, chunk_mask: np.ndarray,
-                                mask_corners: np.ndarray,
-                                mask_axes: str,
+            ref_axes = "".join([
+                ax for ax in self.spatial_axes if ax in mask_axes
+            ])
+
+            ref_shape = mask_relative_shape
+            shape = patch_shape
+
+            mask_is_greater = True
+
+        corners = self._compute_corners(active_coordinates, axes=ref_axes)
+
+        (coverage,
+         corners_idx)= self._compute_overlap(corners, shape, ref_shape)
+
+        if mask_is_greater:
+            # The mask ratio is greater than the patches size
+            mask_values = chunk_mask[tuple(corners_idx.T)].T
+            patches_coverage = coverage * mask_values
+
+            covered_tls = corners[0, ...].astype(np.int64)
+
+        else:
+            # The mask ratio is less than the patches size
+            patch_coordinates = np.ravel_multi_index(tuple(corners_idx.T),
+                                                     chunk_mask.shape)
+            patches_coverage = np.bincount(patch_coordinates.flatten(),
+                                           weights=coverage.flatten())
+            patches_coverage = np.take(patches_coverage, patch_coordinates).T
+
+            covered_tls = corners_idx[0, ...]
+
+        patches_coverage = np.sum(patches_coverage, axis=0)
+
+        # Compute minimum area covered by masked regions to sample a patch.
+        min_area = self._min_area
+        if min_area < 1:
+            min_area *= patch_shape.prod()
+
+        minumum_covered_tls = covered_tls[patches_coverage > min_area]
+
+        if not mask_is_greater:
+            # Collapse to unique coordinates since there will be multiple
+            # instances of the same patch.
+
+            patch_ratio = [
+                    image_size[ax] // ps
+                    for ax, ps in zip(mask_axes, patch_shape.astype(np.int64))
+                    if ax in self.spatial_axes
+            ]
+
+            minumum_covered_tls = np.ravel_multi_index(
+                tuple(minumum_covered_tls.T),
+                patch_ratio,
+                mode="clip"
+            )
+
+            minumum_covered_tls = np.unique(minumum_covered_tls)
+
+            minumum_covered_tls = np.unravel_index(
+                minumum_covered_tls,
+                patch_ratio
+            )
+
+            minumum_covered_tls = np.stack(minumum_covered_tls).T
+
+        return minumum_covered_tls * patch_shape[None].astype(np.int64)
+
+    def _compute_valid_toplefts(self, chunk_mask: np.ndarray, mask_axes: str,
                                 mask_scale: dict,
-                                image_shape: dict,
-                                patch_size: dict):
-        return self._compute_grid(chunk_mask,
-                                  mask_corners,
-                                  mask_axes,
-                                  mask_scale,
-                                  image_shape,
-                                  patch_size
-                                )
+                                patch_size: dict,
+                                image_size: dict):
+        return self._compute_grid(chunk_mask, mask_axes, mask_scale,
+                                  patch_size,
+                                  image_size)
 
     def _compute_toplefts_slices(self, mask: ImageBase, image_shape: dict,
                                  patch_size: dict,
@@ -381,19 +301,13 @@ class PatchSampler(object):
         )
 
         chunk_mask = mask[chunk_tlbr]
-        non_zero_chunk_mask = np.nonzero(chunk_mask)
-
-        mask_corners = self._get_samplable_positions(non_zero_chunk_mask,
-                                                     mask_axes=mask.axes,
-                                                     mask_scale=mask.scale)
 
         valid_mask_toplefts = self._compute_grid(
             chunk_mask,
-            mask_corners,
             mask.axes,
             mask.scale,
-            image_shape,
-            self._max_chunk_size
+            self._max_chunk_size,
+            image_shape
         )
 
         chunks_slices = self._compute_toplefts_slices(
@@ -411,27 +325,22 @@ class PatchSampler(object):
         image = image_collection.collection[image_collection.reference_mode]
         mask = image_collection.collection[image_collection.mask_mode]
         image_shape = dict(map(tuple, zip(image.axes, image.shape)))
-        curr_chunk_shape = dict(
-            (ax, (ctb.stop - (ctb.start if ctb.start is not None else 0)) \
-                 if ctb.stop is not None else image_shape.get(ax, 1)
+        chunk_size = dict(
+            (ax,
+             (ctb.stop if ctb.stop is not None else image_shape[ax])
+             - (ctb.start if ctb.start is not None else 0)
             )
             for ax, ctb in chunk_tlbr.items()
         )
 
         chunk_mask = mask[chunk_tlbr]
-        non_zero_chunk_mask = np.nonzero(chunk_mask)
-
-        mask_corners = self._get_samplable_positions(non_zero_chunk_mask,
-                                                     mask_axes=mask.axes,
-                                                     mask_scale=mask.scale)
 
         valid_mask_toplefts = self._compute_valid_toplefts(
             chunk_mask,
-            mask_corners,
             mask.axes,
             mask.scale,
-            curr_chunk_shape,
-            self._patch_size
+            self._patch_size,
+            chunk_size
         )
 
         patches_slices = self._compute_toplefts_slices(
@@ -513,11 +422,10 @@ class BlueNoisePatchSampler(PatchSampler):
 
     def _compute_valid_toplefts(self,
                                 chunk_mask: np.ndarray,
-                                mask_corners: np.ndarray,
                                 mask_axes: str,
                                 mask_scale: dict,
-                                image_shape: dict,
-                                patch_size: dict):
+                                patch_size: dict,
+                                image_shape: dict):
         self.compute_sampling_positions(force=self._resample_positions)
 
         # Filter sampling positions that does not contain any mask portion.
@@ -535,6 +443,9 @@ class BlueNoisePatchSampler(PatchSampler):
             for ax in mask_axes
             if ax in self.spatial_axes
         ])
+
+        mask_corners = self._compute_corners(np.nonzero(chunk_mask),
+                                             mask_axes)
 
         dist = (mask_corners[None, :, :, :]
                 - sampling_pos[:, None, None, :].astype(np.float32)
