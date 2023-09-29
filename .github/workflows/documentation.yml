@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-python@v3
       - name: Install dependencies
         run: |
-          pip install sphinx sphinx-rtd-theme myst-nb sphinx-autoapi jupyter-cache
+          pip install sphinx sphinx-rtd-theme myst-nb astroid==2.15.8 sphinx-autoapi jupyter-cache
       - name: Sphinx build
         run: |
           sphinx-build docs/source docs/build
