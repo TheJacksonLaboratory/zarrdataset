@@ -17,7 +17,8 @@ extensions = [
     "myst_nb",
     "autoapi.extension",
     "sphinx.ext.napoleon",
-    "sphinx.ext.viewcode"
+    "sphinx.ext.viewcode",
+    "sphinx.ext.githubpages"
 ]
 
 autoapi_dirs = ["../../zarrdataset"]
