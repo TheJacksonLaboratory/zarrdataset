@@ -18,11 +18,11 @@ jobs:
           pip install sphinx sphinx-rtd-theme myst-nb astroid==2.15.8 sphinx-autoapi jupyter-cache
       - name: Sphinx build
         run: |
-          sphinx-build docs/source _build
+          sphinx-build docs/source docs/build/
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         if: github.ref == 'refs/heads/main'
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: _build/
+          publish_dir: docs/build/
