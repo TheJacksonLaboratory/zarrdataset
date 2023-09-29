@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Custom masks for sampling specific regions from images with ZarrDataset &mdash; ZarrDataset  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Labeled dataset loading with ZarrDataset" href="basic_labeled_datasets_example.html" />
+    <link rel="prev" title="Loading patches/windows from masked regions of images with ZarrDataset" href="basic_masked_datasets_example.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ZarrDataset
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html">ZarrDataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="basic_example.html">Basic ZarrDataset usage example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_example_tensorflow.html">Integration of ZarrDataset with Tensorflow Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_masked_datasets_example.html">Loading patches/windows from masked regions of images with ZarrDataset</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Custom masks for sampling specific regions from images with ZarrDataset</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#extract-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi">Extract patches of size 512x512 pixels from a Whole Slide Image (WSI)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#use-a-function-to-generate-the-masks-for-each-image-in-the-dataset">Use a function to generate the masks for each image in the dataset</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license_link.html">License</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../autoapi/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ZarrDataset</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Custom masks for sampling specific regions from images with ZarrDataset</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/examples/advanced_masked_datasets_example.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="custom-masks-for-sampling-specific-regions-from-images-with-zarrdataset">
+<h1>Custom masks for sampling specific regions from images with ZarrDataset<a class="headerlink" href="#custom-masks-for-sampling-specific-regions-from-images-with-zarrdataset" title="Permalink to this heading"></a></h1>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
+<span class="kn">import</span> <span class="nn">zarr</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\tqdm\auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+  from .autonotebook import tqdm as notebook_tqdm
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># These are images from the Image Data Resource (IDR) </span>
+<span class="c1"># https://idr.openmicroscopy.org/ that are publicly available and were </span>
+<span class="c1"># converted to the OME-NGFF (Zarr) format by the OME group. More examples</span>
+<span class="c1"># can be found at Public OME-Zarr data (Nov. 2020)</span>
+<span class="c1"># https://www.openmicroscopy.org/2020/11/04/zarr-data.html</span>
+
+<span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># For reproducibility</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">478963</span><span class="p">)</span>
+<span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">478965</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">z_img</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
+<span class="n">z_img</span><span class="p">[</span><span class="s2">&quot;0&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">info</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_html"><table class="zarr-info"><tbody><tr><th style="text-align: left">Name</th><td style="text-align: left">/0</td></tr><tr><th style="text-align: left">Type</th><td style="text-align: left">zarr.core.Array</td></tr><tr><th style="text-align: left">Data type</th><td style="text-align: left">uint8</td></tr><tr><th style="text-align: left">Shape</th><td style="text-align: left">(1, 3, 1, 16433, 21115)</td></tr><tr><th style="text-align: left">Chunk shape</th><td style="text-align: left">(1, 1, 1, 1024, 1024)</td></tr><tr><th style="text-align: left">Order</th><td style="text-align: left">C</td></tr><tr><th style="text-align: left">Read-only</th><td style="text-align: left">True</td></tr><tr><th style="text-align: left">Compressor</th><td style="text-align: left">Blosc(cname='lz4', clevel=5, shuffle=SHUFFLE, blocksize=0)</td></tr><tr><th style="text-align: left">Store type</th><td style="text-align: left">zarr.storage.FSStore</td></tr><tr><th style="text-align: left">No. bytes</th><td style="text-align: left">1040948385 (992.7M)</td></tr><tr><th style="text-align: left">Chunks initialized</th><td style="text-align: left">0/1071</td></tr></tbody></table></div></div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">z_img</span><span class="p">[</span><span class="s2">&quot;4&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../_images/759c21caeefcd6a675de044a901404b2cfe633e307d03bbbbcb77ee793965f7a.png" src="../_images/759c21caeefcd6a675de044a901404b2cfe633e307d03bbbbcb77ee793965f7a.png" />
+</div>
+</div>
+<p>Define a mask from where patches can be extracted</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">skimage</span> <span class="kn">import</span> <span class="n">color</span><span class="p">,</span> <span class="n">filters</span><span class="p">,</span> <span class="n">morphology</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">im_gray</span> <span class="o">=</span> <span class="n">color</span><span class="o">.</span><span class="n">rgb2gray</span><span class="p">(</span><span class="n">z_img</span><span class="p">[</span><span class="s2">&quot;4&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">channel_axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">thresh</span> <span class="o">=</span> <span class="n">filters</span><span class="o">.</span><span class="n">threshold_otsu</span><span class="p">(</span><span class="n">im_gray</span><span class="p">)</span>
+
+<span class="n">mask</span> <span class="o">=</span> <span class="n">im_gray</span> <span class="o">&gt;</span> <span class="n">thresh</span>
+<span class="n">mask</span> <span class="o">=</span> <span class="n">morphology</span><span class="o">.</span><span class="n">remove_small_objects</span><span class="p">(</span><span class="n">mask</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">min_size</span><span class="o">=</span><span class="mi">16</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span>
+                                       <span class="n">connectivity</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">mask</span> <span class="o">=</span> <span class="n">morphology</span><span class="o">.</span><span class="n">remove_small_holes</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">area_threshold</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
+<span class="n">mask</span> <span class="o">=</span> <span class="n">morphology</span><span class="o">.</span><span class="n">binary_erosion</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">morphology</span><span class="o">.</span><span class="n">disk</span><span class="p">(</span><span class="mi">8</span><span class="p">))</span>
+<span class="n">mask</span> <span class="o">=</span> <span class="n">morphology</span><span class="o">.</span><span class="n">binary_dilation</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">morphology</span><span class="o">.</span><span class="n">disk</span><span class="p">(</span><span class="mi">8</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../_images/546b7437007e4b4c05161d8a64f9f506e92e7411e065c4da18d130c20f0af04f.png" src="../_images/546b7437007e4b4c05161d8a64f9f506e92e7411e065c4da18d130c20f0af04f.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">z_img</span><span class="p">[</span><span class="s2">&quot;4&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">1.0</span><span class="o">*</span><span class="p">(</span><span class="n">mask</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../_images/5c7c833fd17625ecdc07808087725c86964ec2d9a2da87d1f87a55c4624f59b8.png" src="../_images/5c7c833fd17625ecdc07808087725c86964ec2d9a2da87d1f87a55c4624f59b8.png" />
+</div>
+</div>
+<section id="extract-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi">
+<h2>Extract patches of size 512x512 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extract-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi" title="Permalink to this heading"></a></h2>
+<p>Sample the image uniformly in a squared grid pattern</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">patch_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">Y</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="mi">512</span><span class="p">)</span>
+<span class="n">patch_sampler</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">PatchSampler</span><span class="p">(</span><span class="n">patch_size</span><span class="o">=</span><span class="n">patch_size</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Use the ZarrDataset class to enable extraction of samples from masked regions.</p>
+<p>An extra dimension is added to the mask, so it matches the number of spatial axes in the image</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">image_specs</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ImagesDatasetSpecs</span><span class="p">(</span>
+  <span class="n">filenames</span><span class="o">=</span><span class="n">filenames</span><span class="p">,</span>
+  <span class="n">data_group</span><span class="o">=</span><span class="s2">&quot;1&quot;</span><span class="p">,</span>
+  <span class="n">source_axes</span><span class="o">=</span><span class="s2">&quot;TCZYX&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Use the MasksDatasetSpecs to add the specifications of the masks.</span>
+<span class="c1">#masks_specs = zds.MasksDatasetSpecs(</span>
+<span class="n">masks_specs</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">LabelsDatasetSpecs</span><span class="p">(</span>
+  <span class="n">filenames</span><span class="o">=</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span>
+  <span class="n">source_axes</span><span class="o">=</span><span class="s2">&quot;YX&quot;</span><span class="p">,</span>
+  <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;ZYX&quot;</span><span class="p">,</span>
+  <span class="n">modality</span><span class="o">=</span><span class="s2">&quot;masks&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">my_dataset</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ZarrDataset</span><span class="p">([</span><span class="n">image_specs</span><span class="p">,</span> <span class="n">masks_specs</span><span class="p">],</span>
+                             <span class="n">patch_sampler</span><span class="o">=</span><span class="n">patch_sampler</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ds_iterator</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">my_dataset</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sample</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">ds_iterator</span><span class="p">)</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">sample</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\boto3\compat.py:82: PythonDeprecationWarning: Boto3 will no longer support Python 3.7 starting December 13, 2023. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.8 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
+  warnings.warn(warning, PythonDeprecationWarning)
+</pre></div>
+</div>
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>(numpy.ndarray, (1, 64, 65), dtype(&#39;bool&#39;))
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../_images/df8169bed3d3b581a5d6958410be9c8b5ef26faa4cc92132942cf84feb301583.png" src="../_images/df8169bed3d3b581a5d6958410be9c8b5ef26faa4cc92132942cf84feb301583.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../_images/b2bc66cbdfd30f9d36f27e34e6d888d06be703e6f7c6baafabdf98a5356bdafd.png" src="../_images/b2bc66cbdfd30f9d36f27e34e6d888d06be703e6f7c6baafabdf98a5356bdafd.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sample</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">my_dataset</span><span class="p">):</span>
+    <span class="n">samples</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="c1"># Take only five samples for illustration purposes</span>
+        <span class="k">break</span>
+
+<span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../_images/015d24e2044e388f3b56b0871e44672789105ffe6c5a3039733652cc98105ec8.png" src="../_images/015d24e2044e388f3b56b0871e44672789105ffe6c5a3039733652cc98105ec8.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../_images/59c43093616de602aff138aff9619597c911e66747914c12130b76bdbe75a787.png" src="../_images/59c43093616de602aff138aff9619597c911e66747914c12130b76bdbe75a787.png" />
+</div>
+</div>
+</section>
+<section id="use-a-function-to-generate-the-masks-for-each-image-in-the-dataset">
+<h2>Use a function to generate the masks for each image in the dataset<a class="headerlink" href="#use-a-function-to-generate-the-masks-for-each-image-in-the-dataset" title="Permalink to this heading"></a></h2>
+<p>Get only patches that are covered by at least 1/16th of their area by the mask</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">patch_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">Y</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="mi">512</span><span class="p">)</span>
+<span class="n">patch_sampler</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">PatchSampler</span><span class="p">(</span><span class="n">patch_size</span><span class="o">=</span><span class="n">patch_size</span><span class="p">,</span> <span class="n">min_area</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="mi">16</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Apply WSITissueMaskGenerator transform to each image in the dataset to define each sampling mask</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">mask_func</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">WSITissueMaskGenerator</span><span class="p">(</span><span class="n">mask_scale</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                       <span class="n">min_size</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+                                       <span class="n">area_threshold</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+                                       <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;ZYX&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Because the input image (zarr group “1”) is large, computing the mask directly on that could require high computational resources.</p>
+<p>For that reason, use a donwsampled version of that image instead by pointing <code class="docutils literal notranslate"><span class="pre">mask_data_group=&quot;4&quot;</span></code> to use a 1:16 downsampled version of the input image.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">mask_axes</span></code> should match the ones that WSITissueMaskGenerator requies as input (“YXC”). To do that, a ROI can be specified to take just the spatial and channel axes from the input image with <code class="docutils literal notranslate"><span class="pre">mask_roi=&quot;(0,0,0,0,0):(1,-1,1,-1,-1)&quot;</span></code>, and rearrange the output axes with <code class="docutils literal notranslate"><span class="pre">mask_axes=&quot;YXC&quot;</span></code>.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">image_specs</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ImagesDatasetSpecs</span><span class="p">(</span>
+  <span class="n">filenames</span><span class="o">=</span><span class="n">filenames</span><span class="p">,</span>
+  <span class="n">data_group</span><span class="o">=</span><span class="s2">&quot;1&quot;</span><span class="p">,</span>
+  <span class="n">source_axes</span><span class="o">=</span><span class="s2">&quot;TCZYX&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Use the MasksDatasetSpecs to add the specifications of the masks.</span>
+<span class="c1"># The mask generation function is added as `image_loader_func` parameter of the dataset specification for masks.</span>
+<span class="n">masks_specs</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">MasksDatasetSpecs</span><span class="p">(</span>
+  <span class="n">filenames</span><span class="o">=</span><span class="n">filenames</span><span class="p">,</span>
+  <span class="n">data_group</span><span class="o">=</span><span class="s2">&quot;4&quot;</span><span class="p">,</span>
+  <span class="n">source_axes</span><span class="o">=</span><span class="s2">&quot;TCZYX&quot;</span><span class="p">,</span>
+  <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;YXC&quot;</span><span class="p">,</span>
+  <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;(0,0,0,0,0):(1,-1,1,-1,-1)&quot;</span><span class="p">,</span>
+  <span class="n">image_loader_func</span><span class="o">=</span><span class="n">mask_func</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">my_dataset</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ZarrDataset</span><span class="p">([</span><span class="n">image_specs</span><span class="p">,</span> <span class="n">masks_specs</span><span class="p">],</span>
+                             <span class="n">patch_sampler</span><span class="o">=</span><span class="n">patch_sampler</span><span class="p">,</span>
+                             <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sample</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">my_dataset</span><span class="p">):</span>
+    <span class="n">samples</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="c1"># Take only five samples for illustration purposes</span>
+        <span class="k">break</span>
+
+<span class="n">samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<img alt="../_images/28e2435aa932babf2971387b87f890ca326dda86a6153ed16657a14d3b977198.png" src="../_images/28e2435aa932babf2971387b87f890ca326dda86a6153ed16657a14d3b977198.png" />
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="basic_masked_datasets_example.html" class="btn btn-neutral float-left" title="Loading patches/windows from masked regions of images with ZarrDataset" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="basic_labeled_datasets_example.html" class="btn btn-neutral float-right" title="Labeled dataset loading with ZarrDataset" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, The Jackson Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

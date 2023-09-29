@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>zarrdataset._samplers &mdash; ZarrDataset  documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            ZarrDataset
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html">ZarrDataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_example.html">Basic ZarrDataset usage example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_example_tensorflow.html">Integration of ZarrDataset with Tensorflow Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_masked_datasets_example.html">Loading patches/windows from masked regions of images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../license_link.html">License</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../autoapi/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">ZarrDataset</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">zarrdataset._samplers</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for zarrdataset._samplers</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">repeat</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span>
+<span class="kn">import</span> <span class="nn">operator</span>
+
+<span class="kn">import</span> <span class="nn">poisson_disc</span>
+
+<span class="kn">from</span> <span class="nn">._imageloaders</span> <span class="kn">import</span> <span class="n">ImageCollection</span><span class="p">,</span> <span class="n">ImageBase</span>
+
+
+<div class="viewcode-block" id="PatchSampler"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.PatchSampler">[docs]</a><span class="k">class</span> <span class="nc">PatchSampler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Patch sampling algorithm to retrieve image patches/windows from images.</span>
+
+<span class="sd">    If the image used for extracting patches has a mask associated to it, only</span>
+<span class="sd">    patches from masked regions of the image are retrieved.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    patch_size : Union[int, Iterable[int], dict]</span>
+<span class="sd">        Size in pixels of the patches extracted on each axis. Only rectangular</span>
+<span class="sd">        patches (hyper-cuboids) are supported by now. If a single int is</span>
+<span class="sd">        passed, that size is used for all dimensions. If an iterable (list,</span>
+<span class="sd">        tuple) is passed, each value will be assigned to the corresponding axes</span>
+<span class="sd">         in `spatial_axes`, the size of `patch_size` must match the lenght of </span>
+<span class="sd">        `spatial_axes&#39;. If a dict is passed, this should have at least the size</span>
+<span class="sd">         of the patch of the axes listed in `spatial_axes`.  Use the same </span>
+<span class="sd">        convention as how Zarr structure array chunks in order to handle patch </span>
+<span class="sd">        shapes and channels correctly.</span>
+<span class="sd">    min_area : Union[int, float]</span>
+<span class="sd">        Minimum patch area covered by the mask to consider it samplable. A</span>
+<span class="sd">        number in range [0, 1) will be used as percentage of the patch size. A</span>
+<span class="sd">        number &gt;= 1 will be considered as the number of minimum patch pixels</span>
+<span class="sd">        covered by the mask.</span>
+<span class="sd">    spatial_axes : str</span>
+<span class="sd">        The spatial axes from where patches can be extracted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="nb">dict</span><span class="p">],</span>
+                 <span class="n">min_area</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+                 <span class="n">spatial_axes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span><span class="s2">&quot;ZYX&quot;</span><span class="p">):</span>
+        <span class="c1"># The maximum chunk sizes are used to generate a reference sampling</span>
+        <span class="c1"># position array used fo every sampled chunk.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_chunk_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">ax</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">spatial_axes</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">patch_size</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">patch_size</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">spatial_axes</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The size of `patch_size` must match the &quot;</span>
+                                 <span class="sa">f</span><span class="s2">&quot;number of axes in `spatial_axes`, got &quot;</span>
+                                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">patch_size</span><span class="p">)</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="n">spatial_axes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">patch_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">ax</span><span class="p">,</span> <span class="n">ps</span><span class="p">)</span>
+                              <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">ps</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">spatial_axes</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">))</span>
+
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">patch_size</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">patch_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">ax</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">)</span> <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">spatial_axes</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">patch_size</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Patch size must be a dictionary specifying the&quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot; patch size of each axes, an iterable (list, &quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot;tuple) with the same order as the spatial axes,&quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot; or an integer for a cubic patch. Received &quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">patch_size</span><span class="si">}</span><span class="s2"> of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">patch_size</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span> <span class="o">=</span> <span class="n">spatial_axes</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_patch_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">patch_size</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">spatial_axes</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_min_area</span> <span class="o">=</span> <span class="n">min_area</span>
+
+<div class="viewcode-block" id="PatchSampler._compute_corners"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.PatchSampler._compute_corners">[docs]</a>    <span class="k">def</span> <span class="nf">_compute_corners</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">non_zero_pos</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">toplefts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">non_zero_pos</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">toplefts</span> <span class="o">=</span> <span class="n">toplefts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="n">toplefts_corners</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">axes</span><span class="p">)</span>
+        <span class="n">factors</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">dim</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">dim</span><span class="p">):</span>
+            <span class="n">corner_value</span> <span class="o">=</span>  <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="n">d</span> <span class="o">%</span> <span class="n">factors</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">//</span> <span class="n">factors</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                     <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">toplefts_corners</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">toplefts</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="mf">1e-4</span><span class="p">)</span> <span class="o">*</span> <span class="n">corner_value</span>
+            <span class="p">)</span>
+
+        <span class="n">corners</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">toplefts_corners</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">corners</span></div>
+
+<div class="viewcode-block" id="PatchSampler._compute_overlap"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.PatchSampler._compute_overlap">[docs]</a>    <span class="k">def</span> <span class="nf">_compute_overlap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">corners</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">shape</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                         <span class="n">ref_shape</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                                         <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+        <span class="n">scaled_corners</span> <span class="o">=</span> <span class="n">corners</span> <span class="o">*</span> <span class="n">shape</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">tls_scaled</span> <span class="o">=</span> <span class="n">scaled_corners</span> <span class="o">/</span> <span class="n">ref_shape</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+        <span class="n">tls_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">tls_scaled</span><span class="p">)</span>
+
+        <span class="n">corners_cut</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">tls_scaled</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">tls_idx</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">dist2cut</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fabs</span><span class="p">(</span><span class="n">scaled_corners</span> <span class="o">-</span> <span class="n">corners_cut</span><span class="p">[</span><span class="kc">None</span><span class="p">])</span>
+        <span class="n">coverage</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">dist2cut</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">coverage</span><span class="p">,</span> <span class="n">tls_idx</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PatchSampler._compute_grid"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.PatchSampler._compute_grid">[docs]</a>    <span class="k">def</span> <span class="nf">_compute_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                      <span class="n">mask_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                      <span class="n">mask_scale</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                      <span class="n">patch_size</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                      <span class="n">image_size</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+
+        <span class="n">mask_relative_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="mi">1</span> <span class="o">/</span> <span class="n">m_scl</span>
+             <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">m_scl</span> <span class="ow">in</span> <span class="n">mask_scale</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+             <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span>
+            <span class="p">],</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span>
+        <span class="p">)</span>
+
+        <span class="n">patch_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">patch_size</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span>
+             <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">mask_axes</span>
+             <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span>
+            <span class="p">],</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span>
+        <span class="p">)</span>
+
+        <span class="c1"># If the patch sizes are greater than the relative shape of the mask</span>
+        <span class="c1"># with respect to the input image, use the mask coordinates as</span>
+        <span class="c1"># reference to overlap the coordinates of the sampling patches.</span>
+        <span class="c1"># Otherwise, use the patches coordinates instead.</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">operator</span><span class="o">.</span><span class="n">ge</span><span class="p">,</span> <span class="n">patch_shape</span><span class="p">,</span> <span class="n">mask_relative_shape</span><span class="p">)):</span>
+            <span class="n">active_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">chunk_mask</span><span class="p">)</span>
+            <span class="n">ref_axes</span> <span class="o">=</span> <span class="n">mask_axes</span>
+
+            <span class="n">ref_shape</span> <span class="o">=</span> <span class="n">patch_shape</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">mask_relative_shape</span>
+
+            <span class="n">mask_is_greater</span> <span class="o">=</span> <span class="kc">False</span>
+            
+            <span class="n">patch_ratio</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">image_size</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span> <span class="o">//</span> <span class="n">ps</span>
+                    <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">ps</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mask_axes</span><span class="p">,</span> <span class="n">patch_shape</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span>
+            <span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">patch_ratio</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+                    <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">mask_axes</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span><span class="p">)),</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span>
+                <span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">active_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span>
+                <span class="o">*</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">image_size</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span> <span class="o">//</span> <span class="n">ps</span><span class="p">)</span>
+                  <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">ps</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mask_axes</span><span class="p">,</span> <span class="n">patch_shape</span><span class="p">)</span>
+                  <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span><span class="p">]</span>
+            <span class="p">)</span>
+
+            <span class="n">active_coordinates</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                <span class="n">coord_ax</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">coord_ax</span> <span class="ow">in</span> <span class="n">active_coordinates</span>
+            <span class="p">)</span>
+
+            <span class="n">ref_axes</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+                <span class="n">ax</span> <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span> <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">mask_axes</span>
+            <span class="p">])</span>
+
+            <span class="n">ref_shape</span> <span class="o">=</span> <span class="n">mask_relative_shape</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">patch_shape</span>
+
+            <span class="n">mask_is_greater</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">corners</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_corners</span><span class="p">(</span><span class="n">active_coordinates</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="n">ref_axes</span><span class="p">)</span>
+
+        <span class="p">(</span><span class="n">coverage</span><span class="p">,</span>
+         <span class="n">corners_idx</span><span class="p">)</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_overlap</span><span class="p">(</span><span class="n">corners</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">ref_shape</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">mask_is_greater</span><span class="p">:</span>
+            <span class="c1"># The mask ratio is greater than the patches size</span>
+            <span class="n">mask_values</span> <span class="o">=</span> <span class="n">chunk_mask</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">corners_idx</span><span class="o">.</span><span class="n">T</span><span class="p">)]</span><span class="o">.</span><span class="n">T</span>
+            <span class="n">patches_coverage</span> <span class="o">=</span> <span class="n">coverage</span> <span class="o">*</span> <span class="n">mask_values</span>
+
+            <span class="n">covered_tls</span> <span class="o">=</span> <span class="n">corners</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># The mask ratio is less than the patches size</span>
+            <span class="n">patch_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">corners_idx</span><span class="o">.</span><span class="n">T</span><span class="p">),</span>
+                                                     <span class="n">chunk_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">patches_coverage</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">patch_coordinates</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span>
+                                           <span class="n">weights</span><span class="o">=</span><span class="n">coverage</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span>
+            <span class="n">patches_coverage</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">patches_coverage</span><span class="p">,</span> <span class="n">patch_coordinates</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+            <span class="n">covered_tls</span> <span class="o">=</span> <span class="n">corners_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+
+        <span class="n">patches_coverage</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">patches_coverage</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Compute minimum area covered by masked regions to sample a patch.</span>
+        <span class="n">min_area</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_area</span>
+        <span class="k">if</span> <span class="n">min_area</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">min_area</span> <span class="o">*=</span> <span class="n">patch_shape</span><span class="o">.</span><span class="n">prod</span><span class="p">()</span>
+
+        <span class="n">minumum_covered_tls</span> <span class="o">=</span> <span class="n">covered_tls</span><span class="p">[</span><span class="n">patches_coverage</span> <span class="o">&gt;</span> <span class="n">min_area</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">mask_is_greater</span><span class="p">:</span>
+            <span class="c1"># Collapse to unique coordinates since there will be multiple</span>
+            <span class="c1"># instances of the same patch.</span>
+            <span class="n">minumum_covered_tls</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span>
+                <span class="nb">tuple</span><span class="p">(</span><span class="n">minumum_covered_tls</span><span class="o">.</span><span class="n">T</span><span class="p">),</span>
+                <span class="n">patch_ratio</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;clip&quot;</span>
+            <span class="p">)</span>
+
+            <span class="n">minumum_covered_tls</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">minumum_covered_tls</span><span class="p">)</span>
+
+            <span class="n">minumum_covered_tls</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unravel_index</span><span class="p">(</span>
+                <span class="n">minumum_covered_tls</span><span class="p">,</span>
+                <span class="n">patch_ratio</span>
+            <span class="p">)</span>
+
+            <span class="n">minumum_covered_tls</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">minumum_covered_tls</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="k">return</span> <span class="n">minumum_covered_tls</span> <span class="o">*</span> <span class="n">patch_shape</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PatchSampler._compute_valid_toplefts"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.PatchSampler._compute_valid_toplefts">[docs]</a>    <span class="k">def</span> <span class="nf">_compute_valid_toplefts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">mask_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                <span class="n">mask_scale</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                                <span class="n">patch_size</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                                <span class="n">image_size</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_grid</span><span class="p">(</span><span class="n">chunk_mask</span><span class="p">,</span> <span class="n">mask_axes</span><span class="p">,</span> <span class="n">mask_scale</span><span class="p">,</span>
+                                  <span class="n">patch_size</span><span class="p">,</span>
+                                  <span class="n">image_size</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PatchSampler._compute_toplefts_slices"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.PatchSampler._compute_toplefts_slices">[docs]</a>    <span class="k">def</span> <span class="nf">_compute_toplefts_slices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">ImageBase</span><span class="p">,</span> <span class="n">image_shape</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                                 <span class="n">patch_size</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                                 <span class="n">valid_mask_toplefts</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                 <span class="n">chunk_tlbr</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">toplefts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tls</span> <span class="ow">in</span> <span class="n">valid_mask_toplefts</span><span class="p">:</span>
+            <span class="n">curr_tl</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">mask</span><span class="o">.</span><span class="n">axes</span><span class="p">:</span>
+                    <span class="n">tl</span> <span class="o">=</span> <span class="p">((</span><span class="n">chunk_tlbr</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span><span class="o">.</span><span class="n">start</span>
+                           <span class="k">if</span> <span class="n">chunk_tlbr</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span><span class="o">.</span><span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+                          <span class="o">+</span> <span class="n">tls</span><span class="p">[</span><span class="n">mask</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">ax</span><span class="p">)])</span>
+                    <span class="n">br</span> <span class="o">=</span> <span class="p">((</span><span class="n">chunk_tlbr</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span><span class="o">.</span><span class="n">start</span>
+                           <span class="k">if</span> <span class="n">chunk_tlbr</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span><span class="o">.</span><span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+                          <span class="o">+</span> <span class="n">tls</span><span class="p">[</span><span class="n">mask</span><span class="o">.</span><span class="n">axes</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">ax</span><span class="p">)]</span> <span class="o">+</span> <span class="n">patch_size</span><span class="p">[</span><span class="n">ax</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">br</span> <span class="o">&lt;=</span> <span class="n">image_shape</span><span class="p">[</span><span class="n">ax</span><span class="p">]:</span>
+                        <span class="n">curr_tl</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">ax</span><span class="p">,</span> <span class="nb">slice</span><span class="p">(</span><span class="n">tl</span><span class="p">,</span> <span class="n">br</span><span class="p">)))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">curr_tl</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">ax</span><span class="p">,</span> <span class="nb">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">toplefts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">curr_tl</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">toplefts</span></div>
+
+<div class="viewcode-block" id="PatchSampler.compute_chunks"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.PatchSampler.compute_chunks">[docs]</a>    <span class="k">def</span> <span class="nf">compute_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                       <span class="n">image_collection</span><span class="p">:</span> <span class="n">ImageCollection</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the top-left positions of the chunks in which the image is</span>
+<span class="sd">        divided before taking patches from them.</span>
+
+<span class="sd">        The chunk size should match the zarr&#39;s chunk sizes to make the patch</span>
+<span class="sd">        extraction more efficient.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        image : zarrdataset.ImageCollection</span>
+<span class="sd">            The image from where the patches are extracted.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        chunks_grids : list of tuples of slices</span>
+<span class="sd">            Each valid chunk is returned in form of a slice that can be</span>
+<span class="sd">            extracted from the image. The slices are stored as tuples, with one</span>
+<span class="sd">            slice per axis.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Use the mask as base to determine the valid patches that can be</span>
+        <span class="c1"># retrieved from the image.</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">collection</span><span class="p">[</span><span class="n">image_collection</span><span class="o">.</span><span class="n">reference_mode</span><span class="p">]</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">collection</span><span class="p">[</span><span class="n">image_collection</span><span class="o">.</span><span class="n">mask_mode</span><span class="p">]</span>
+
+        <span class="n">spatial_chunk_sizes</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">chk</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">chk</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">axes</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span>
+        <span class="p">)</span>
+
+        <span class="n">image_shape</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">axes</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">)))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_chunk_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_chunk_size</span><span class="p">[</span><span class="n">ax</span><span class="p">],</span>
+                          <span class="n">spatial_chunk_sizes</span><span class="p">[</span><span class="n">ax</span><span class="p">],</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">_patch_size</span><span class="p">[</span><span class="n">ax</span><span class="p">]),</span>
+                      <span class="n">image_shape</span><span class="p">[</span><span class="n">ax</span><span class="p">]))</span>
+                 <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">image</span><span class="o">.</span><span class="n">axes</span> <span class="k">else</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span>
+        <span class="p">)</span>
+
+        <span class="n">chunk_tlbr</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="nb">map</span><span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span><span class="p">,</span> <span class="n">repeat</span><span class="p">(</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">))))</span>
+        <span class="p">)</span>
+
+        <span class="n">chunk_mask</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">chunk_tlbr</span><span class="p">]</span>
+
+        <span class="n">valid_mask_toplefts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_grid</span><span class="p">(</span>
+            <span class="n">chunk_mask</span><span class="p">,</span>
+            <span class="n">mask</span><span class="o">.</span><span class="n">axes</span><span class="p">,</span>
+            <span class="n">mask</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_max_chunk_size</span><span class="p">,</span>
+            <span class="n">image_shape</span>
+        <span class="p">)</span>
+
+        <span class="n">chunks_slices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_toplefts_slices</span><span class="p">(</span>
+            <span class="n">mask</span><span class="p">,</span>
+            <span class="n">image_shape</span><span class="o">=</span><span class="n">image_shape</span><span class="p">,</span>
+            <span class="n">patch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_chunk_size</span><span class="p">,</span>
+            <span class="n">valid_mask_toplefts</span><span class="o">=</span><span class="n">valid_mask_toplefts</span><span class="p">,</span>
+            <span class="n">chunk_tlbr</span><span class="o">=</span><span class="n">chunk_tlbr</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">chunks_slices</span></div>
+
+<div class="viewcode-block" id="PatchSampler.compute_patches"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.PatchSampler.compute_patches">[docs]</a>    <span class="k">def</span> <span class="nf">compute_patches</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image_collection</span><span class="p">:</span> <span class="n">ImageCollection</span><span class="p">,</span>
+                        <span class="n">chunk_tlbr</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">collection</span><span class="p">[</span><span class="n">image_collection</span><span class="o">.</span><span class="n">reference_mode</span><span class="p">]</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">collection</span><span class="p">[</span><span class="n">image_collection</span><span class="o">.</span><span class="n">mask_mode</span><span class="p">]</span>
+        <span class="n">image_shape</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">axes</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">)))</span>
+        <span class="n">chunk_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">ax</span><span class="p">,</span>
+             <span class="p">(</span><span class="n">ctb</span><span class="o">.</span><span class="n">stop</span> <span class="k">if</span> <span class="n">ctb</span><span class="o">.</span><span class="n">stop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">image_shape</span><span class="p">[</span><span class="n">ax</span><span class="p">])</span>
+             <span class="o">-</span> <span class="p">(</span><span class="n">ctb</span><span class="o">.</span><span class="n">start</span> <span class="k">if</span> <span class="n">ctb</span><span class="o">.</span><span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">ax</span><span class="p">,</span> <span class="n">ctb</span> <span class="ow">in</span> <span class="n">chunk_tlbr</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">)</span>
+
+        <span class="n">chunk_mask</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">chunk_tlbr</span><span class="p">]</span>
+
+        <span class="n">valid_mask_toplefts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_valid_toplefts</span><span class="p">(</span>
+            <span class="n">chunk_mask</span><span class="p">,</span>
+            <span class="n">mask</span><span class="o">.</span><span class="n">axes</span><span class="p">,</span>
+            <span class="n">mask</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_patch_size</span><span class="p">,</span>
+            <span class="n">chunk_size</span>
+        <span class="p">)</span>
+
+        <span class="n">patches_slices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_toplefts_slices</span><span class="p">(</span>
+            <span class="n">mask</span><span class="p">,</span>
+            <span class="n">image_shape</span><span class="o">=</span><span class="n">image_shape</span><span class="p">,</span>
+            <span class="n">patch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_patch_size</span><span class="p">,</span>
+            <span class="n">valid_mask_toplefts</span><span class="o">=</span><span class="n">valid_mask_toplefts</span><span class="p">,</span>
+            <span class="n">chunk_tlbr</span><span class="o">=</span><span class="n">chunk_tlbr</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">patches_slices</span></div>
+
+<div class="viewcode-block" id="PatchSampler.__repr__"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.PatchSampler.__repr__">[docs]</a>    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;String representation of classes derived from PatchSampler.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2"> for sampling patches of size &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_patch_size</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="BlueNoisePatchSampler"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.BlueNoisePatchSampler">[docs]</a><span class="k">class</span> <span class="nc">BlueNoisePatchSampler</span><span class="p">(</span><span class="n">PatchSampler</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Patch sampler that retrieves patches from coordinates sampled using the</span>
+<span class="sd">    Bridson sampling algorithm, also known as Blue-noise sampling algorithm.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    patch_size : int, iterable, dict</span>
+<span class="sd">        Size in pixels of the patches extracted. Only squared patches are</span>
+<span class="sd">        supported by now.</span>
+<span class="sd">    resample_positions : bool</span>
+<span class="sd">        Whether positions should be resampled for each new chunk or not.</span>
+<span class="sd">    allow_overlap : bool</span>
+<span class="sd">        Whether overlapping of patches is allowed or not.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="nb">dict</span><span class="p">],</span>
+                 <span class="n">resample_positions</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">allow_overlap</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BlueNoisePatchSampler</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">patch_size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_base_chunk_tls</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_resample_positions</span> <span class="o">=</span> <span class="n">resample_positions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_allow_overlap</span> <span class="o">=</span> <span class="n">allow_overlap</span>
+ 
+<div class="viewcode-block" id="BlueNoisePatchSampler.compute_sampling_positions"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.BlueNoisePatchSampler.compute_sampling_positions">[docs]</a>    <span class="k">def</span> <span class="nf">compute_sampling_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the sampling positions using blue-noise sampling.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        force: bool</span>
+<span class="sd">            Whether force resampling positions, or reuse existing positions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_base_chunk_tls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">radius</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_patch_size</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_allow_overlap</span><span class="p">:</span>
+            <span class="n">radius</span> <span class="o">*=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">samplable_axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ax</span> <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span>
+                          <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_chunk_size</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">radius</span><span class="p">]</span>
+        <span class="n">dims</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_chunk_size</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span> <span class="o">-</span> <span class="n">radius</span> <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">samplable_axes</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">samplable_axes</span><span class="p">):</span>
+            <span class="n">base_chunk_tls</span> <span class="o">=</span> <span class="n">poisson_disc</span><span class="o">.</span><span class="n">Bridson_sampling</span><span class="p">(</span><span class="n">dims</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dims</span><span class="p">),</span>
+                                                           <span class="n">radius</span><span class="o">=</span><span class="n">radius</span><span class="p">,</span>
+                                                           <span class="n">k</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+            <span class="n">base_chunk_tls</span> <span class="o">=</span> <span class="n">base_chunk_tls</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+            <span class="n">base_chunk_tls</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">base_chunk_tls</span><span class="p">[:,</span> <span class="n">samplable_axes</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">ax</span><span class="p">)]</span>
+                <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">samplable_axes</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">base_chunk_tls</span><span class="p">),</span>
+                                                      <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span>
+            <span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_base_chunk_tls</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">base_chunk_tls</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_base_chunk_tls</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span><span class="p">)),</span>
+                                            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BlueNoisePatchSampler._compute_valid_toplefts"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._samplers.BlueNoisePatchSampler._compute_valid_toplefts">[docs]</a>    <span class="k">def</span> <span class="nf">_compute_valid_toplefts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                                <span class="n">chunk_mask</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                <span class="n">mask_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                                <span class="n">mask_scale</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                                <span class="n">patch_size</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+                                <span class="n">image_shape</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">compute_sampling_positions</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_resample_positions</span><span class="p">)</span>
+
+        <span class="c1"># Filter sampling positions that does not contain any mask portion.</span>
+        <span class="n">sampling_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span>
+            <span class="nb">tuple</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_base_chunk_tls</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">ax</span><span class="p">),</span> <span class="kc">None</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span> <span class="k">else</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_base_chunk_tls</span><span class="p">),</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">mask_axes</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">spatial_patch_sizes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="n">patch_size</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">mask_axes</span>
+            <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spatial_axes</span>
+        <span class="p">])</span>
+
+        <span class="n">mask_corners</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_corners</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">chunk_mask</span><span class="p">),</span>
+                                             <span class="n">mask_axes</span><span class="p">)</span>
+
+        <span class="n">dist</span> <span class="o">=</span> <span class="p">(</span><span class="n">mask_corners</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:]</span>
+                <span class="o">-</span> <span class="n">sampling_pos</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+                <span class="o">-</span> <span class="n">spatial_patch_sizes</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">mask_samplable_pos</span><span class="p">,</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">dist</span> <span class="o">&lt;</span> <span class="n">spatial_patch_sizes</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">toplefts</span> <span class="o">=</span> <span class="n">sampling_pos</span><span class="p">[</span><span class="n">mask_samplable_pos</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">toplefts</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, The Jackson Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>zarrdataset._zarrdataset &mdash; ZarrDataset  documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            ZarrDataset
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme_link.html">ZarrDataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_example.html">Basic ZarrDataset usage example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_example_tensorflow.html">Integration of ZarrDataset with Tensorflow Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_masked_datasets_example.html">Loading patches/windows from masked regions of images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../license_link.html">License</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../autoapi/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">ZarrDataset</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">zarrdataset._zarrdataset</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for zarrdataset._zarrdataset</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Union</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span><span class="p">,</span> <span class="n">partial</span>
+<span class="kn">import</span> <span class="nn">operator</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">zarr</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">._utils</span> <span class="kn">import</span> <span class="n">parse_metadata</span>
+<span class="kn">from</span> <span class="nn">._imageloaders</span> <span class="kn">import</span> <span class="n">ImageCollection</span>
+<span class="kn">from</span> <span class="nn">._samplers</span> <span class="kn">import</span> <span class="n">PatchSampler</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+    <span class="n">TQDM_SUPPORT</span><span class="o">=</span><span class="kc">True</span>
+
+<span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>
+    <span class="n">TQDM_SUPPORT</span><span class="o">=</span><span class="kc">False</span>
+
+    <span class="c1"># This removes the dependency on tqdm when it is not installed</span>
+    <span class="k">class</span> <span class="nc">tqdm</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Placeholder used to remove dependency in `tqdm`, so ZarrDataset can</span>
+<span class="sd">        still be used when `tqdm` is not installed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+        <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+        <span class="k">def</span> <span class="nf">set_description</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+        <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">torch</span>
+    <span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">IterableDataset</span>
+    <span class="n">PYTORCH_SUPPORT</span><span class="o">=</span><span class="kc">True</span>
+
+<span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">logging</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;PyTorch is not installed, the BaseZarrDataset class will &#39;</span>
+                    <span class="s1">&#39;still work as a python iterator&#39;</span><span class="p">)</span>
+    <span class="n">IterableDataset</span> <span class="o">=</span> <span class="nb">object</span>
+    <span class="n">PYTORCH_SUPPORT</span><span class="o">=</span><span class="kc">False</span>
+
+
+<div class="viewcode-block" id="zarrdataset_worker_init_fn"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.zarrdataset_worker_init_fn">[docs]</a><span class="k">def</span> <span class="nf">zarrdataset_worker_init_fn</span><span class="p">(</span><span class="n">worker_id</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ZarrDataset multithread workers initialization function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">PYTORCH_SUPPORT</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">worker_info</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get_worker_info</span><span class="p">()</span>
+    <span class="n">w_sel</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">worker_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">worker_info</span><span class="o">.</span><span class="n">num_workers</span><span class="p">)</span>
+
+    <span class="n">dataset_obj</span> <span class="o">=</span> <span class="n">worker_info</span><span class="o">.</span><span class="n">dataset</span>
+
+    <span class="c1"># Reset the random number generators in each worker.</span>
+    <span class="n">torch_seed</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">initial_seed</span><span class="p">()</span>
+    <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">torch_seed</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">torch_seed</span> <span class="o">%</span> <span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">32</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="n">dataset_obj</span><span class="o">.</span><span class="n">_worker_sel</span> <span class="o">=</span> <span class="n">w_sel</span>
+    <span class="n">dataset_obj</span><span class="o">.</span><span class="n">_worker_id</span> <span class="o">=</span> <span class="n">worker_id</span>
+    <span class="n">dataset_obj</span><span class="o">.</span><span class="n">_num_workers</span> <span class="o">=</span> <span class="n">worker_info</span><span class="o">.</span><span class="n">num_workers</span></div>
+
+<div class="viewcode-block" id="chained_zarrdataset_worker_init_fn"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.chained_zarrdataset_worker_init_fn">[docs]</a><span class="k">def</span> <span class="nf">chained_zarrdataset_worker_init_fn</span><span class="p">(</span><span class="n">worker_id</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ZarrDataset multithread workers initialization function for PyTorch&#39;s</span>
+<span class="sd">    ChainedDatasets.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">PYTORCH_SUPPORT</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">worker_info</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get_worker_info</span><span class="p">()</span>
+    <span class="n">dataset_obj</span> <span class="o">=</span> <span class="n">worker_info</span><span class="o">.</span><span class="n">dataset</span>
+
+    <span class="c1"># Reset the random number generators in each worker.</span>
+    <span class="n">torch_seed</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">initial_seed</span><span class="p">()</span>
+    <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">torch_seed</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">torch_seed</span> <span class="o">%</span> <span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">32</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="c1"># Open a copy of the dataset on each worker.</span>
+    <span class="n">dataset_obj</span><span class="o">.</span><span class="n">datasets</span> <span class="o">=</span> \
+        <span class="n">dataset_obj</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">worker_id</span><span class="p">::</span><span class="n">worker_info</span><span class="o">.</span><span class="n">num_workers</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">dataset_obj</span><span class="o">.</span><span class="n">datasets</span><span class="p">:</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">_worker_id</span> <span class="o">=</span> <span class="n">worker_id</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">_num_workers</span> <span class="o">=</span> <span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="ImageSample"><a class="viewcode-back" href="../../autoapi/zarrdataset/_zarrdataset/index.html#zarrdataset._zarrdataset.ImageSample">[docs]</a><span class="k">class</span> <span class="nc">ImageSample</span><span class="p">():</span>
+    <span class="n">_current_patch_idx</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">_ordering</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_rng_seed</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">num_patches</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">im_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">chk_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">im_id</span> <span class="o">=</span> <span class="n">im_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chk_id</span> <span class="o">=</span> <span class="n">chk_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shuffle</span> <span class="o">=</span> <span class="n">shuffle</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shuffle</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_rng_seed</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">100000</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ImageSample.free_sampler"><a class="viewcode-back" href="../../autoapi/zarrdataset/_zarrdataset/index.html#zarrdataset._zarrdataset.ImageSample.free_sampler">[docs]</a>    <span class="k">def</span> <span class="nf">free_sampler</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ordering</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ordering</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="ImageSample.next_patch"><a class="viewcode-back" href="../../autoapi/zarrdataset/_zarrdataset/index.html#zarrdataset._zarrdataset.ImageSample.next_patch">[docs]</a>    <span class="k">def</span> <span class="nf">next_patch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shuffle</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ordering</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">curr_state</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">getstate</span><span class="p">()</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rng_seed</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ordering</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_patches</span><span class="p">))</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ordering</span><span class="p">)</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">setstate</span><span class="p">(</span><span class="n">curr_state</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shuffle</span><span class="p">:</span>
+            <span class="n">curr_patch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ordering</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_current_patch_idx</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">curr_patch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_patch_idx</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_patch_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">is_empty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_current_patch_idx</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_patches</span>
+
+        <span class="k">return</span> <span class="n">curr_patch</span><span class="p">,</span> <span class="n">is_empty</span></div></div>
+
+
+<div class="viewcode-block" id="DatasetSpecs"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.DatasetSpecs">[docs]</a><span class="k">class</span> <span class="nc">DatasetSpecs</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Data specification guidelines to add image modalities to a ZarrDataset.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    modality: str</span>
+<span class="sd">        Specifies the use of this dataset (input image data, labels, masks).</span>
+<span class="sd">    filenames: Union[str,</span>
+<span class="sd">                     Iterable[str],</span>
+<span class="sd">                     zarr.Group,</span>
+<span class="sd">                     Iterable[zarr.Group],</span>
+<span class="sd">                     zarr.Array,</span>
+<span class="sd">                     Iterable[zarr.Array],</span>
+<span class="sd">                     np.ndarray,</span>
+<span class="sd">                     Iterable[np.ndarray]]</span>
+<span class="sd">        The input source either specified by a path/url to a file or a</span>
+<span class="sd">        supported array-like object, or list of them.</span>
+<span class="sd">    source_axes: str</span>
+<span class="sd">        The orignal array axes ordering.</span>
+<span class="sd">    axes: Union[str, None]</span>
+<span class="sd">        The axes ordering as it being used from the array (may involve</span>
+<span class="sd">        permuting, dropping unused axes, and creating new axes).</span>
+<span class="sd">    data_group: Union[str, int, None]</span>
+<span class="sd">        The group for zarr images, or key for tiff files</span>
+<span class="sd">    roi: Union[str, slice, Iterable[slice], None]</span>
+<span class="sd">        Regions of interest from the input array that can be used for data</span>
+<span class="sd">        sampling.</span>
+<span class="sd">    image_loader_func: Union[Callable, None]</span>
+<span class="sd">        A transformation applied to the input array before sampling. Could be</span>
+<span class="sd">        used to define a mask generation function. This is not a data</span>
+<span class="sd">        augmentation transform. To specify a data augmetation transform use</span>
+<span class="sd">        `transform` instead.</span>
+<span class="sd">    zarr_store: Union[zarr.storage.Store, None]</span>
+<span class="sd">        A specific zarr.storage.Store class to be used to load zarr files.</span>
+<span class="sd">    transform: Union[Callable, None]</span>
+<span class="sd">        A transform applied to the array before returning it after sampling.</span>
+<span class="sd">        This can be used to specify data augmentation transforms.</span>
+<span class="sd">    add_to_output: bool</span>
+<span class="sd">        Whether add this modality to the output after sampling or not. For</span>
+<span class="sd">        example, labels would be added to the output along with the input</span>
+<span class="sd">        image array, while masks might not be needed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">modality</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">filenames</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">],</span>
+                                  <span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">],</span>
+                                  <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+                 <span class="n">source_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">axes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">data_group</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">roi</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">slice</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">image_loader_func</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">zarr_store</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">Store</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">transform</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">add_to_output</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;modality&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">modality</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;filenames&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">filenames</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;source_axes&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">source_axes</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;axes&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">axes</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;data_group&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data_group</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;roi&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">roi</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;image_loader_func&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_loader_func</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;transforms&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;zarr_store&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">zarr_store</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;add_to_output&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">add_to_output</span>
+
+        <span class="k">if</span> <span class="n">transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;transforms&quot;</span><span class="p">][(</span><span class="n">modality</span><span class="p">,</span> <span class="p">)]</span> <span class="o">=</span> <span class="n">transform</span></div>
+
+
+<div class="viewcode-block" id="ImagesDatasetSpecs"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.ImagesDatasetSpecs">[docs]</a><span class="k">class</span> <span class="nc">ImagesDatasetSpecs</span><span class="p">(</span><span class="n">DatasetSpecs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Specification to add `image` data to a ZarrDataset.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filenames: Union[str,</span>
+<span class="sd">                     Iterable[str],</span>
+<span class="sd">                     zarr.Group,</span>
+<span class="sd">                     Iterable[zarr.Group],</span>
+<span class="sd">                     zarr.Array,</span>
+<span class="sd">                     Iterable[zarr.Array],</span>
+<span class="sd">                     np.ndarray,</span>
+<span class="sd">                     Iterable[np.ndarray]]</span>
+<span class="sd">        The input source either specified by a path/url to a file or a</span>
+<span class="sd">        supported array-like object, or list of them.</span>
+<span class="sd">    source_axes: str</span>
+<span class="sd">        The orignal array axes ordering.</span>
+<span class="sd">    axes: Union[str, None]</span>
+<span class="sd">        The axes ordering as it being used from the array (may involve</span>
+<span class="sd">        permuting, dropping unused axes, and creating new axes).</span>
+<span class="sd">    data_group: Union[str, int, None]</span>
+<span class="sd">        The group for zarr images, or key for tiff files</span>
+<span class="sd">    roi: Union[str, slice, Iterable[slice], None]</span>
+<span class="sd">        Regions of interest from the input array that can be used for data</span>
+<span class="sd">        sampling.</span>
+<span class="sd">    image_loader_func: Union[Callable, None]</span>
+<span class="sd">        A transformation applied to the input array before sampling. Could be</span>
+<span class="sd">        used to define a mask generation function. This is not a data</span>
+<span class="sd">        augmentation transform. To specify a data augmetation transform use</span>
+<span class="sd">        `transform` instead.</span>
+<span class="sd">    zarr_store: Union[zarr.storage.Store, None]</span>
+<span class="sd">        A specific zarr.storage.Store class to be used to load zarr files.</span>
+<span class="sd">    transform: Union[Callable, None]</span>
+<span class="sd">        A transform applied to the array before returning it after sampling.</span>
+<span class="sd">        This can be used to specify data augmentation transforms.</span>
+<span class="sd">    modality: str</span>
+<span class="sd">        Specifies the use of this dataset (default is `images` for image data).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">filenames</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">],</span>
+                                  <span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">],</span>
+                                  <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+                 <span class="n">source_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">axes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">data_group</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">roi</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">slice</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">image_loader_func</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">zarr_store</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">Store</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">transform</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">modality</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span><span class="s2">&quot;images&quot;</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">modality</span><span class="p">,</span>
+            <span class="n">filenames</span><span class="p">,</span>
+            <span class="n">source_axes</span><span class="p">,</span>
+            <span class="n">axes</span><span class="p">,</span>
+            <span class="n">data_group</span><span class="p">,</span>
+            <span class="n">roi</span><span class="p">,</span>
+            <span class="n">image_loader_func</span><span class="p">,</span>
+            <span class="n">zarr_store</span><span class="p">,</span>
+            <span class="n">transform</span><span class="p">,</span>
+            <span class="n">add_to_output</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LabelsDatasetSpecs"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.LabelsDatasetSpecs">[docs]</a><span class="k">class</span> <span class="nc">LabelsDatasetSpecs</span><span class="p">(</span><span class="n">DatasetSpecs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Specification to add `labels` to a ZarrDataset.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filenames: Union[str,</span>
+<span class="sd">                     Iterable[str],</span>
+<span class="sd">                     zarr.Group,</span>
+<span class="sd">                     Iterable[zarr.Group],</span>
+<span class="sd">                     zarr.Array,</span>
+<span class="sd">                     Iterable[zarr.Array],</span>
+<span class="sd">                     np.ndarray,</span>
+<span class="sd">                     Iterable[np.ndarray]]</span>
+<span class="sd">        The input source either specified by a path/url to a file or a</span>
+<span class="sd">        supported array-like object, or list of them.</span>
+<span class="sd">    source_axes: str</span>
+<span class="sd">        The orignal array axes ordering.</span>
+<span class="sd">    axes: Union[str, None]</span>
+<span class="sd">        The axes ordering as it being used from the array (may involve</span>
+<span class="sd">        permuting, dropping unused axes, and creating new axes).</span>
+<span class="sd">    data_group: Union[str, int, None]</span>
+<span class="sd">        The group for zarr images, or key for tiff files</span>
+<span class="sd">    roi: Union[str, slice, Iterable[slice], None]</span>
+<span class="sd">        Regions of interest from the input array that can be used for data</span>
+<span class="sd">        sampling.</span>
+<span class="sd">    image_loader_func: Union[Callable, None]</span>
+<span class="sd">        A transformation applied to the input array before sampling. Could be</span>
+<span class="sd">        used to define a mask generation function. This is not a data</span>
+<span class="sd">        augmentation transform. To specify a data augmetation transform use</span>
+<span class="sd">        `transform` instead.</span>
+<span class="sd">    zarr_store: Union[zarr.storage.Store, None]</span>
+<span class="sd">        A specific zarr.storage.Store class to be used to load zarr files.</span>
+<span class="sd">    transform: Union[Callable, None]</span>
+<span class="sd">        A transform applied to the array before returning it after sampling.</span>
+<span class="sd">        This can be used to specify data augmentation transforms.</span>
+<span class="sd">    input_label_transform: Union[Callable, None]</span>
+<span class="sd">        A transform applied to the array before returning it after sampling.</span>
+<span class="sd">        This can be used to specify data augmentation transforms.</span>
+<span class="sd">    modality: str</span>
+<span class="sd">        Specifies the use of this dataset (default is `labels`).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">filenames</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">],</span>
+                                  <span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">],</span>
+                                  <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+                 <span class="n">source_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">axes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">data_group</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">roi</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">slice</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">image_loader_func</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">zarr_store</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">Store</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">transform</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">input_label_transform</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">input_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;images&quot;</span><span class="p">,</span>
+                 <span class="n">modality</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;labels&quot;</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">modality</span><span class="p">,</span>
+            <span class="n">filenames</span><span class="p">,</span>
+            <span class="n">source_axes</span><span class="p">,</span>
+            <span class="n">axes</span><span class="p">,</span>
+            <span class="n">data_group</span><span class="p">,</span>
+            <span class="n">roi</span><span class="p">,</span>
+            <span class="n">image_loader_func</span><span class="p">,</span>
+            <span class="n">zarr_store</span><span class="p">,</span>
+            <span class="n">transform</span><span class="p">,</span>
+            <span class="n">add_to_output</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">input_label_transform</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;transforms&quot;</span><span class="p">][(</span><span class="s2">&quot;labels&quot;</span><span class="p">,</span> <span class="p">)]</span> <span class="o">=</span> <span class="n">transform</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;transforms&quot;</span><span class="p">][(</span><span class="n">input_mode</span><span class="p">,</span> <span class="s2">&quot;labels&quot;</span><span class="p">)]</span> <span class="o">=</span>\
+                <span class="n">input_label_transform</span></div>
+
+
+<div class="viewcode-block" id="MasksDatasetSpecs"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.MasksDatasetSpecs">[docs]</a><span class="k">class</span> <span class="nc">MasksDatasetSpecs</span><span class="p">(</span><span class="n">DatasetSpecs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Specification to add `masks` to a ZarrDataset.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filenames: Union[str,</span>
+<span class="sd">                     Iterable[str],</span>
+<span class="sd">                     zarr.Group,</span>
+<span class="sd">                     Iterable[zarr.Group],</span>
+<span class="sd">                     zarr.Array,</span>
+<span class="sd">                     Iterable[zarr.Array],</span>
+<span class="sd">                     np.ndarray,</span>
+<span class="sd">                     Iterable[np.ndarray]]</span>
+<span class="sd">        The input source either specified by a path/url to a file or a</span>
+<span class="sd">        supported array-like object, or list of them.</span>
+<span class="sd">    source_axes: str</span>
+<span class="sd">        The orignal array axes ordering.</span>
+<span class="sd">    axes: Union[str, None]</span>
+<span class="sd">        The axes ordering as it being used from the array (may involve</span>
+<span class="sd">        permuting, dropping unused axes, and creating new axes).</span>
+<span class="sd">    data_group: Union[str, int, None]</span>
+<span class="sd">        The group for zarr images, or key for tiff files</span>
+<span class="sd">    roi: Union[str, slice, Iterable[slice], None]</span>
+<span class="sd">        Regions of interest from the input array that can be used for data</span>
+<span class="sd">        sampling.</span>
+<span class="sd">    image_loader_func: Union[Callable, None]</span>
+<span class="sd">        A transformation applied to the input array before sampling. Could be</span>
+<span class="sd">        used to define a mask generation function. This is not a data</span>
+<span class="sd">        augmentation transform. To specify a data augmetation transform use</span>
+<span class="sd">        `transform` instead.</span>
+<span class="sd">    zarr_store: Union[zarr.storage.Store, None]</span>
+<span class="sd">        A specific zarr.storage.Store class to be used to load zarr files.</span>
+<span class="sd">    modality: str</span>
+<span class="sd">        Specifies the use of this dataset (default is `masks`).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">filenames</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">],</span>
+                                  <span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">],</span>
+                                  <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+                 <span class="n">source_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                 <span class="n">axes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">data_group</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">roi</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">slice</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">image_loader_func</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">zarr_store</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">Store</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">modality</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;masks&quot;</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">modality</span><span class="p">,</span>
+            <span class="n">filenames</span><span class="p">,</span>
+            <span class="n">source_axes</span><span class="p">,</span>
+            <span class="n">axes</span><span class="p">,</span>
+            <span class="n">data_group</span><span class="p">,</span>
+            <span class="n">roi</span><span class="p">,</span>
+            <span class="n">image_loader_func</span><span class="p">,</span>
+            <span class="n">zarr_store</span><span class="p">,</span>
+            <span class="kc">None</span><span class="p">,</span>
+            <span class="n">add_to_output</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ZarrDataset"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.ZarrDataset">[docs]</a><span class="k">class</span> <span class="nc">ZarrDataset</span><span class="p">(</span><span class="n">IterableDataset</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Zarr-based dataset class capable of handling large volumes of image</span>
+<span class="sd">    data stored in OME-NGFF Zarr format. This class can match the coordinates</span>
+<span class="sd">    of the different image modalities to those in the `images` mode, so labels</span>
+<span class="sd">    and masks are retrieved from these same coordinates. All spatial axes are</span>
+<span class="sd">    scaled using the `images` mode as reference, therefore labels and masks do</span>
+<span class="sd">    not need to share the same sizes as the arrays in the `images` mode.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dataset_specs: Union[dict, Iterable[dict], None]</span>
+<span class="sd">        A list of dictionaries containing the specifications of the datasets</span>
+<span class="sd">        used as inputs.</span>
+<span class="sd">    patch_sampler: Union[PatchSampler, None]</span>
+<span class="sd">        The patch sampling algorithm used to extract patches from images.</span>
+<span class="sd">    shuffle: bool</span>
+<span class="sd">        Whether samples are extracted in order or at random.</span>
+<span class="sd">    progress_bar: bool</span>
+<span class="sd">        Display a progress bar to show the status of data initialization.</span>
+<span class="sd">        Requires `tqdm` to be installed in the environment.</span>
+<span class="sd">    return_positions: bool</span>
+<span class="sd">        Return the top-left positions from where the samples where extracted</span>
+<span class="sd">        along with the set of patches.</span>
+<span class="sd">    return_worker_id: bool</span>
+<span class="sd">        Return the worker id that extracted the sample.</span>
+<span class="sd">    draw_same_chunk: bool</span>
+<span class="sd">        Whether continue extracting samples from the same chunk, until</span>
+<span class="sd">        depleting the posible patches to extract, before extract samples from</span>
+<span class="sd">        a different chunk. This can be used to reduce the overhead of</span>
+<span class="sd">        retrieving different chunks when sampling patches at random locations</span>
+<span class="sd">        whithin the input image.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset_specs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">patch_sampler</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">PatchSampler</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">progress_bar</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">return_positions</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">return_worker_id</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">draw_same_chunk</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_worker_sel</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_worker_id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_num_workers</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shuffle</span> <span class="o">=</span> <span class="n">shuffle</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_progress_bar</span> <span class="o">=</span> <span class="n">progress_bar</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_return_positions</span> <span class="o">=</span> <span class="n">return_positions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_return_worker_id</span> <span class="o">=</span> <span class="n">return_worker_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_draw_same_chunk</span> <span class="o">=</span> <span class="n">draw_same_chunk</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_patch_sampler</span> <span class="o">=</span> <span class="n">patch_sampler</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transforms</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_output_order</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_collections</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_zarr_store</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_image_loader_func</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_arr_lists</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_toplefts</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ref_mod</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">dataset_specs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Iterate the modalities in the dataset specifications</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dataset_specs</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">dataset_specs</span> <span class="o">=</span> <span class="p">[</span><span class="n">dataset_specs</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">specs</span> <span class="ow">in</span> <span class="n">dataset_specs</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_modality</span><span class="p">(</span><span class="o">**</span><span class="n">specs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ZarrDataset._initialize"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.ZarrDataset._initialize">[docs]</a>    <span class="k">def</span> <span class="nf">_initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ref_mod</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No image modalities have been added to the &quot;</span>
+                             <span class="s2">&quot;dataset. Use `.add_modality` to add at least one&quot;</span>
+                             <span class="s2">&quot; modality to this dataset prior to &quot;</span>
+                             <span class="s2">&quot;initialization.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">arr_lists</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">toplefts</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_progress_bar</span><span class="p">:</span>
+            <span class="n">q</span> <span class="o">=</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Preloading zarr files&quot;</span><span class="p">,</span>
+                     <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_collections</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ref_mod</span><span class="p">]),</span>
+                     <span class="n">position</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_worker_id</span><span class="p">)</span>
+
+        <span class="n">modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_collections</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">collection</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_collections</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="n">collection</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">([(</span><span class="n">m</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">modes</span><span class="p">,</span> <span class="n">collection</span><span class="p">)])</span>
+            <span class="k">for</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">collection</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">collection</span><span class="p">[</span><span class="n">mode</span><span class="p">][</span><span class="s2">&quot;zarr_store&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_zarr_store</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span>
+                <span class="n">collection</span><span class="p">[</span><span class="n">mode</span><span class="p">][</span><span class="s2">&quot;image_func&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_image_loader_func</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_progress_bar</span><span class="p">:</span>
+                <span class="n">q</span><span class="o">.</span><span class="n">set_description</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Preloading image &quot;</span>
+                                  <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">collection</span><span class="p">[</span><span class="s1">&#39;images&#39;</span><span class="p">][</span><span class="s1">&#39;filename&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">curr_img</span> <span class="o">=</span> <span class="n">ImageCollection</span><span class="p">(</span><span class="n">collection</span><span class="p">)</span>
+
+            <span class="c1"># If a patch sampler was passed, it is used to determine the</span>
+            <span class="c1"># top-left and bottom-right coordinates of the valid samples that</span>
+            <span class="c1"># can be drawn from images.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patch_sampler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">toplefts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_patch_sampler</span><span class="o">.</span><span class="n">compute_chunks</span><span class="p">(</span><span class="n">curr_img</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">toplefts</span><span class="o">.</span><span class="n">append</span><span class="p">([</span>
+                    <span class="nb">dict</span><span class="p">((</span><span class="n">ax</span><span class="p">,</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
+                         <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">curr_img</span><span class="o">.</span><span class="n">collection</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ref_mod</span><span class="p">]</span><span class="o">.</span><span class="n">axes</span><span class="p">)</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+
+            <span class="n">arr_lists</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">curr_img</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_progress_bar</span><span class="p">:</span>
+                <span class="n">q</span><span class="o">.</span><span class="n">update</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_progress_bar</span><span class="p">:</span>
+            <span class="n">q</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arr_lists</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_arr_lists</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">arr_lists</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_toplefts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">toplefts</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">_worker_sel</span><span class="p">]],</span>
+                                      <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">arr_lists</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_num_workers</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_arr_lists</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">arr_lists</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_toplefts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">tls</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_worker_sel</span><span class="p">]</span>
+                                       <span class="k">for</span> <span class="n">tls</span> <span class="ow">in</span> <span class="n">toplefts</span><span class="p">],</span>
+                                      <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_arr_lists</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">arr_lists</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_worker_sel</span><span class="p">],</span>
+                                       <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_toplefts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">toplefts</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_worker_sel</span><span class="p">],</span>
+                                      <span class="n">dtype</span><span class="o">=</span><span class="nb">object</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="ZarrDataset.__getitem__"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.ZarrDataset.__getitem__">[docs]</a>    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tlbr</span><span class="p">):</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">tlbr</span> <span class="k">if</span> <span class="n">tlbr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">patches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_curr_collection</span><span class="p">[</span><span class="n">coords</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">transform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transforms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">patches</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="k">for</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">mode</span><span class="p">,</span> <span class="n">mode_res</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">res</span><span class="p">):</span>
+                <span class="n">patches</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="o">=</span> <span class="n">mode_res</span>
+
+        <span class="n">patches</span> <span class="o">=</span> <span class="p">[</span><span class="n">patches</span><span class="p">[</span><span class="n">mode</span><span class="p">]</span> <span class="k">for</span> <span class="n">mode</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_order</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">patches</span></div>
+
+<div class="viewcode-block" id="ZarrDataset.__iter__"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.ZarrDataset.__iter__">[docs]</a>    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Preload the files and masks associated with them</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialize</span><span class="p">()</span>
+
+        <span class="n">samples</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">ImageSample</span><span class="p">(</span><span class="n">im_id</span><span class="p">,</span> <span class="n">chk_id</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_shuffle</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">im_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_arr_lists</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">chk_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_toplefts</span><span class="p">[</span><span class="n">im_id</span><span class="p">]))</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Shuffle chunks here if samples will come from the same chunk until</span>
+        <span class="c1"># they are depleted.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shuffle</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_same_chunk</span><span class="p">:</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+
+        <span class="n">prev_im_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">prev_chk_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">prev_chk</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">curr_chk</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_curr_collection</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">while</span> <span class="n">samples</span><span class="p">:</span>
+            <span class="c1"># Shuffle chunks here if samples can come from different chunks.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shuffle</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_draw_same_chunk</span><span class="p">:</span>
+                <span class="n">curr_chk</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randrange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">samples</span><span class="p">))</span>
+
+            <span class="n">im_id</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">curr_chk</span><span class="p">]</span><span class="o">.</span><span class="n">im_id</span>
+            <span class="n">chk_id</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">curr_chk</span><span class="p">]</span><span class="o">.</span><span class="n">chk_id</span>
+
+            <span class="n">chunk_tlbr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_toplefts</span><span class="p">[</span><span class="n">im_id</span><span class="p">][</span><span class="n">chk_id</span><span class="p">]</span>
+
+            <span class="c1"># If this sample is from a different image or chunk, free the</span>
+            <span class="c1"># previous sample and re-sample the patches from the current chunk.</span>
+            <span class="k">if</span> <span class="n">prev_im_id</span> <span class="o">!=</span> <span class="n">im_id</span> <span class="ow">or</span> <span class="n">chk_id</span> <span class="o">!=</span> <span class="n">prev_chk_id</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">prev_chk</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="c1"># Free the patch ordering from the previous chunk to save</span>
+                    <span class="c1"># memory.</span>
+                    <span class="n">samples</span><span class="p">[</span><span class="n">prev_chk</span><span class="p">]</span><span class="o">.</span><span class="n">free_sampler</span><span class="p">()</span>
+
+                <span class="n">prev_chk</span> <span class="o">=</span> <span class="n">curr_chk</span>
+                <span class="n">prev_chk_id</span> <span class="o">=</span> <span class="n">chk_id</span>
+
+                <span class="k">if</span> <span class="n">prev_im_id</span> <span class="o">!=</span> <span class="n">im_id</span><span class="p">:</span>
+                    <span class="n">prev_im_id</span> <span class="o">=</span> <span class="n">im_id</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_curr_collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_arr_lists</span><span class="p">[</span><span class="n">im_id</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patch_sampler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">patches_tls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patch_sampler</span><span class="o">.</span><span class="n">compute_patches</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_curr_collection</span><span class="p">,</span>
+                        <span class="n">chunk_tlbr</span>
+                    <span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">patches_tls</span> <span class="o">=</span> <span class="p">[</span><span class="n">chunk_tlbr</span><span class="p">]</span>
+
+                <span class="n">samples</span><span class="p">[</span><span class="n">curr_chk</span><span class="p">]</span><span class="o">.</span><span class="n">num_patches</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">patches_tls</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">patches_tls</span><span class="p">):</span>
+                    <span class="n">samples</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">curr_chk</span><span class="p">)</span>
+                    <span class="n">prev_chk</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                    <span class="k">continue</span>
+
+            <span class="c1"># # Initialize the count of top-left positions for patches inside</span>
+            <span class="c1"># # this chunk.</span>
+            <span class="c1"># if samples[curr_chk].num_patches is None:</span>
+
+            <span class="n">curr_patch</span><span class="p">,</span> <span class="n">is_empty</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="n">curr_chk</span><span class="p">]</span><span class="o">.</span><span class="n">next_patch</span><span class="p">()</span>
+
+            <span class="c1"># When all possible patches have been extracted from the current</span>
+            <span class="c1"># chunk, remove that chunk from the list of samples.</span>
+            <span class="k">if</span> <span class="n">is_empty</span><span class="p">:</span>
+                <span class="n">samples</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">curr_chk</span><span class="p">)</span>
+                <span class="n">prev_chk</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+            <span class="n">patch_tlbr</span> <span class="o">=</span> <span class="n">patches_tls</span><span class="p">[</span><span class="n">curr_patch</span><span class="p">]</span>
+            <span class="n">patches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="n">patch_tlbr</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_return_positions</span><span class="p">:</span>
+                <span class="n">pos</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">[</span><span class="n">patch_tlbr</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span><span class="o">.</span><span class="n">start</span>
+                     <span class="k">if</span> <span class="n">patch_tlbr</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span><span class="o">.</span><span class="n">start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+                     <span class="n">patch_tlbr</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span><span class="o">.</span><span class="n">stop</span>
+                     <span class="k">if</span> <span class="n">patch_tlbr</span><span class="p">[</span><span class="n">ax</span><span class="p">]</span><span class="o">.</span><span class="n">stop</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="o">-</span><span class="mi">1</span>
+                    <span class="p">]</span> <span class="k">if</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">patch_tlbr</span> <span class="k">else</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_collections</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ref_mod</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;axes&quot;</span><span class="p">]</span>
+                <span class="p">]</span>
+                <span class="n">patches</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)]</span> <span class="o">+</span> <span class="n">patches</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_return_worker_id</span><span class="p">:</span>
+                <span class="n">wid</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_worker_id</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)]</span>
+                <span class="n">patches</span> <span class="o">=</span> <span class="n">wid</span> <span class="o">+</span> <span class="n">patches</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">patches</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">patches</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">patches</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">patches</span> <span class="o">=</span> <span class="n">patches</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="k">yield</span> <span class="n">patches</span></div>
+
+<div class="viewcode-block" id="ZarrDataset.add_transform"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.ZarrDataset.add_transform">[docs]</a>    <span class="k">def</span> <span class="nf">add_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">modalities</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+                      <span class="n">transform</span><span class="p">:</span> <span class="n">Callable</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a pre-processing transform pipeline to the dataset, applied to</span>
+<span class="sd">        the arrays from modalities specified with `modes`. This will be</span>
+<span class="sd">        performed after any other pre-processing transforms already registered.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        modalities: Union[str, Iterable[str]]</span>
+<span class="sd">            The modalities on which this transform is applied (e.g., ``images``</span>
+<span class="sd">            to apply only on image arrays, or (``images``, ``labels``) to apply</span>
+<span class="sd">            it to both, images and labels arrays)</span>
+<span class="sd">        transform: Callable</span>
+<span class="sd">            A function that receives the same number of inputs as specified in</span>
+<span class="sd">            `modalities`, and returns that same number of outputs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">modalities</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">modalities</span> <span class="o">=</span> <span class="p">(</span><span class="n">modalities</span><span class="p">,</span> <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transforms</span><span class="p">[</span><span class="n">modalities</span><span class="p">]</span> <span class="o">=</span> <span class="n">transform</span></div>
+
+<div class="viewcode-block" id="ZarrDataset.add_modality"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.ZarrDataset.add_modality">[docs]</a>    <span class="k">def</span> <span class="nf">add_modality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                     <span class="n">modality</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                     <span class="n">filenames</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">],</span>
+                                  <span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">],</span>
+                                  <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+                                  <span class="n">Iterable</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+                     <span class="n">source_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                     <span class="n">axes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">data_group</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">roi</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">slice</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">slice</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">image_loader_func</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">zarr_store</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">zarr</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">Store</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">transforms</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">OrderedDict</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                     <span class="n">add_to_output</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add a new modality to the dataset.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        modality: str</span>
+<span class="sd">            The name of the new modality added (e.g., ``images``, ``labels``,</span>
+<span class="sd">            ``masks``, etc.).</span>
+<span class="sd">        filenames: Union[str,</span>
+<span class="sd">                        Iterable[str],</span>
+<span class="sd">                        zarr.Group,</span>
+<span class="sd">                        Iterable[zarr.Group],</span>
+<span class="sd">                        zarr.Array,</span>
+<span class="sd">                        Iterable[zarr.Array],</span>
+<span class="sd">                        np.ndarray,</span>
+<span class="sd">                        Iterable[np.ndarray]]</span>
+<span class="sd">            The input source either specified by a path/url to a file or a</span>
+<span class="sd">            supported array-like object, or list of them.</span>
+<span class="sd">        source_axes: str</span>
+<span class="sd">            The orignal array axes ordering.</span>
+<span class="sd">        axes: Union[str, None]</span>
+<span class="sd">            The axes ordering as it being used from the array (may involve</span>
+<span class="sd">            permuting, dropping unused axes, and creating new axes).</span>
+<span class="sd">        data_group: Union[str, int, None]</span>
+<span class="sd">            The group for zarr images, or key for tiff files</span>
+<span class="sd">        roi: Union[str, slice, Iterable[slice], None]</span>
+<span class="sd">            Regions of interest from the input array that can be used for data</span>
+<span class="sd">            sampling.</span>
+<span class="sd">        image_loader_func: Union[Callable, None]</span>
+<span class="sd">            A transformation applied to the input array before sampling. Could</span>
+<span class="sd">            be used to define a mask generation function. This is not a data</span>
+<span class="sd">            augmentation transform. To specify a data augmetation transform use</span>
+<span class="sd">            `transform` instead.</span>
+<span class="sd">        zarr_store: Union[zarr.storage.Store, None]</span>
+<span class="sd">            A specific zarr.storage.Store class to be used to load zarr files.</span>
+<span class="sd">        transform: Union[OrderedDict, None]</span>
+<span class="sd">            A list of transforms applied to arrays before yielding them. This</span>
+<span class="sd">            can be used to specify data augmentation transforms, and can be</span>
+<span class="sd">            applied to this and other existing modalities in this dataset.</span>
+<span class="sd">            For example, to add a transform affecting images and labels, use</span>
+<span class="sd">            the tuple (&#39;images&#39;, &#39;labels&#39;) as key for that transform, and make</span>
+<span class="sd">            sure the function associated to that key receives, and returns the</span>
+<span class="sd">            same number of inputs and ouputs as specified in the key.</span>
+<span class="sd">        add_to_output: bool</span>
+<span class="sd">            Whether add this modality to the output after sampling or not. For</span>
+<span class="sd">            example, labels would be added to the output along with the input</span>
+<span class="sd">            image array, while masks might not be needed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ref_mod</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ref_mod</span> <span class="o">=</span> <span class="n">modality</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_collections</span><span class="p">[</span><span class="n">modality</span><span class="p">]</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span>
+            <span class="n">operator</span><span class="o">.</span><span class="n">add</span><span class="p">,</span>
+            <span class="nb">map</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">parse_metadata</span><span class="p">,</span>
+                        <span class="n">default_source_axes</span><span class="o">=</span><span class="n">source_axes</span><span class="p">,</span>
+                        <span class="n">default_data_group</span><span class="o">=</span><span class="n">data_group</span><span class="p">,</span>
+                        <span class="n">default_axes</span><span class="o">=</span><span class="n">axes</span><span class="p">,</span>
+                        <span class="n">default_rois</span><span class="o">=</span><span class="n">roi</span><span class="p">),</span>
+                <span class="n">filenames</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filenames</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">filenames</span><span class="p">]),</span>
+            <span class="p">[]</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">t_ord</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">transforms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_transform</span><span class="p">(</span><span class="n">modalities</span><span class="o">=</span><span class="n">t_ord</span><span class="p">,</span> <span class="n">transform</span><span class="o">=</span><span class="n">t</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">add_to_output</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_output_order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">modality</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_zarr_store</span><span class="p">[</span><span class="n">modality</span><span class="p">]</span> <span class="o">=</span> <span class="n">zarr_store</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_image_loader_func</span><span class="p">[</span><span class="n">modality</span><span class="p">]</span> <span class="o">=</span> <span class="n">image_loader_func</span></div>
+
+<div class="viewcode-block" id="ZarrDataset.__repr__"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._zarrdataset.ZarrDataset.__repr__">[docs]</a>    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;ZarrDataset string representation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">repr_str</span> <span class="o">=</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ZarrDataset (PyTorch support:</span><span class="si">{</span><span class="n">PYTORCH_SUPPORT</span><span class="si">}</span><span class="s2">, tqdm &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;support :</span><span class="si">{</span><span class="n">TQDM_SUPPORT</span><span class="si">}</span><span class="s2">)&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;Modalities: </span><span class="si">{</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_collections</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;Transforms order: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_transforms</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;Using </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_ref_mod</span><span class="si">}</span><span class="s2"> modality as reference.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_patch_sampler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">repr_str</span> <span class="o">+=</span> <span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+                         <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;Using </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_patch_sampler</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">repr_str</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, The Jackson Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>zarrdataset._utils &mdash; ZarrDataset  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            ZarrDataset
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme_link.html">ZarrDataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_example.html">Basic ZarrDataset usage example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_example_tensorflow.html">Integration of ZarrDataset with Tensorflow Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_masked_datasets_example.html">Loading patches/windows from masked regions of images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license_link.html">License</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ZarrDataset</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._utils</span></code></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/autoapi/zarrdataset/_utils/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-zarrdataset._utils">
+<span id="zarrdataset-utils"></span><h1><a class="reference internal" href="#module-zarrdataset._utils" title="zarrdataset._utils"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._utils</span></code></a><a class="headerlink" href="#module-zarrdataset._utils" title="Permalink to this heading"></a></h1>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this heading"></a></h2>
+<section id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._utils.parse_rois" title="zarrdataset._utils.parse_rois"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parse_rois</span></code></a>(→ List[slice])</p></td>
+<td><p>Parse a list of strings defining ROIs.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#zarrdataset._utils.parse_metadata" title="zarrdataset._utils.parse_metadata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parse_metadata</span></code></a>(→ List[dict])</p></td>
+<td><p>Parse the filename, data groups, axes ordering, ROIs from <cite>filename</cite>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._utils.map_axes_order" title="zarrdataset._utils.map_axes_order"><code class="xref py py-obj docutils literal notranslate"><span class="pre">map_axes_order</span></code></a>(source_axes[, target_axes])</p></td>
+<td><p>Get the indices of a set of axes that reorders it to match another set</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#zarrdataset._utils.select_axes" title="zarrdataset._utils.select_axes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">select_axes</span></code></a>(source_axes, axes_selection)</p></td>
+<td><p>Get a sliced selection of axes from a zarr array.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._utils.connect_s3" title="zarrdataset._utils.connect_s3"><code class="xref py py-obj docutils literal notranslate"><span class="pre">connect_s3</span></code></a>(filename_sample)</p></td>
+<td><p>Stablish a connection with a S3 bucket.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#zarrdataset._utils.isconsolidated" title="zarrdataset._utils.isconsolidated"><code class="xref py py-obj docutils literal notranslate"><span class="pre">isconsolidated</span></code></a>(arr_src)</p></td>
+<td><p>Check if the zarr file is consolidated so it is faster to open.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._utils.scale_coords" title="zarrdataset._utils.scale_coords"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scale_coords</span></code></a>(selection_range[, scale])</p></td>
+<td><p>Scale a set of top-lefts, bottom-rights coordinates, in any dimension,</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#zarrdataset._utils.translate2roi" title="zarrdataset._utils.translate2roi"><code class="xref py py-obj docutils literal notranslate"><span class="pre">translate2roi</span></code></a>(index, roi, source_axes, axes)</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._utils.parse_rois">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._utils.</span></span><span class="sig-name descname"><span class="pre">parse_rois</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rois_str</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">slice</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/zarrdataset/_utils.html#parse_rois"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._utils.parse_rois" title="Permalink to this definition"></a></dt>
+<dd><p>Parse a list of strings defining ROIs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>rois_str</strong> (<em>Iterable</em><em>[</em><em>str</em><em>]</em>) – A list of regions of interest parsed from the input string.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>rois</strong> – A list of slices to select regions from arrays.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[slice]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._utils.parse_metadata">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._utils.</span></span><span class="sig-name descname"><span class="pre">parse_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_data_group</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_rois</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">slice</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">override_meta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/zarrdataset/_utils.html#parse_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._utils.parse_metadata" title="Permalink to this definition"></a></dt>
+<dd><p>Parse the filename, data groups, axes ordering, ROIs from <cite>filename</cite>.</p>
+<p>The different fields must be separated by a semicolon (;).
+After parsed the filename, data group, and axes, any number of ROIs are
+accepted; however, this parser only supports rectangle shaped ROIs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<em>str</em>) – Path to the image.</p></li>
+<li><p><strong>default_source_axes</strong> (<em>src</em>) – Default source axes ordering used when no axes are present in the
+filename string.</p></li>
+<li><p><strong>default_data_group</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>int</em><em>, </em><em>None</em><em>]</em>) – Default data group used when data group is present in the filename
+string.</p></li>
+<li><p><strong>default_axes</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em>) – Default output axes ordering used when no target axes are present in
+the filename string.</p></li>
+<li><p><strong>default_rois</strong> (<em>Union</em><em>[</em><em>Iterable</em><em>[</em><em>slice</em><em>]</em><em>, </em><em>None</em><em>]</em>) – Default roi used when no rois are present in the filename string.</p></li>
+<li><p><strong>override_meta</strong> (<em>bool</em>) – Whether to override the values parsed from the filename with the
+defaults or not.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>parsed_metadata</strong> – A list of parsed values from the filename. A single element is
+retrieved for each ROI in the filename.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of dicts</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The parsed metadata dictionary has the following structure.
+fn : str</p>
+<blockquote>
+<div><p>The parsed filename</p>
+</div></blockquote>
+<dl class="simple">
+<dt>data_group: str or None</dt><dd><p>The group for zarr images, or key for tiff files</p>
+</dd>
+<dt>source_axes: str or None</dt><dd><p>The orignal axes ordering</p>
+</dd>
+<dt>axes: str or None</dt><dd><p>The axes ordering as it being used from the array (may involve
+permuting, dropping unused axes, and creating new axes)</p>
+</dd>
+<dt>rois<span class="classifier">list of slices</span></dt><dd><p>A list of regions of interest parsed from the input string.</p>
+</dd>
+</dl>
+<p>Data groups are expected for files with hierarchical structure, like zarr
+and tiff files. This is usually found on pyramid-like files, where the main
+image is stored in group <cite>0/0</cite>, and any downsampling version of that are
+stored in subgroups <cite>0/1’, ‘0/2</cite>, etc. If the file does not have any
+hierarchical structure, leave the space in blank.</p>
+<p>Original axes and permuted desired order are expected as
+<cite>source axes order</cite>:<cite>target axes order</cite>. Axes identifiers can appear only
+once. Different number of target axes from the original number of axes can
+be requested. For more axes, dummy axes will be added in the position of
+the new requested axes. For less axes, the undefined axes will be
+positioned arbitrarly before those specified axes. It is responsability of
+the user to make remove unused axes with the a corresponding ROI.
+If no reordering is required, do not add the colon (:) on that section.</p>
+<p>ROIs are spected as (start coordinate):(lenght of the ROI). Coordinates and
+lenghts are expected for each one of the axes in the image, since all ROIs
+are taken before any axes reordering. Negative values can be used to select
+all indices of that axis.</p>
+<p>Example 1:
+test_file.zarr;0/0;TCZYX:YXC;(0,0,0,0,0):(1,-1,1,-1,-1)</p>
+<p>This will parse a ROI from <cite>test_file.zarr</cite> from the group <cite>0/0</cite>, which is
+expetect to have axes ordering as Time (T), Channels (C), Depth (Z),
+Height (Y), and Width (X), into an axes order of Height, Width and
+Channels. Index <cite>0</cite> is selected from both Time (T) and Depth(Z) axes.</p>
+<p>Example 2:
+test_file.zarr;1;CYX;(0,0,0):(-1,4,3);(0,5,5):(-1,2,2)</p>
+<p>This will parse a ROI from <cite>test_file.zarr</cite> from the array at group <cite>1</cite>,
+which is expetect to have axes ordering as Channels (C), Height (Y), and
+Width (X). From that array, two ROIs are extracted, one from coordinates
+(0, 0) with a shape (4, 3), and other from coordinates (5, 5) with shape
+(2, 2). Both ROIs use all the available channels.</p>
+<p>Example 3:
+test_array.zarr;;CYX:YXC</p>
+<p>The <cite>test_array.zarr</cite> file stores an array without any hierarchy, so no
+data group is required. Only the channels axes is required to be moved from
+the first position to the last one. Because no ROIs are defined, the full
+the array will be used.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._utils.map_axes_order">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._utils.</span></span><span class="sig-name descname"><span class="pre">map_axes_order</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'YX'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_utils.html#map_axes_order"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._utils.map_axes_order" title="Permalink to this definition"></a></dt>
+<dd><p>Get the indices of a set of axes that reorders it to match another set
+of axes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source_axes</strong> (<em>str</em>) – Set of axes to be reordered to match <cite>target_axes</cite>.</p></li>
+<li><p><strong>target_axes</strong> (<em>str</em>) – Set of axes in the desired order.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>transpose_order</strong> – The indices order in <cite>source_axes</cite> that makes it match <cite>target_axes</cite>.
+If <cite>source_axes</cite> has more axes than <cite>target_axes</cite>, the unspecified axes
+will be moved to the front of the ordering, leaving the <cite>target_axes</cite>
+at the trailing positions.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of ints</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The axes must be passed as a string in format <cite>XYZ</cite>, and cannot be appear
+more than once.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._utils.select_axes">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._utils.</span></span><span class="sig-name descname"><span class="pre">select_axes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_utils.html#select_axes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._utils.select_axes" title="Permalink to this definition"></a></dt>
+<dd><p>Get a sliced selection of axes from a zarr array.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source_axes</strong> (<em>str</em>) – Ordered set of axes on the original array.</p></li>
+<li><p><strong>axes_selection</strong> (<em>dict</em>) – A relationship of what index to take from each specified axes.
+Unspecified axes are fully retrieved.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>sel_slices</strong> (<em>tuple of slices</em>) – A tuple of slices that can be used to select the indices of the
+specified axes from an array.</p></li>
+<li><p><strong>unfixed_axes</strong> (<em>str</em>) – A string with the ordered set of remaining axes of the array.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The axes must be passed as a string in format <cite>XYZ</cite>, and cannot be appear
+more than once.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._utils.connect_s3">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._utils.</span></span><span class="sig-name descname"><span class="pre">connect_s3</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename_sample</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_utils.html#connect_s3"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._utils.connect_s3" title="Permalink to this definition"></a></dt>
+<dd><p>Stablish a connection with a S3 bucket.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>filename_sample</strong> (<em>str</em>) – A sample filename containing the S3 end-point and bucket names.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>s3_obj</strong> – A dictionary containing the bucket name and a boto3 client connected to
+the S3 bucket. If the filename does not points to a S3 bucket, this
+returns None.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict of None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._utils.isconsolidated">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._utils.</span></span><span class="sig-name descname"><span class="pre">isconsolidated</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr_src</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Group</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Array</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_utils.html#isconsolidated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._utils.isconsolidated" title="Permalink to this definition"></a></dt>
+<dd><p>Check if the zarr file is consolidated so it is faster to open.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>arr_src</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>zarr.Group</em><em>, </em><em>zarr.Array</em><em>]</em>) – The image filename, or zarr object, to be checked.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>is_consolidated</strong> – Whether zarr array in <cite>arr_src</cite> is consolidated or not.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._utils.scale_coords">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._utils.</span></span><span class="sig-name descname"><span class="pre">scale_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selection_range</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">slice</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_utils.html#scale_coords"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._utils.scale_coords" title="Permalink to this definition"></a></dt>
+<dd><p>Scale a set of top-lefts, bottom-rights coordinates, in any dimension,
+by <cite>scale</cite> factor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>selection_range</strong> (<em>Iterable</em><em>[</em><em>slice</em><em>]</em>) – The selection range from an n-dimensional array to scale. This can be a
+range (start, end), single index, or None, defining the range of
+indices taken from each axis.</p></li>
+<li><p><strong>scale</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>Iterable</em><em>[</em><em>float</em><em>]</em><em>]</em>) – The factor to rescale the selection range of each axes. If a single
+value is passed, all axes are rescaled by that factor.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>scaled_selection_range</strong> – The scaled selection range as a tuple of slices</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple of slices</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._utils.translate2roi">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._utils.</span></span><span class="sig-name descname"><span class="pre">translate2roi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_utils.html#translate2roi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._utils.translate2roi" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, The Jackson Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

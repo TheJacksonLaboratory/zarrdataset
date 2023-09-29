@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Integration of ZarrDataset with PyTorch’s DataLoader (Advanced) &mdash; ZarrDataset  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="License" href="../license_link.html" />
+    <link rel="prev" title="Labeled dataset loading with ZarrDataset" href="basic_labeled_datasets_example.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ZarrDataset
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html">ZarrDataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="basic_example.html">Basic ZarrDataset usage example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_example_tensorflow.html">Integration of ZarrDataset with Tensorflow Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_masked_datasets_example.html">Loading patches/windows from masked regions of images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#extracting-patches-of-size-128x128x32-voxels-from-a-three-dimensional-image">Extracting patches of size 128x128x32 voxels from a three-dimensional image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#create-a-chaindataset-from-a-set-of-zarrdatasets-that-can-be-put-together-a-single-large-dataset">Create a ChainDataset from a set of ZarrDatasets that can be put together a single large dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generate-a-grid-with-the-sampled-patches-using-torchvision-utilities">Generate a grid with the sampled patches using <code class="docutils literal notranslate"><span class="pre">torchvision</span></code> utilities</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license_link.html">License</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../autoapi/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ZarrDataset</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/examples/advanced_example_pytorch.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="integration-of-zarrdataset-with-pytorch-s-dataloader-advanced">
+<h1>Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)<a class="headerlink" href="#integration-of-zarrdataset-with-pytorch-s-dataloader-advanced" title="Permalink to this heading"></a></h1>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="n">ChainDataset</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\tqdm\auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+  from .autonotebook import tqdm as notebook_tqdm
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># These are images from the Image Data Resource (IDR) </span>
+<span class="c1"># https://idr.openmicroscopy.org/ that are publicly available and were </span>
+<span class="c1"># converted to the OME-NGFF (Zarr) format by the OME group. More examples</span>
+<span class="c1"># can be found at Public OME-Zarr data (Nov. 2020)</span>
+<span class="c1"># https://www.openmicroscopy.org/2020/11/04/zarr-data.html</span>
+
+<span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001240.zarr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001241.zarr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001242.zarr&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.1/6001243.zarr&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># For reproducibility</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">478963</span><span class="p">)</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">478964</span><span class="p">)</span>
+<span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">478965</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<section id="extracting-patches-of-size-128x128x32-voxels-from-a-three-dimensional-image">
+<h2>Extracting patches of size 128x128x32 voxels from a three-dimensional image<a class="headerlink" href="#extracting-patches-of-size-128x128x32-voxels-from-a-three-dimensional-image" title="Permalink to this heading"></a></h2>
+<p>Sample the image randomly</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">patch_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">Z</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">Y</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
+<span class="n">patch_sampler</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">PatchSampler</span><span class="p">(</span><span class="n">patch_size</span><span class="o">=</span><span class="n">patch_size</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Transform the input data from uint16 to float16 with a torchvision pre-processing pipeline</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torchvision</span>
+
+<span class="n">img_preprocessing</span> <span class="o">=</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span>
+    <span class="n">zds</span><span class="o">.</span><span class="n">ToDtype</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+<span class="p">])</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Pass the pre-processing function to ZarrDataset to be used when generating the samples.</p>
+<p>Also, enable return of each patch positions, and the worker ID that generated each patch.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_datasets</span> <span class="o">=</span> <span class="p">[</span>
+  <span class="n">zds</span><span class="o">.</span><span class="n">ZarrDataset</span><span class="p">(</span>
+    <span class="p">[</span>
+      <span class="n">zds</span><span class="o">.</span><span class="n">ImagesDatasetSpecs</span><span class="p">(</span>
+        <span class="n">filenames</span><span class="o">=</span><span class="n">fn</span><span class="p">,</span>
+        <span class="n">data_group</span><span class="o">=</span><span class="s2">&quot;0&quot;</span><span class="p">,</span>
+        <span class="n">source_axes</span><span class="o">=</span><span class="s2">&quot;TCZYX&quot;</span><span class="p">,</span>
+        <span class="n">transform</span><span class="o">=</span><span class="n">img_preprocessing</span><span class="p">,</span>
+      <span class="p">)</span>
+    <span class="p">],</span>
+    <span class="n">patch_sampler</span><span class="o">=</span><span class="n">patch_sampler</span><span class="p">,</span>
+    <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">return_positions</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">return_worker_id</span><span class="o">=</span><span class="kc">True</span>
+  <span class="p">)</span>
+  <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">filenames</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="create-a-chaindataset-from-a-set-of-zarrdatasets-that-can-be-put-together-a-single-large-dataset">
+<h2>Create a ChainDataset from a set of ZarrDatasets that can be put together a single large dataset<a class="headerlink" href="#create-a-chaindataset-from-a-set-of-zarrdatasets-that-can-be-put-together-a-single-large-dataset" title="Permalink to this heading"></a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_chain_dataset</span> <span class="o">=</span> <span class="n">ChainDataset</span><span class="p">(</span><span class="n">my_datasets</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Make sure the chained_zarrdataset_worker_init_fn function is passed to the DataLoader, so the workers can initialize the dataset correctly</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_dataloader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">my_chain_dataset</span><span class="p">,</span>
+                           <span class="n">num_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+                           <span class="n">worker_init_fn</span><span class="o">=</span><span class="n">zds</span><span class="o">.</span><span class="n">chained_zarrdataset_worker_init_fn</span><span class="p">,</span>
+                           <span class="n">batch_size</span><span class="o">=</span><span class="mi">2</span>
+                           <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">positions</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">wids</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">wid</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">sample</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">my_dataloader</span><span class="p">):</span>
+    <span class="n">wids</span> <span class="o">+=</span> <span class="p">[</span><span class="n">w</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">wid</span><span class="p">]</span>
+    <span class="n">positions</span> <span class="o">+=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pos</span><span class="p">]</span>
+    <span class="n">samples</span> <span class="o">+=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sample</span><span class="p">]</span>    
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sample </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2"> with size </span><span class="si">{</span><span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> extracted by worker </span><span class="si">{</span><span class="n">wid</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="c1"># Take five batches for illustration purposes</span>
+        <span class="k">break</span>
+
+<span class="n">samples</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="n">samples</span><span class="o">.</span><span class="n">shape</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 1 with size torch.Size([2, 1, 2, 32, 128, 128]) extracted by worker tensor([0, 0]).
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 2 with size torch.Size([2, 1, 2, 32, 128, 128]) extracted by worker tensor([1, 1]).
+Sample 3 with size torch.Size([2, 1, 2, 32, 128, 128]) extracted by worker tensor([2, 2]).
+Sample 4 with size torch.Size([2, 1, 2, 32, 128, 128]) extracted by worker tensor([3, 3]).
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 5 with size torch.Size([2, 1, 2, 32, 128, 128]) extracted by worker tensor([0, 0]).
+</pre></div>
+</div>
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>torch.Size([10, 2, 32, 128, 128])
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="generate-a-grid-with-the-sampled-patches-using-torchvision-utilities">
+<h2>Generate a grid with the sampled patches using <code class="docutils literal notranslate"><span class="pre">torchvision</span></code> utilities<a class="headerlink" href="#generate-a-grid-with-the-sampled-patches-using-torchvision-utilities" title="Permalink to this heading"></a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">samples_grid</span> <span class="o">=</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">make_grid</span><span class="p">(</span><span class="n">samples</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">16</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">samples_grid</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>(-0.5, 1041.5, 261.5, -0.5)
+</pre></div>
+</div>
+<img alt="../_images/2c84e4aacc399f480891cbaf90031ce33ac0a1428e999b95cbb143183ff45f6d.png" src="../_images/2c84e4aacc399f480891cbaf90031ce33ac0a1428e999b95cbb143183ff45f6d.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">samples_grid</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>(-0.5, 1041.5, 261.5, -0.5)
+</pre></div>
+</div>
+<img alt="../_images/afd6c7e5aebd16802e669b63c79322512fc3efb931cc1687ec0a961ca3d8a435.png" src="../_images/afd6c7e5aebd16802e669b63c79322512fc3efb931cc1687ec0a961ca3d8a435.png" />
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="basic_labeled_datasets_example.html" class="btn btn-neutral float-left" title="Labeled dataset loading with ZarrDataset" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../license_link.html" class="btn btn-neutral float-right" title="License" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, The Jackson Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
