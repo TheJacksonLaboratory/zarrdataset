@@ -1,13 +1,15 @@
 name: documentation
 
-on: [push, pull_request, workflow_dispatch]
-
-permissions:
-  contents: write
+on:
+  push:
 
 jobs:
   docs:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v3
@@ -19,9 +21,8 @@ jobs:
           sphinx-build docs/source docs/build
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        if: github.ref == 'refs/heads/main'
         with:
           publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs/build/
-          force_orphan: true
+          publish_dir: ./docs/build/
