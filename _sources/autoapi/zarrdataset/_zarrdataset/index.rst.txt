@@ -1,0 +1,372 @@
+:py:mod:`zarrdataset._zarrdataset`
+==================================
+
+.. py:module:: zarrdataset._zarrdataset
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   zarrdataset._zarrdataset.ImageSample
+   zarrdataset._zarrdataset.DatasetSpecs
+   zarrdataset._zarrdataset.ImagesDatasetSpecs
+   zarrdataset._zarrdataset.LabelsDatasetSpecs
+   zarrdataset._zarrdataset.MasksDatasetSpecs
+   zarrdataset._zarrdataset.ZarrDataset
+
+
+
+Functions
+~~~~~~~~~
+
+.. autoapisummary::
+
+   zarrdataset._zarrdataset.zarrdataset_worker_init_fn
+   zarrdataset._zarrdataset.chained_zarrdataset_worker_init_fn
+
+
+
+Attributes
+~~~~~~~~~~
+
+.. autoapisummary::
+
+   zarrdataset._zarrdataset.TQDM_SUPPORT
+   zarrdataset._zarrdataset.PYTORCH_SUPPORT
+
+
+.. py:data:: TQDM_SUPPORT
+   :value: True
+
+   
+
+.. py:data:: PYTORCH_SUPPORT
+   :value: True
+
+   
+
+.. py:function:: zarrdataset_worker_init_fn(worker_id)
+
+   ZarrDataset multithread workers initialization function.
+
+
+
+.. py:function:: chained_zarrdataset_worker_init_fn(worker_id)
+
+   ZarrDataset multithread workers initialization function for PyTorch's
+   ChainedDatasets.
+
+
+.. py:class:: ImageSample(im_id: int, chk_id: int, shuffle: bool = False)
+
+
+   .. py:attribute:: _current_patch_idx
+      :value: 0
+
+      
+
+   .. py:attribute:: _ordering
+
+      
+
+   .. py:attribute:: _rng_seed
+
+      
+
+   .. py:attribute:: num_patches
+
+      
+
+   .. py:method:: free_sampler()
+
+
+   .. py:method:: next_patch()
+
+
+
+.. py:class:: DatasetSpecs(modality: str, filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, add_to_output: bool = True)
+
+
+   Bases: :py:obj:`dict`
+
+   Data specification guidelines to add image modalities to a ZarrDataset.
+
+   :param modality: Specifies the use of this dataset (input image data, labels, masks).
+   :type modality: str
+   :param filenames:              Iterable[str],
+                                  zarr.Group,
+                                  Iterable[zarr.Group],
+                                  zarr.Array,
+                                  Iterable[zarr.Array],
+                                  np.ndarray,
+                                  Iterable[np.ndarray]]
+                     The input source either specified by a path/url to a file or a
+                     supported array-like object, or list of them.
+   :type filenames: Union[str,
+   :param source_axes: The orignal array axes ordering.
+   :type source_axes: str
+   :param axes: The axes ordering as it being used from the array (may involve
+                permuting, dropping unused axes, and creating new axes).
+   :type axes: Union[str, None]
+   :param data_group: The group for zarr images, or key for tiff files
+   :type data_group: Union[str, int, None]
+   :param roi: Regions of interest from the input array that can be used for data
+               sampling.
+   :type roi: Union[str, slice, Iterable[slice], None]
+   :param image_loader_func: A transformation applied to the input array before sampling. Could be
+                             used to define a mask generation function. This is not a data
+                             augmentation transform. To specify a data augmetation transform use
+                             `transform` instead.
+   :type image_loader_func: Union[Callable, None]
+   :param zarr_store: A specific zarr.storage.Store class to be used to load zarr files.
+   :type zarr_store: Union[zarr.storage.Store, None]
+   :param transform: A transform applied to the array before returning it after sampling.
+                     This can be used to specify data augmentation transforms.
+   :type transform: Union[Callable, None]
+   :param add_to_output: Whether add this modality to the output after sampling or not. For
+                         example, labels would be added to the output along with the input
+                         image array, while masks might not be needed.
+   :type add_to_output: bool
+
+
+.. py:class:: ImagesDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, modality: str = 'images')
+
+
+   Bases: :py:obj:`DatasetSpecs`
+
+   Specification to add `image` data to a ZarrDataset.
+
+   :param filenames:              Iterable[str],
+                                  zarr.Group,
+                                  Iterable[zarr.Group],
+                                  zarr.Array,
+                                  Iterable[zarr.Array],
+                                  np.ndarray,
+                                  Iterable[np.ndarray]]
+                     The input source either specified by a path/url to a file or a
+                     supported array-like object, or list of them.
+   :type filenames: Union[str,
+   :param source_axes: The orignal array axes ordering.
+   :type source_axes: str
+   :param axes: The axes ordering as it being used from the array (may involve
+                permuting, dropping unused axes, and creating new axes).
+   :type axes: Union[str, None]
+   :param data_group: The group for zarr images, or key for tiff files
+   :type data_group: Union[str, int, None]
+   :param roi: Regions of interest from the input array that can be used for data
+               sampling.
+   :type roi: Union[str, slice, Iterable[slice], None]
+   :param image_loader_func: A transformation applied to the input array before sampling. Could be
+                             used to define a mask generation function. This is not a data
+                             augmentation transform. To specify a data augmetation transform use
+                             `transform` instead.
+   :type image_loader_func: Union[Callable, None]
+   :param zarr_store: A specific zarr.storage.Store class to be used to load zarr files.
+   :type zarr_store: Union[zarr.storage.Store, None]
+   :param transform: A transform applied to the array before returning it after sampling.
+                     This can be used to specify data augmentation transforms.
+   :type transform: Union[Callable, None]
+   :param modality: Specifies the use of this dataset (default is `images` for image data).
+   :type modality: str
+
+
+.. py:class:: LabelsDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, input_label_transform: Union[Callable, None] = None, input_mode: str = 'images', modality: str = 'labels')
+
+
+   Bases: :py:obj:`DatasetSpecs`
+
+   Specification to add `labels` to a ZarrDataset.
+
+   :param filenames:              Iterable[str],
+                                  zarr.Group,
+                                  Iterable[zarr.Group],
+                                  zarr.Array,
+                                  Iterable[zarr.Array],
+                                  np.ndarray,
+                                  Iterable[np.ndarray]]
+                     The input source either specified by a path/url to a file or a
+                     supported array-like object, or list of them.
+   :type filenames: Union[str,
+   :param source_axes: The orignal array axes ordering.
+   :type source_axes: str
+   :param axes: The axes ordering as it being used from the array (may involve
+                permuting, dropping unused axes, and creating new axes).
+   :type axes: Union[str, None]
+   :param data_group: The group for zarr images, or key for tiff files
+   :type data_group: Union[str, int, None]
+   :param roi: Regions of interest from the input array that can be used for data
+               sampling.
+   :type roi: Union[str, slice, Iterable[slice], None]
+   :param image_loader_func: A transformation applied to the input array before sampling. Could be
+                             used to define a mask generation function. This is not a data
+                             augmentation transform. To specify a data augmetation transform use
+                             `transform` instead.
+   :type image_loader_func: Union[Callable, None]
+   :param zarr_store: A specific zarr.storage.Store class to be used to load zarr files.
+   :type zarr_store: Union[zarr.storage.Store, None]
+   :param transform: A transform applied to the array before returning it after sampling.
+                     This can be used to specify data augmentation transforms.
+   :type transform: Union[Callable, None]
+   :param input_label_transform: A transform applied to the array before returning it after sampling.
+                                 This can be used to specify data augmentation transforms.
+   :type input_label_transform: Union[Callable, None]
+   :param modality: Specifies the use of this dataset (default is `labels`).
+   :type modality: str
+
+
+.. py:class:: MasksDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, modality: str = 'masks')
+
+
+   Bases: :py:obj:`DatasetSpecs`
+
+   Specification to add `masks` to a ZarrDataset.
+
+   :param filenames:              Iterable[str],
+                                  zarr.Group,
+                                  Iterable[zarr.Group],
+                                  zarr.Array,
+                                  Iterable[zarr.Array],
+                                  np.ndarray,
+                                  Iterable[np.ndarray]]
+                     The input source either specified by a path/url to a file or a
+                     supported array-like object, or list of them.
+   :type filenames: Union[str,
+   :param source_axes: The orignal array axes ordering.
+   :type source_axes: str
+   :param axes: The axes ordering as it being used from the array (may involve
+                permuting, dropping unused axes, and creating new axes).
+   :type axes: Union[str, None]
+   :param data_group: The group for zarr images, or key for tiff files
+   :type data_group: Union[str, int, None]
+   :param roi: Regions of interest from the input array that can be used for data
+               sampling.
+   :type roi: Union[str, slice, Iterable[slice], None]
+   :param image_loader_func: A transformation applied to the input array before sampling. Could be
+                             used to define a mask generation function. This is not a data
+                             augmentation transform. To specify a data augmetation transform use
+                             `transform` instead.
+   :type image_loader_func: Union[Callable, None]
+   :param zarr_store: A specific zarr.storage.Store class to be used to load zarr files.
+   :type zarr_store: Union[zarr.storage.Store, None]
+   :param modality: Specifies the use of this dataset (default is `masks`).
+   :type modality: str
+
+
+.. py:class:: ZarrDataset(dataset_specs: Union[Iterable[dict], None] = None, patch_sampler: Union[zarrdataset._samplers.PatchSampler, None] = None, shuffle: bool = False, progress_bar: bool = False, return_positions: bool = False, return_worker_id: bool = False, draw_same_chunk: bool = False)
+
+
+   Bases: :py:obj:`torch.utils.data.IterableDataset`
+
+   A Zarr-based dataset class capable of handling large volumes of image
+   data stored in OME-NGFF Zarr format. This class can match the coordinates
+   of the different image modalities to those in the `images` mode, so labels
+   and masks are retrieved from these same coordinates. All spatial axes are
+   scaled using the `images` mode as reference, therefore labels and masks do
+   not need to share the same sizes as the arrays in the `images` mode.
+
+   :param dataset_specs: A list of dictionaries containing the specifications of the datasets
+                         used as inputs.
+   :type dataset_specs: Union[dict, Iterable[dict], None]
+   :param patch_sampler: The patch sampling algorithm used to extract patches from images.
+   :type patch_sampler: Union[PatchSampler, None]
+   :param shuffle: Whether samples are extracted in order or at random.
+   :type shuffle: bool
+   :param progress_bar: Display a progress bar to show the status of data initialization.
+                        Requires `tqdm` to be installed in the environment.
+   :type progress_bar: bool
+   :param return_positions: Return the top-left positions from where the samples where extracted
+                            along with the set of patches.
+   :type return_positions: bool
+   :param return_worker_id: Return the worker id that extracted the sample.
+   :type return_worker_id: bool
+   :param draw_same_chunk: Whether continue extracting samples from the same chunk, until
+                           depleting the posible patches to extract, before extract samples from
+                           a different chunk. This can be used to reduce the overhead of
+                           retrieving different chunks when sampling patches at random locations
+                           whithin the input image.
+   :type draw_same_chunk: bool
+
+   .. py:method:: _initialize(force=False)
+
+
+   .. py:method:: __getitem__(tlbr)
+
+
+   .. py:method:: __iter__()
+
+
+   .. py:method:: add_transform(modalities: Union[str, Iterable[str]], transform: Callable)
+
+      Add a pre-processing transform pipeline to the dataset, applied to
+      the arrays from modalities specified with `modes`. This will be
+      performed after any other pre-processing transforms already registered.
+
+      :param modalities: The modalities on which this transform is applied (e.g., ``images``
+                         to apply only on image arrays, or (``images``, ``labels``) to apply
+                         it to both, images and labels arrays)
+      :type modalities: Union[str, Iterable[str]]
+      :param transform: A function that receives the same number of inputs as specified in
+                        `modalities`, and returns that same number of outputs.
+      :type transform: Callable
+
+
+   .. py:method:: add_modality(modality: str, filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transforms: Union[collections.OrderedDict, None] = None, add_to_output: bool = True)
+
+      Add a new modality to the dataset.
+
+      :param modality: The name of the new modality added (e.g., ``images``, ``labels``,
+                       ``masks``, etc.).
+      :type modality: str
+      :param filenames:             Iterable[str],
+                                    zarr.Group,
+                                    Iterable[zarr.Group],
+                                    zarr.Array,
+                                    Iterable[zarr.Array],
+                                    np.ndarray,
+                                    Iterable[np.ndarray]]
+                        The input source either specified by a path/url to a file or a
+                        supported array-like object, or list of them.
+      :type filenames: Union[str,
+      :param source_axes: The orignal array axes ordering.
+      :type source_axes: str
+      :param axes: The axes ordering as it being used from the array (may involve
+                   permuting, dropping unused axes, and creating new axes).
+      :type axes: Union[str, None]
+      :param data_group: The group for zarr images, or key for tiff files
+      :type data_group: Union[str, int, None]
+      :param roi: Regions of interest from the input array that can be used for data
+                  sampling.
+      :type roi: Union[str, slice, Iterable[slice], None]
+      :param image_loader_func: A transformation applied to the input array before sampling. Could
+                                be used to define a mask generation function. This is not a data
+                                augmentation transform. To specify a data augmetation transform use
+                                `transform` instead.
+      :type image_loader_func: Union[Callable, None]
+      :param zarr_store: A specific zarr.storage.Store class to be used to load zarr files.
+      :type zarr_store: Union[zarr.storage.Store, None]
+      :param transform: A list of transforms applied to arrays before yielding them. This
+                        can be used to specify data augmentation transforms, and can be
+                        applied to this and other existing modalities in this dataset.
+                        For example, to add a transform affecting images and labels, use
+                        the tuple ('images', 'labels') as key for that transform, and make
+                        sure the function associated to that key receives, and returns the
+                        same number of inputs and ouputs as specified in the key.
+      :type transform: Union[OrderedDict, None]
+      :param add_to_output: Whether add this modality to the output after sampling or not. For
+                            example, labels would be added to the output along with the input
+                            image array, while masks might not be needed.
+      :type add_to_output: bool
+
+
+   .. py:method:: __repr__() -> str
+
+      ZarrDataset string representation.
+
+
+
+

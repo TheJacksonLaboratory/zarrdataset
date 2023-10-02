@@ -1,0 +1,118 @@
+:py:mod:`zarrdataset._samplers`
+===============================
+
+.. py:module:: zarrdataset._samplers
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   zarrdataset._samplers.PatchSampler
+   zarrdataset._samplers.BlueNoisePatchSampler
+
+
+
+
+.. py:class:: PatchSampler(patch_size: Union[int, Iterable[int], dict], min_area: Union[int, float] = 1, spatial_axes: str = 'ZYX')
+
+
+   Bases: :py:obj:`object`
+
+   Patch sampling algorithm to retrieve image patches/windows from images.
+
+   If the image used for extracting patches has a mask associated to it, only
+   patches from masked regions of the image are retrieved.
+
+   :param patch_size: Size in pixels of the patches extracted on each axis. Only rectangular
+                      patches (hyper-cuboids) are supported by now. If a single int is
+                      passed, that size is used for all dimensions. If an iterable (list,
+                      tuple) is passed, each value will be assigned to the corresponding axes
+                       in `spatial_axes`, the size of `patch_size` must match the lenght of
+                      `spatial_axes'. If a dict is passed, this should have at least the size
+                       of the patch of the axes listed in `spatial_axes`.  Use the same
+                      convention as how Zarr structure array chunks in order to handle patch
+                      shapes and channels correctly.
+   :type patch_size: Union[int, Iterable[int], dict]
+   :param min_area: Minimum patch area covered by the mask to consider it samplable. A
+                    number in range [0, 1) will be used as percentage of the patch size. A
+                    number >= 1 will be considered as the number of minimum patch pixels
+                    covered by the mask.
+   :type min_area: Union[int, float]
+   :param spatial_axes: The spatial axes from where patches can be extracted.
+   :type spatial_axes: str
+
+   .. py:method:: _compute_corners(non_zero_pos: tuple, axes: str) -> numpy.ndarray
+
+
+   .. py:method:: _compute_overlap(corners: numpy.ndarray, shape: numpy.ndarray, ref_shape: numpy.ndarray) -> Tuple[numpy.ndarray, numpy.ndarray]
+
+
+   .. py:method:: _compute_grid(chunk_mask: numpy.ndarray, mask_axes: str, mask_scale: dict, patch_size: dict, image_size: dict)
+
+
+   .. py:method:: _compute_valid_toplefts(chunk_mask: numpy.ndarray, mask_axes: str, mask_scale: dict, patch_size: dict, image_size: dict)
+
+
+   .. py:method:: _compute_toplefts_slices(mask: zarrdataset._imageloaders.ImageBase, image_shape: dict, patch_size: dict, valid_mask_toplefts: numpy.ndarray, chunk_tlbr: dict)
+
+
+   .. py:method:: compute_chunks(image_collection: zarrdataset._imageloaders.ImageCollection) -> Iterable[dict]
+
+      Compute the top-left positions of the chunks in which the image is
+      divided before taking patches from them.
+
+      The chunk size should match the zarr's chunk sizes to make the patch
+      extraction more efficient.
+
+      :param image: The image from where the patches are extracted.
+      :type image: zarrdataset.ImageCollection
+
+      :returns: **chunks_grids** -- Each valid chunk is returned in form of a slice that can be
+                extracted from the image. The slices are stored as tuples, with one
+                slice per axis.
+      :rtype: list of tuples of slices
+
+
+   .. py:method:: compute_patches(image_collection: zarrdataset._imageloaders.ImageCollection, chunk_tlbr: dict) -> Iterable[dict]
+
+
+   .. py:method:: __repr__() -> str
+
+      String representation of classes derived from PatchSampler.
+
+
+
+
+.. py:class:: BlueNoisePatchSampler(patch_size: Union[int, Iterable[int], dict], resample_positions=False, allow_overlap=False, **kwargs)
+
+
+   Bases: :py:obj:`PatchSampler`
+
+   Patch sampler that retrieves patches from coordinates sampled using the
+   Bridson sampling algorithm, also known as Blue-noise sampling algorithm.
+
+   :param patch_size: Size in pixels of the patches extracted. Only squared patches are
+                      supported by now.
+   :type patch_size: int, iterable, dict
+   :param resample_positions: Whether positions should be resampled for each new chunk or not.
+   :type resample_positions: bool
+   :param allow_overlap: Whether overlapping of patches is allowed or not.
+   :type allow_overlap: bool
+
+   .. py:method:: compute_sampling_positions(force=False) -> None
+
+      Compute the sampling positions using blue-noise sampling.
+
+      :param force: Whether force resampling positions, or reuse existing positions.
+      :type force: bool
+
+
+   .. py:method:: _compute_valid_toplefts(chunk_mask: numpy.ndarray, mask_axes: str, mask_scale: dict, patch_size: dict, image_shape: dict)
+
+
+
