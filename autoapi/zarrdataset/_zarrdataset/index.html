@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>zarrdataset._zarrdataset &mdash; ZarrDataset  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="prev" title="zarrdataset._utils" href="../_utils/index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            ZarrDataset
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../readme_link.html">ZarrDataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_example.html">Basic ZarrDataset usage example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_example_tensorflow.html">Integration of ZarrDataset with Tensorflow Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_masked_datasets_example.html">Loading patches/windows from masked regions of images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../license_link.html">License</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset</span></code></a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../index.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../_augs/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._augs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_imageloaders/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._imageloaders</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_maskfuncs/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._maskfuncs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_samplers/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._samplers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_utils/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._utils</span></code></a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._zarrdataset</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../index.html#package-contents">Package Contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">ZarrDataset</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">API Reference</a></li>
+          <li class="breadcrumb-item"><a href="../index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset</span></code></a></li>
+      <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._zarrdataset</span></code></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/autoapi/zarrdataset/_zarrdataset/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-zarrdataset._zarrdataset">
+<span id="zarrdataset-zarrdataset"></span><h1><a class="reference internal" href="#module-zarrdataset._zarrdataset" title="zarrdataset._zarrdataset"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._zarrdataset</span></code></a><a class="headerlink" href="#module-zarrdataset._zarrdataset" title="Permalink to this heading"></a></h1>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this heading"></a></h2>
+<section id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.ImageSample" title="zarrdataset._zarrdataset.ImageSample"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ImageSample</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.DatasetSpecs" title="zarrdataset._zarrdataset.DatasetSpecs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DatasetSpecs</span></code></a></p></td>
+<td><p>Data specification guidelines to add image modalities to a ZarrDataset.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.ImagesDatasetSpecs" title="zarrdataset._zarrdataset.ImagesDatasetSpecs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ImagesDatasetSpecs</span></code></a></p></td>
+<td><p>Specification to add <cite>image</cite> data to a ZarrDataset.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.LabelsDatasetSpecs" title="zarrdataset._zarrdataset.LabelsDatasetSpecs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LabelsDatasetSpecs</span></code></a></p></td>
+<td><p>Specification to add <cite>labels</cite> to a ZarrDataset.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.MasksDatasetSpecs" title="zarrdataset._zarrdataset.MasksDatasetSpecs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MasksDatasetSpecs</span></code></a></p></td>
+<td><p>Specification to add <cite>masks</cite> to a ZarrDataset.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.ZarrDataset" title="zarrdataset._zarrdataset.ZarrDataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ZarrDataset</span></code></a></p></td>
+<td><p>A Zarr-based dataset class capable of handling large volumes of image</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.zarrdataset_worker_init_fn" title="zarrdataset._zarrdataset.zarrdataset_worker_init_fn"><code class="xref py py-obj docutils literal notranslate"><span class="pre">zarrdataset_worker_init_fn</span></code></a>(worker_id)</p></td>
+<td><p>ZarrDataset multithread workers initialization function.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.chained_zarrdataset_worker_init_fn" title="zarrdataset._zarrdataset.chained_zarrdataset_worker_init_fn"><code class="xref py py-obj docutils literal notranslate"><span class="pre">chained_zarrdataset_worker_init_fn</span></code></a>(worker_id)</p></td>
+<td><p>ZarrDataset multithread workers initialization function for PyTorch's</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="attributes">
+<h3>Attributes<a class="headerlink" href="#attributes" title="Permalink to this heading"></a></h3>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.TQDM_SUPPORT" title="zarrdataset._zarrdataset.TQDM_SUPPORT"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TQDM_SUPPORT</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#zarrdataset._zarrdataset.PYTORCH_SUPPORT" title="zarrdataset._zarrdataset.PYTORCH_SUPPORT"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PYTORCH_SUPPORT</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py data">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.TQDM_SUPPORT">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">TQDM_SUPPORT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#zarrdataset._zarrdataset.TQDM_SUPPORT" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.PYTORCH_SUPPORT">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">PYTORCH_SUPPORT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#zarrdataset._zarrdataset.PYTORCH_SUPPORT" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.zarrdataset_worker_init_fn">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">zarrdataset_worker_init_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">worker_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.zarrdataset_worker_init_fn" title="Permalink to this definition"></a></dt>
+<dd><p>ZarrDataset multithread workers initialization function.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.chained_zarrdataset_worker_init_fn">
+<span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">chained_zarrdataset_worker_init_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">worker_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.chained_zarrdataset_worker_init_fn" title="Permalink to this definition"></a></dt>
+<dd><p>ZarrDataset multithread workers initialization function for PyTorch’s
+ChainedDatasets.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ImageSample">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">ImageSample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">im_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chk_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ImageSample" title="Permalink to this definition"></a></dt>
+<dd><dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ImageSample._current_patch_idx">
+<span class="sig-name descname"><span class="pre">_current_patch_idx</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#zarrdataset._zarrdataset.ImageSample._current_patch_idx" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ImageSample._ordering">
+<span class="sig-name descname"><span class="pre">_ordering</span></span><a class="headerlink" href="#zarrdataset._zarrdataset.ImageSample._ordering" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ImageSample._rng_seed">
+<span class="sig-name descname"><span class="pre">_rng_seed</span></span><a class="headerlink" href="#zarrdataset._zarrdataset.ImageSample._rng_seed" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ImageSample.num_patches">
+<span class="sig-name descname"><span class="pre">num_patches</span></span><a class="headerlink" href="#zarrdataset._zarrdataset.ImageSample.num_patches" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ImageSample.free_sampler">
+<span class="sig-name descname"><span class="pre">free_sampler</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ImageSample.free_sampler" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ImageSample.next_patch">
+<span class="sig-name descname"><span class="pre">next_patch</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ImageSample.next_patch" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.DatasetSpecs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">DatasetSpecs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">modality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filenames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Group</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Group</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Array</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_group</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">slice</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">slice</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_loader_func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zarr_store</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.storage.Store</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_to_output</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.DatasetSpecs" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code></p>
+<p>Data specification guidelines to add image modalities to a ZarrDataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>modality</strong> (<em>str</em>) – Specifies the use of this dataset (input image data, labels, masks).</p></li>
+<li><p><strong>filenames</strong> (<em>Union</em><em>[</em><em>str</em><em>,</em>) – <dl class="simple">
+<dt>Iterable[str],</dt><dd><p>zarr.Group,
+Iterable[zarr.Group],
+zarr.Array,
+Iterable[zarr.Array],
+np.ndarray,
+Iterable[np.ndarray]]</p>
+</dd>
+</dl>
+<p>The input source either specified by a path/url to a file or a
+supported array-like object, or list of them.</p>
+</p></li>
+<li><p><strong>source_axes</strong> (<em>str</em>) – The orignal array axes ordering.</p></li>
+<li><p><strong>axes</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em>) – The axes ordering as it being used from the array (may involve
+permuting, dropping unused axes, and creating new axes).</p></li>
+<li><p><strong>data_group</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>int</em><em>, </em><em>None</em><em>]</em>) – The group for zarr images, or key for tiff files</p></li>
+<li><p><strong>roi</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>slice</em><em>, </em><em>Iterable</em><em>[</em><em>slice</em><em>]</em><em>, </em><em>None</em><em>]</em>) – Regions of interest from the input array that can be used for data
+sampling.</p></li>
+<li><p><strong>image_loader_func</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>None</em><em>]</em>) – A transformation applied to the input array before sampling. Could be
+used to define a mask generation function. This is not a data
+augmentation transform. To specify a data augmetation transform use
+<cite>transform</cite> instead.</p></li>
+<li><p><strong>zarr_store</strong> (<em>Union</em><em>[</em><em>zarr.storage.Store</em><em>, </em><em>None</em><em>]</em>) – A specific zarr.storage.Store class to be used to load zarr files.</p></li>
+<li><p><strong>transform</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>None</em><em>]</em>) – A transform applied to the array before returning it after sampling.
+This can be used to specify data augmentation transforms.</p></li>
+<li><p><strong>add_to_output</strong> (<em>bool</em>) – Whether add this modality to the output after sampling or not. For
+example, labels would be added to the output along with the input
+image array, while masks might not be needed.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ImagesDatasetSpecs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">ImagesDatasetSpecs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filenames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Group</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Group</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Array</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_group</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">slice</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">slice</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_loader_func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zarr_store</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.storage.Store</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'images'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ImagesDatasetSpecs" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#zarrdataset._zarrdataset.DatasetSpecs" title="zarrdataset._zarrdataset.DatasetSpecs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DatasetSpecs</span></code></a></p>
+<p>Specification to add <cite>image</cite> data to a ZarrDataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filenames</strong> (<em>Union</em><em>[</em><em>str</em><em>,</em>) – <dl class="simple">
+<dt>Iterable[str],</dt><dd><p>zarr.Group,
+Iterable[zarr.Group],
+zarr.Array,
+Iterable[zarr.Array],
+np.ndarray,
+Iterable[np.ndarray]]</p>
+</dd>
+</dl>
+<p>The input source either specified by a path/url to a file or a
+supported array-like object, or list of them.</p>
+</p></li>
+<li><p><strong>source_axes</strong> (<em>str</em>) – The orignal array axes ordering.</p></li>
+<li><p><strong>axes</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em>) – The axes ordering as it being used from the array (may involve
+permuting, dropping unused axes, and creating new axes).</p></li>
+<li><p><strong>data_group</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>int</em><em>, </em><em>None</em><em>]</em>) – The group for zarr images, or key for tiff files</p></li>
+<li><p><strong>roi</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>slice</em><em>, </em><em>Iterable</em><em>[</em><em>slice</em><em>]</em><em>, </em><em>None</em><em>]</em>) – Regions of interest from the input array that can be used for data
+sampling.</p></li>
+<li><p><strong>image_loader_func</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>None</em><em>]</em>) – A transformation applied to the input array before sampling. Could be
+used to define a mask generation function. This is not a data
+augmentation transform. To specify a data augmetation transform use
+<cite>transform</cite> instead.</p></li>
+<li><p><strong>zarr_store</strong> (<em>Union</em><em>[</em><em>zarr.storage.Store</em><em>, </em><em>None</em><em>]</em>) – A specific zarr.storage.Store class to be used to load zarr files.</p></li>
+<li><p><strong>transform</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>None</em><em>]</em>) – A transform applied to the array before returning it after sampling.
+This can be used to specify data augmentation transforms.</p></li>
+<li><p><strong>modality</strong> (<em>str</em>) – Specifies the use of this dataset (default is <cite>images</cite> for image data).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.LabelsDatasetSpecs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">LabelsDatasetSpecs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filenames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Group</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Group</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Array</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_group</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">slice</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">slice</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_loader_func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zarr_store</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.storage.Store</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_label_transform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'images'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'labels'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.LabelsDatasetSpecs" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#zarrdataset._zarrdataset.DatasetSpecs" title="zarrdataset._zarrdataset.DatasetSpecs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DatasetSpecs</span></code></a></p>
+<p>Specification to add <cite>labels</cite> to a ZarrDataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filenames</strong> (<em>Union</em><em>[</em><em>str</em><em>,</em>) – <dl class="simple">
+<dt>Iterable[str],</dt><dd><p>zarr.Group,
+Iterable[zarr.Group],
+zarr.Array,
+Iterable[zarr.Array],
+np.ndarray,
+Iterable[np.ndarray]]</p>
+</dd>
+</dl>
+<p>The input source either specified by a path/url to a file or a
+supported array-like object, or list of them.</p>
+</p></li>
+<li><p><strong>source_axes</strong> (<em>str</em>) – The orignal array axes ordering.</p></li>
+<li><p><strong>axes</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em>) – The axes ordering as it being used from the array (may involve
+permuting, dropping unused axes, and creating new axes).</p></li>
+<li><p><strong>data_group</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>int</em><em>, </em><em>None</em><em>]</em>) – The group for zarr images, or key for tiff files</p></li>
+<li><p><strong>roi</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>slice</em><em>, </em><em>Iterable</em><em>[</em><em>slice</em><em>]</em><em>, </em><em>None</em><em>]</em>) – Regions of interest from the input array that can be used for data
+sampling.</p></li>
+<li><p><strong>image_loader_func</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>None</em><em>]</em>) – A transformation applied to the input array before sampling. Could be
+used to define a mask generation function. This is not a data
+augmentation transform. To specify a data augmetation transform use
+<cite>transform</cite> instead.</p></li>
+<li><p><strong>zarr_store</strong> (<em>Union</em><em>[</em><em>zarr.storage.Store</em><em>, </em><em>None</em><em>]</em>) – A specific zarr.storage.Store class to be used to load zarr files.</p></li>
+<li><p><strong>transform</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>None</em><em>]</em>) – A transform applied to the array before returning it after sampling.
+This can be used to specify data augmentation transforms.</p></li>
+<li><p><strong>input_label_transform</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>None</em><em>]</em>) – A transform applied to the array before returning it after sampling.
+This can be used to specify data augmentation transforms.</p></li>
+<li><p><strong>modality</strong> (<em>str</em>) – Specifies the use of this dataset (default is <cite>labels</cite>).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.MasksDatasetSpecs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">MasksDatasetSpecs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filenames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Group</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Group</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Array</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_group</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">slice</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">slice</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_loader_func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zarr_store</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.storage.Store</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">modality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'masks'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.MasksDatasetSpecs" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#zarrdataset._zarrdataset.DatasetSpecs" title="zarrdataset._zarrdataset.DatasetSpecs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DatasetSpecs</span></code></a></p>
+<p>Specification to add <cite>masks</cite> to a ZarrDataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filenames</strong> (<em>Union</em><em>[</em><em>str</em><em>,</em>) – <dl class="simple">
+<dt>Iterable[str],</dt><dd><p>zarr.Group,
+Iterable[zarr.Group],
+zarr.Array,
+Iterable[zarr.Array],
+np.ndarray,
+Iterable[np.ndarray]]</p>
+</dd>
+</dl>
+<p>The input source either specified by a path/url to a file or a
+supported array-like object, or list of them.</p>
+</p></li>
+<li><p><strong>source_axes</strong> (<em>str</em>) – The orignal array axes ordering.</p></li>
+<li><p><strong>axes</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em>) – The axes ordering as it being used from the array (may involve
+permuting, dropping unused axes, and creating new axes).</p></li>
+<li><p><strong>data_group</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>int</em><em>, </em><em>None</em><em>]</em>) – The group for zarr images, or key for tiff files</p></li>
+<li><p><strong>roi</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>slice</em><em>, </em><em>Iterable</em><em>[</em><em>slice</em><em>]</em><em>, </em><em>None</em><em>]</em>) – Regions of interest from the input array that can be used for data
+sampling.</p></li>
+<li><p><strong>image_loader_func</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>None</em><em>]</em>) – A transformation applied to the input array before sampling. Could be
+used to define a mask generation function. This is not a data
+augmentation transform. To specify a data augmetation transform use
+<cite>transform</cite> instead.</p></li>
+<li><p><strong>zarr_store</strong> (<em>Union</em><em>[</em><em>zarr.storage.Store</em><em>, </em><em>None</em><em>]</em>) – A specific zarr.storage.Store class to be used to load zarr files.</p></li>
+<li><p><strong>modality</strong> (<em>str</em>) – Specifies the use of this dataset (default is <cite>masks</cite>).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ZarrDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._zarrdataset.</span></span><span class="sig-name descname"><span class="pre">ZarrDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_specs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">patch_sampler</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="../_samplers/index.html#zarrdataset._samplers.PatchSampler" title="zarrdataset._samplers.PatchSampler"><span class="pre">zarrdataset._samplers.PatchSampler</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress_bar</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_positions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_worker_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">draw_same_chunk</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ZarrDataset" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.utils.data.IterableDataset</span></code></p>
+<p>A Zarr-based dataset class capable of handling large volumes of image
+data stored in OME-NGFF Zarr format. This class can match the coordinates
+of the different image modalities to those in the <cite>images</cite> mode, so labels
+and masks are retrieved from these same coordinates. All spatial axes are
+scaled using the <cite>images</cite> mode as reference, therefore labels and masks do
+not need to share the same sizes as the arrays in the <cite>images</cite> mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_specs</strong> (<em>Union</em><em>[</em><em>dict</em><em>, </em><em>Iterable</em><em>[</em><em>dict</em><em>]</em><em>, </em><em>None</em><em>]</em>) – A list of dictionaries containing the specifications of the datasets
+used as inputs.</p></li>
+<li><p><strong>patch_sampler</strong> (<em>Union</em><em>[</em><a class="reference internal" href="../_samplers/index.html#zarrdataset._samplers.PatchSampler" title="zarrdataset._samplers.PatchSampler"><em>PatchSampler</em></a><em>, </em><em>None</em><em>]</em>) – The patch sampling algorithm used to extract patches from images.</p></li>
+<li><p><strong>shuffle</strong> (<em>bool</em>) – Whether samples are extracted in order or at random.</p></li>
+<li><p><strong>progress_bar</strong> (<em>bool</em>) – Display a progress bar to show the status of data initialization.
+Requires <cite>tqdm</cite> to be installed in the environment.</p></li>
+<li><p><strong>return_positions</strong> (<em>bool</em>) – Return the top-left positions from where the samples where extracted
+along with the set of patches.</p></li>
+<li><p><strong>return_worker_id</strong> (<em>bool</em>) – Return the worker id that extracted the sample.</p></li>
+<li><p><strong>draw_same_chunk</strong> (<em>bool</em>) – Whether continue extracting samples from the same chunk, until
+depleting the posible patches to extract, before extract samples from
+a different chunk. This can be used to reduce the overhead of
+retrieving different chunks when sampling patches at random locations
+whithin the input image.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ZarrDataset._initialize">
+<span class="sig-name descname"><span class="pre">_initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ZarrDataset._initialize" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ZarrDataset.__getitem__">
+<span class="sig-name descname"><span class="pre">__getitem__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tlbr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ZarrDataset.__getitem__" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ZarrDataset.__iter__">
+<span class="sig-name descname"><span class="pre">__iter__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ZarrDataset.__iter__" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ZarrDataset.add_transform">
+<span class="sig-name descname"><span class="pre">add_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">modalities</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ZarrDataset.add_transform" title="Permalink to this definition"></a></dt>
+<dd><p>Add a pre-processing transform pipeline to the dataset, applied to
+the arrays from modalities specified with <cite>modes</cite>. This will be
+performed after any other pre-processing transforms already registered.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>modalities</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>Iterable</em><em>[</em><em>str</em><em>]</em><em>]</em>) – The modalities on which this transform is applied (e.g., <code class="docutils literal notranslate"><span class="pre">images</span></code>
+to apply only on image arrays, or (<code class="docutils literal notranslate"><span class="pre">images</span></code>, <code class="docutils literal notranslate"><span class="pre">labels</span></code>) to apply
+it to both, images and labels arrays)</p></li>
+<li><p><strong>transform</strong> (<em>Callable</em>) – A function that receives the same number of inputs as specified in
+<cite>modalities</cite>, and returns that same number of outputs.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ZarrDataset.add_modality">
+<span class="sig-name descname"><span class="pre">add_modality</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">modality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filenames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Group</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Group</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">zarr.Array</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.Array</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_group</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">slice</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">slice</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_loader_func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zarr_store</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">zarr.storage.Store</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">collections.OrderedDict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_to_output</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#zarrdataset._zarrdataset.ZarrDataset.add_modality" title="Permalink to this definition"></a></dt>
+<dd><p>Add a new modality to the dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>modality</strong> (<em>str</em>) – The name of the new modality added (e.g., <code class="docutils literal notranslate"><span class="pre">images</span></code>, <code class="docutils literal notranslate"><span class="pre">labels</span></code>,
+<code class="docutils literal notranslate"><span class="pre">masks</span></code>, etc.).</p></li>
+<li><p><strong>filenames</strong> (<em>Union</em><em>[</em><em>str</em><em>,</em>) – <dl class="simple">
+<dt>Iterable[str],</dt><dd><p>zarr.Group,
+Iterable[zarr.Group],
+zarr.Array,
+Iterable[zarr.Array],
+np.ndarray,
+Iterable[np.ndarray]]</p>
+</dd>
+</dl>
+<p>The input source either specified by a path/url to a file or a
+supported array-like object, or list of them.</p>
+</p></li>
+<li><p><strong>source_axes</strong> (<em>str</em>) – The orignal array axes ordering.</p></li>
+<li><p><strong>axes</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>None</em><em>]</em>) – The axes ordering as it being used from the array (may involve
+permuting, dropping unused axes, and creating new axes).</p></li>
+<li><p><strong>data_group</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>int</em><em>, </em><em>None</em><em>]</em>) – The group for zarr images, or key for tiff files</p></li>
+<li><p><strong>roi</strong> (<em>Union</em><em>[</em><em>str</em><em>, </em><em>slice</em><em>, </em><em>Iterable</em><em>[</em><em>slice</em><em>]</em><em>, </em><em>None</em><em>]</em>) – Regions of interest from the input array that can be used for data
+sampling.</p></li>
+<li><p><strong>image_loader_func</strong> (<em>Union</em><em>[</em><em>Callable</em><em>, </em><em>None</em><em>]</em>) – A transformation applied to the input array before sampling. Could
+be used to define a mask generation function. This is not a data
+augmentation transform. To specify a data augmetation transform use
+<cite>transform</cite> instead.</p></li>
+<li><p><strong>zarr_store</strong> (<em>Union</em><em>[</em><em>zarr.storage.Store</em><em>, </em><em>None</em><em>]</em>) – A specific zarr.storage.Store class to be used to load zarr files.</p></li>
+<li><p><strong>transform</strong> (<em>Union</em><em>[</em><em>OrderedDict</em><em>, </em><em>None</em><em>]</em>) – A list of transforms applied to arrays before yielding them. This
+can be used to specify data augmentation transforms, and can be
+applied to this and other existing modalities in this dataset.
+For example, to add a transform affecting images and labels, use
+the tuple (‘images’, ‘labels’) as key for that transform, and make
+sure the function associated to that key receives, and returns the
+same number of inputs and ouputs as specified in the key.</p></li>
+<li><p><strong>add_to_output</strong> (<em>bool</em>) – Whether add this modality to the output after sampling or not. For
+example, labels would be added to the output along with the input
+image array, while masks might not be needed.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="zarrdataset._zarrdataset.ZarrDataset.__repr__">
+<span class="sig-name descname"><span class="pre">__repr__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#zarrdataset._zarrdataset.ZarrDataset.__repr__" title="Permalink to this definition"></a></dt>
+<dd><p>ZarrDataset string representation.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../_utils/index.html" class="btn btn-neutral float-left" title="zarrdataset._utils" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, The Jackson Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

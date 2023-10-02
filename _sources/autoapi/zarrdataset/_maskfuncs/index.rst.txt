@@ -1,0 +1,61 @@
+:py:mod:`zarrdataset._maskfuncs`
+================================
+
+.. py:module:: zarrdataset._maskfuncs
+
+
+Module Contents
+---------------
+
+Classes
+~~~~~~~
+
+.. autoapisummary::
+
+   zarrdataset._maskfuncs.MaskGenerator
+   zarrdataset._maskfuncs.WSITissueMaskGenerator
+
+
+
+
+.. py:class:: MaskGenerator(axes)
+
+
+   Bases: :py:obj:`object`
+
+   Base class to define transformation functions on ImageBase objects.
+
+
+   .. py:method:: _compute_transform(image: numpy.ndarray) -> numpy.ndarray
+      :abstractmethod:
+
+
+   .. py:method:: __call__(image: numpy.ndarray) -> numpy.ndarray
+
+
+
+.. py:class:: WSITissueMaskGenerator(mask_scale: float = 1 / 16, min_size: int = 16, area_threshold: int = 128, thresh: Union[float, None] = None, axes: str = 'YX')
+
+
+   Bases: :py:obj:`MaskGenerator`
+
+   Mask generator for tissue objects in Whole Slide Images (WSI).
+
+   This will compute a mask of scale `mask_scale` from the input image where
+   tissue (darker pixels than white background) are present.
+
+   :param mask_scale:
+   :type mask_scale: float
+   :param min_size:
+   :type min_size: int
+   :param area_threshold:
+   :type area_threshold: int,
+   :param thresh:
+   :type thresh: Union[float, None]
+   :param axes:
+   :type axes: str
+
+   .. py:method:: _compute_transform(image: numpy.ndarray) -> numpy.ndarray
+
+
+

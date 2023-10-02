@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basic ZarrDataset usage example &mdash; ZarrDataset  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Integration of ZarrDataset with PyTorch’s DataLoader" href="basic_example_pytorch.html" />
+    <link rel="prev" title="ZarrDataset" href="../readme_link.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ZarrDataset
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html">ZarrDataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Basic ZarrDataset usage example</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#retrieving-whole-images">Retrieving whole images</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extracting-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi">Extracting patches of size 512x512 pixels from a Whole Slide Image (WSI)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#using-zarrdataset-in-a-for-loop">Using ZarrDataset in a for loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#create-a-zarrdataset-with-all-the-dataset-specifications">Create a ZarrDataset with all the dataset specifications.</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="basic_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_example_tensorflow.html">Integration of ZarrDataset with Tensorflow Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_masked_datasets_example.html">Loading patches/windows from masked regions of images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license_link.html">License</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../autoapi/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ZarrDataset</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Basic ZarrDataset usage example</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/examples/basic_example.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="basic-zarrdataset-usage-example">
+<h1>Basic ZarrDataset usage example<a class="headerlink" href="#basic-zarrdataset-usage-example" title="Permalink to this heading"></a></h1>
+<p>Import the “zarrdataset” package</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
+<span class="kn">import</span> <span class="nn">zarr</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output traceback highlight-ipythontb notranslate"><div class="highlight"><pre><span></span><span class="gt">---------------------------------------------------------------------------</span>
+<span class="ne">ModuleNotFoundError</span><span class="g g-Whitespace">                       </span>Traceback (most recent call last)
+<span class="n">Cell</span> <span class="n">In</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">line</span> <span class="mi">1</span>
+<span class="ne">----&gt; </span><span class="mi">1</span> <span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
+<span class="g g-Whitespace">      </span><span class="mi">2</span> <span class="kn">import</span> <span class="nn">zarr</span>
+
+<span class="ne">ModuleNotFoundError</span>: No module named &#39;zarrdataset&#39;
+</pre></div>
+</div>
+</div>
+</div>
+<p>Load data stored on S3 storage</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># These are images from the Image Data Resource (IDR) </span>
+<span class="c1"># https://idr.openmicroscopy.org/ that are publicly available and were </span>
+<span class="c1"># converted to the OME-NGFF (Zarr) format by the OME group. More examples</span>
+<span class="c1"># can be found at Public OME-Zarr data (Nov. 2020)</span>
+<span class="c1"># https://www.openmicroscopy.org/2020/11/04/zarr-data.html</span>
+
+<span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># For reproducibility</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">478963</span><span class="p">)</span>
+<span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">478965</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Inspect the image to sample</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">z_img</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
+<span class="n">z_img</span><span class="p">[</span><span class="s2">&quot;0&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">info</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Display a downsampled version of the image</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">z_img</span><span class="p">[</span><span class="s2">&quot;5&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<section id="retrieving-whole-images">
+<h2>Retrieving whole images<a class="headerlink" href="#retrieving-whole-images" title="Permalink to this heading"></a></h2>
+<p>Create a ZarrDataset to handle the image dataset instead of opening all the dataset images by separate and hold them in memory until they are not used anymore.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_dataset</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ZarrDataset</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Start by retrieving whole images, from a subsampled (pyramid) group (e.g. group 6) within the zarr image file, instead the full resolution image at group “0”.
+The source array axes should be specified in order to handle images properly, in this case Time-Channel-Depth-Height-Width (TCZYX).</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_dataset</span><span class="o">.</span><span class="n">add_modality</span><span class="p">(</span>
+  <span class="n">modality</span><span class="o">=</span><span class="s2">&quot;image&quot;</span><span class="p">,</span>
+  <span class="n">filenames</span><span class="o">=</span><span class="n">filenames</span><span class="p">,</span>
+  <span class="n">source_axes</span><span class="o">=</span><span class="s2">&quot;TCZYX&quot;</span><span class="p">,</span>
+  <span class="n">data_group</span><span class="o">=</span><span class="s2">&quot;6&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>The ZarrDataset class can be used as a Python’s generator, and can be accessed by <code class="docutils literal notranslate"><span class="pre">iter</span></code> and subsequently <code class="docutils literal notranslate"><span class="pre">next</span></code> operations.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ds_iterator</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">my_dataset</span><span class="p">)</span>
+<span class="n">ds_iterator</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">sample</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">ds_iterator</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">sample</span><span class="p">),</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Compare the shape of the retreived sample with the shape of the original image in group “6”</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">z_img</span><span class="p">[</span><span class="s2">&quot;6&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">info</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="extracting-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi">
+<h2>Extracting patches of size 512x512 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extracting-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi" title="Permalink to this heading"></a></h2>
+<p>The PatchSampler class can be used along with ZarrDataset to retrieve patches from WSIs without having to tiling them in a pre-process step.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">patch_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">Y</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="mi">512</span><span class="p">)</span>
+<span class="n">patch_sampler</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">PatchSampler</span><span class="p">(</span><span class="n">patch_size</span><span class="o">=</span><span class="n">patch_size</span><span class="p">)</span>
+
+<span class="n">patch_sampler</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Create a new dataset using the ZarrDataset class, and pass the PatchSampler as <code class="docutils literal notranslate"><span class="pre">patch_sampler</span></code> argument.
+Because patches are being exracted instead of whole images, the full resolution image at group “0” can be used as input.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_dataset</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ZarrDataset</span><span class="p">(</span><span class="n">patch_sampler</span><span class="o">=</span><span class="n">patch_sampler</span><span class="p">)</span>
+
+<span class="n">my_dataset</span><span class="o">.</span><span class="n">add_modality</span><span class="p">(</span>
+  <span class="n">modality</span><span class="o">=</span><span class="s2">&quot;image&quot;</span><span class="p">,</span>
+  <span class="n">filenames</span><span class="o">=</span><span class="n">filenames</span><span class="p">,</span>
+  <span class="n">source_axes</span><span class="o">=</span><span class="s2">&quot;TCZYX&quot;</span><span class="p">,</span>
+  <span class="n">data_group</span><span class="o">=</span><span class="s2">&quot;0&quot;</span>
+<span class="p">)</span>
+
+<span class="n">my_dataset</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Create a generator from the dataset object and extract some patches</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">ds_iterator</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">my_dataset</span><span class="p">)</span>
+
+<span class="n">sample</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">ds_iterator</span><span class="p">)</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">sample</span><span class="p">),</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample</span><span class="o">.</span><span class="n">dtype</span>
+
+<span class="n">sample</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">ds_iterator</span><span class="p">)</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">sample</span><span class="p">),</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample</span><span class="o">.</span><span class="n">dtype</span>
+
+<span class="n">sample</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">ds_iterator</span><span class="p">)</span>
+<span class="nb">type</span><span class="p">(</span><span class="n">sample</span><span class="p">),</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">sample</span><span class="o">.</span><span class="n">dtype</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="using-zarrdataset-in-a-for-loop">
+<h2>Using ZarrDataset in a for loop<a class="headerlink" href="#using-zarrdataset-in-a-for-loop" title="Permalink to this heading"></a></h2>
+<p>ZarrDatasets can be used as generators, for example in for loops</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sample</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">my_dataset</span><span class="p">):</span>
+    <span class="n">samples</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="c1"># Take only five samples for illustration purposes</span>
+        <span class="k">break</span>
+
+<span class="n">samples_stack</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">samples_stack</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="create-a-zarrdataset-with-all-the-dataset-specifications">
+<h2>Create a ZarrDataset with all the dataset specifications.<a class="headerlink" href="#create-a-zarrdataset-with-all-the-dataset-specifications" title="Permalink to this heading"></a></h2>
+<p>Use a dictionary (or a list of them for multiple modalities) to define the dataset specifications.
+Alternatively, use a list of DatasetSpecs (or derived classes) to define the dataset specifications that ZarrDataset requires.</p>
+<p>For example, <code class="docutils literal notranslate"><span class="pre">ImagesDatasetSpecs</span></code> can be used to define an <em>image</em> data modality. Other pre-defined modalities are <code class="docutils literal notranslate"><span class="pre">LabelsDatasetSpecs</span></code> for <em>labels</em>, and <code class="docutils literal notranslate"><span class="pre">MaskDatasetSpecs</span></code> for <em>masks</em>.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">image_specs</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ImagesDatasetSpecs</span><span class="p">(</span>
+  <span class="n">filenames</span><span class="o">=</span><span class="n">filenames</span><span class="p">,</span>
+  <span class="n">data_group</span><span class="o">=</span><span class="s2">&quot;0&quot;</span><span class="p">,</span>
+  <span class="n">source_axes</span><span class="o">=</span><span class="s2">&quot;TCZYX&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Also, try sampling patches from random locations by setting <code class="docutils literal notranslate"><span class="pre">shuffle=True</span></code>.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">my_dataset</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ZarrDataset</span><span class="p">(</span><span class="n">dataset_specs</span><span class="o">=</span><span class="p">[</span><span class="n">image_specs</span><span class="p">],</span>
+                             <span class="n">patch_sampler</span><span class="o">=</span><span class="n">patch_sampler</span><span class="p">,</span>
+                             <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sample</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">my_dataset</span><span class="p">):</span>
+    <span class="n">samples</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="c1"># Take only five samples for illustration purposes</span>
+        <span class="k">break</span>
+
+<span class="n">samples_stack</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">samples_stack</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../readme_link.html" class="btn btn-neutral float-left" title="ZarrDataset" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="basic_example_pytorch.html" class="btn btn-neutral float-right" title="Integration of ZarrDataset with PyTorch’s DataLoader" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, The Jackson Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
