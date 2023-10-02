@@ -64,7 +64,7 @@ my_dataset = zds.ZarrDataset(...,
                              patch_sampler=my_patch_sampler)
 ```
 
-Examples of integration of the **ZarrDataset** class with the PyTorch's **DataLoader** can be found in the (documentation)[https://thejacksonlaboratory.github.io/zarrdataset/index.html].
+Examples of integration of the **ZarrDataset** class with the PyTorch's **DataLoader** can be found in the [documentation](https://thejacksonlaboratory.github.io/zarrdataset/index.html).
 
 ## Installation
 This package can be installed from PyPI with the following command
