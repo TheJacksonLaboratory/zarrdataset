@@ -402,17 +402,3 @@ def test_min_area_sampling_PatchSampler(min_area, patch_size,
                  f"{all_chunks_tls[all_patches_tls.index(ptl)]}")
             all_patches_tls.append(ptl)
             all_chunks_tls.append(ctl)
-
-
-if __name__ == "__main__":
-    class Request():
-        def __init__(self, param):
-            self.param = param
-
-    parameters = [
-        (512, MASKABLE_IMAGE_SPECS[0], MASKABLE_IMAGE_SPECS[0])
-    ]
-
-    for patch_size, img_coll_pars, specs in parameters:
-        for img_coll in image_collection(Request(img_coll_pars)):
-            test_unique_sampling_PatchSampler(patch_size, img_coll, specs)
