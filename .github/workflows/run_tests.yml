@@ -17,7 +17,7 @@ jobs:
           pip install torch==1.13.1+cpu torchvision==0.14.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
           pip install tqdm==4.66.1
           pip install tifffile==2023.9.26
-          pip install -r requirements.txt
+          pip install .
 
       - name: Test with pytest
         run: |
