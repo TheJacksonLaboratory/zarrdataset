@@ -5,7 +5,7 @@ from pathlib import Path
 import operator
 
 from skimage import transform
-from sample_images_generator import IMAGE_SPECS, MASKABLE_IMAGE_SPECS
+from tests.utils import IMAGE_SPECS, MASKABLE_IMAGE_SPECS
 
 import zarrdataset as zds
 import math
