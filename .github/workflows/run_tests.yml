@@ -22,4 +22,8 @@ jobs:
       - name: Test with pytest
         run: |
           pip install pytest pytest-cov
+          # When using pytest and pytorch at the same time, an error of multiple copied of OpenMP runtime library will rise.
+          # This is a well known issue and is the reason of why pytorch uses unitest for testing and not pytest.
+          # This is a non-recomended, non-supported, and therefore non-elegant solution for that problem, but at least let run the test suite.
+          export KMP_DUPLICATE_LIB_OK=TRUE
           pytest tests --cov=zarrdataset
