@@ -27,3 +27,4 @@ jobs:
           # This is a non-recomended, non-supported, and therefore non-elegant solution for that problem, but at least let run the test suite.
           export KMP_DUPLICATE_LIB_OK=TRUE
           pytest tests --cov=zarrdataset
+          coverage report -m
