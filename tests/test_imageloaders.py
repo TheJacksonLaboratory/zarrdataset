@@ -10,7 +10,7 @@ import random
 from pathlib import Path
 import zarr
 import numpy as np
-from sample_images_generator import IMAGE_SPECS, UNSUPPORTED_IMAGE_SPECS
+from tests.utils import IMAGE_SPECS, UNSUPPORTED_IMAGE_SPECS
 
 
 @pytest.fixture

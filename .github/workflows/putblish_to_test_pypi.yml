@@ -2,7 +2,7 @@ name: Release to Test PyPI
 
 on:
   release:
-    types: [prereleased]
+    types: [ released, prereleased ]
 
 jobs:
   release:

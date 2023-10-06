@@ -13,7 +13,7 @@ import importlib
 import tqdm
 import numpy as np
 
-from sample_images_generator import IMAGE_SPECS
+from tests.utils import IMAGE_SPECS
 
 import torch
 from torch.utils.data import DataLoader, ChainDataset
@@ -118,38 +118,6 @@ def image_dataset_specs(request):
 def patch_sampler_specs(request):
     patch_sampler = zds.PatchSampler(patch_size=request.param)
     return patch_sampler, request.param
-
-
-def test_compatibility_no_pytroch():
-    with mock.patch.dict('sys.modules', {'torch': None}):
-        importlib.reload(zds._zarrdataset)
-
-        dataset = zds._zarrdataset.ZarrDataset()
-
-        assert isinstance(object, type(dataset).__bases__), \
-            (f"When pytorch is not installed, ZarrDataset should be inherited"
-             f" from object, not {type(dataset).__bases__}")
-
-        try:
-            zds._zarrdataset.zarrdataset_worker_init_fn(None)
-
-        except Exception as e:
-            raise AssertionError(f"No exceptions where expected when using "
-                                 f"`zarrdataset_worker_init_fn` without "
-                                 f"pytorch installed, got {e} instead.")
-
-        try:
-            zds._zarrdataset.chained_zarrdataset_worker_init_fn(None)
-
-        except Exception as e:
-            raise AssertionError(f"No exceptions where expected when using "
-                                 f"`chained_zarrdataset_worker_init_fn` "
-                                 f"without pytorch installed, got {e} "
-                                 f"instead.")
-
-    with mock.patch.dict('sys.modules', {'torch': torch}):
-        importlib.reload(zds._zarrdataset)
-        importlib.reload(zds)
 
 
 @pytest.mark.parametrize("image_dataset_specs", [
@@ -289,7 +257,10 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
         array_idx += 1
         label_idx += 1
 
+    n_samples = 0
+
     for sample in ds:
+        n_samples += 1
         if (any(["labels" in mode["modality"] for mode in dataset_specs])
           or return_positions
           or return_worker_id):
@@ -327,13 +298,15 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
                 (f"Labels expected to have shape {expected_labels_shape}, got "
                 f"{labels_array.shape} instead")
 
+    assert n_samples > 0, ("Expected more than zero samples extracted from "
+                           "this experiment.")
+
 
 @pytest.mark.parametrize(
     "image_dataset_specs, patch_sampler_specs, shuffle, draw_same_chunk", [
         (IMAGE_SPECS[10], 32, True, False),
         (IMAGE_SPECS[10], 32, True, True),
         (IMAGE_SPECS[10], 32, False, True),
-        (IMAGE_SPECS[10], 1024, True, True),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
@@ -353,7 +326,10 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
     array_idx = 0
     label_idx = 1
 
+    n_samples = 0
+
     for sample in ds:
+        n_samples += 1
         assert isinstance(sample, tuple), \
             (f"When `return_positions`, `return_worker_id` or a labels dataset"
              f" specification is passed to ZarrDataset, retrieved samples "
@@ -386,9 +362,14 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         assert labels_array.shape == expected_labels_shape, \
             (f"Labels expected to have shape {expected_labels_shape}, got "
              f"{labels_array.shape} instead")
+
+    assert n_samples > 0, ("Expected more than zero samples extracted from "
+                           "this experiment.")
 
     # Second iteration
+    n_samples = 0
     for sample in ds:
+        n_samples += 1
         assert isinstance(sample, tuple), \
             (f"When `return_positions`, `return_worker_id` or a labels dataset"
              f" specification is passed to ZarrDataset, retrieved samples "
@@ -421,6 +402,32 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         assert labels_array.shape == expected_labels_shape, \
             (f"Labels expected to have shape {expected_labels_shape}, got "
              f"{labels_array.shape} instead")
+
+    assert n_samples > 0, ("Expected more than zero samples extracted from "
+                           "this experiment.")
+
+
+@pytest.mark.parametrize(
+    "image_dataset_specs, patch_sampler_specs", [
+        (IMAGE_SPECS[10], 1024),
+    ],
+    indirect=["image_dataset_specs", "patch_sampler_specs"]
+)
+def test_greater_patch_ZarrDataset(image_dataset_specs, patch_sampler_specs):
+    dataset_specs, specs = image_dataset_specs
+    patch_sampler, patch_size = patch_sampler_specs
+
+    ds = zds.ZarrDataset(
+        dataset_specs=dataset_specs,
+        patch_sampler=patch_sampler,
+    )
+
+    n_samples = 0
+    for _ in ds:
+        n_samples += 1
+
+    assert n_samples == 0, ("Expected zero samples since requested patch size"
+                            f" is greater than the image size.")
 
 
 @pytest.mark.parametrize(
@@ -459,7 +466,10 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
     array_idx = 0
     label_idx = 1
 
+    n_samples = 0
+
     for sample in dl:
+        n_samples += 1
         assert isinstance(sample, list), \
             (f"When a labels dataset specification is passed to ZarrDataset "
              f"and used with PyTorch DataLoader, samples should be a list, got"
@@ -496,6 +506,9 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
                        expected_labels_shape)), \
             (f"Labels expected to have shape {expected_labels_shape}, got "
              f"{labels_array.shape} instead")
+
+    assert n_samples > 0, ("Expected more than zero samples extracted from "
+                           "this experiment.")
 
 
 @pytest.mark.parametrize(
@@ -536,7 +549,10 @@ def test_multithread_chained_ZarrDataset(image_dataset_specs,
     array_idx = 0
     label_idx = 1
 
+    n_samples = 0
+
     for sample in dl:
+        n_samples += 1
         assert isinstance(sample, list), \
             (f"When a labels dataset specification is passed to ZarrDataset "
              f"and used with PyTorch DataLoader, samples should be a list, got"
@@ -574,19 +590,36 @@ def test_multithread_chained_ZarrDataset(image_dataset_specs,
             (f"Labels expected to have shape {expected_labels_shape}, got "
              f"{labels_array.shape} instead")
 
-
-if __name__ == "__main__":
-    class Request():
-        def __init__(self, param):
-            self.param = param
-
-    parameters =[
-        (IMAGE_SPECS[10], 1024, True, True),
-    ]
+    assert n_samples > 0, ("Expected more than zero samples extracted from "
+                           "this experiment.")
 
 
-    for data_specs, patch_size, shuffle, draw_same_chunk in parameters:
-        for dataset_specs in image_dataset_specs(Request(data_specs)):
-            test_patched_ZarrDataset(dataset_specs, patch_sampler_specs(Request(patch_size)),
-                                     shuffle,
-                                     draw_same_chunk)
+def test_compatibility_no_pytroch():
+    with mock.patch.dict('sys.modules', {'torch': None}):
+        importlib.reload(zds._zarrdataset)
+
+        dataset = zds._zarrdataset.ZarrDataset()
+
+        assert isinstance(object, type(dataset).__bases__), \
+            (f"When pytorch is not installed, ZarrDataset should be inherited"
+             f" from object, not {type(dataset).__bases__}")
+
+        try:
+            zds._zarrdataset.zarrdataset_worker_init_fn(None)
+
+        except Exception as e:
+            raise AssertionError(f"No exceptions where expected when using "
+                                 f"`zarrdataset_worker_init_fn` without "
+                                 f"pytorch installed, got {e} instead.")
+
+        try:
+            zds._zarrdataset.chained_zarrdataset_worker_init_fn(None)
+
+        except Exception as e:
+            raise AssertionError(f"No exceptions where expected when using "
+                                 f"`chained_zarrdataset_worker_init_fn` "
+                                 f"without pytorch installed, got {e} "
+                                 f"instead.")
+    with mock.patch.dict('sys.modules', {'torch': torch}):
+        importlib.reload(zds._zarrdataset)
+        importlib.reload(zds)
