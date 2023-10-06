@@ -51,9 +51,6 @@ except ModuleNotFoundError:
 def zarrdataset_worker_init_fn(worker_id):
     """ZarrDataset multithread workers initialization function.
     """
-    if not PYTORCH_SUPPORT:
-        return
-
     worker_info = torch.utils.data.get_worker_info()
     w_sel = slice(worker_id, None, worker_info.num_workers)
 
@@ -72,9 +69,6 @@ def chained_zarrdataset_worker_init_fn(worker_id):
     """ZarrDataset multithread workers initialization function for PyTorch's
     ChainedDatasets.
     """
-    if not PYTORCH_SUPPORT:
-        return
-
     worker_info = torch.utils.data.get_worker_info()
     dataset_obj = worker_info.dataset
 

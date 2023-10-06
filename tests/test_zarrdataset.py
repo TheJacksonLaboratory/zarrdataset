@@ -107,7 +107,7 @@ def image_dataset_specs(request):
     if len(dataset_specs) == 1:
         dataset_specs = dataset_specs[0]
 
-    yield dataset_specs, specs[0]
+    yield dataset_specs, specs
 
     for dst_dir in dst_dirs:
         if dst_dir is not None and os.path.isdir(dst_dir):
@@ -248,6 +248,7 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
 
     array_idx = 0
     label_idx = 1
+    im_id = 0
 
     if return_positions:
         array_idx += 1
@@ -282,13 +283,13 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
             (f"Sample data type should be numpy.float64, got "
              f"{sample_array.dtype} instead.")
 
-        assert sample_array.shape == tuple(specs["shape"]), \
-            (f"Sample expected to have shape {tuple(specs['shape'])}, got "
-            f"{sample_array.shape} instead")
+        assert sample_array.shape == tuple(specs[im_id]["shape"]), \
+            (f"Sample expected to have shape {tuple(specs[im_id]['shape'])}, "
+             f"got {sample_array.shape} instead.")
 
         if "labels" in dataset_specs:
             expected_labels_shape = tuple(
-                specs["shape"][specs["source_axes"].index(ax)]
+                specs[im_id]["shape"][specs[im_id]["source_axes"].index(ax)]
                 for ax in "YX"
             )
 
@@ -325,6 +326,7 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
 
     array_idx = 0
     label_idx = 1
+    im_id = 0
 
     n_samples = 0
 
@@ -343,15 +345,16 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         labels_array = sample[label_idx]
 
         expected_shape = tuple(
-            min(patch_size, specs["shape"][specs["source_axes"].index(ax)])
+            min(patch_size,
+                specs[im_id]["shape"][specs[im_id]["source_axes"].index(ax)])
             if ax in patch_sampler.spatial_axes else
-            specs["shape"][specs["source_axes"].index(ax)]
-            for ax in specs["source_axes"]
+            specs[im_id]["shape"][specs[im_id]["source_axes"].index(ax)]
+            for ax in specs[im_id]["source_axes"]
         )
 
         expected_labels_shape = tuple(
             patch_size if ax in patch_sampler.spatial_axes else
-            specs["shape"]["YX".index(ax)]
+            specs[im_id]["shape"]["YX".index(ax)]
             for ax in "YX"
         )
 
@@ -383,15 +386,16 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         labels_array = sample[label_idx]
 
         expected_shape = tuple(
-            min(patch_size, specs["shape"][specs["source_axes"].index(ax)])
+            min(patch_size,
+                specs[im_id]["shape"][specs[im_id]["source_axes"].index(ax)])
             if ax in patch_sampler.spatial_axes else
-            specs["shape"][specs["source_axes"].index(ax)]
-            for ax in specs["source_axes"]
+            specs[im_id]["shape"][specs[im_id]["source_axes"].index(ax)]
+            for ax in specs[im_id]["source_axes"]
         )
 
         expected_labels_shape = tuple(
             patch_size if ax in patch_sampler.spatial_axes else
-            specs["shape"]["YX".index(ax)]
+            specs[im_id]["shape"]["YX".index(ax)]
             for ax in "YX"
         )
 
@@ -452,7 +456,8 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         dataset_specs=dataset_specs,
         shuffle=shuffle,
         patch_sampler=patch_sampler,
-        draw_same_chunk=draw_same_chunk
+        draw_same_chunk=draw_same_chunk,
+        return_worker_id=True,
     )
 
     dl = DataLoader(
@@ -463,12 +468,18 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         drop_last=True
     )
 
-    array_idx = 0
-    label_idx = 1
+    array_idx = 1
+    label_idx = 2
+    im_id = 0
 
     n_samples = 0
 
+    used_wokers = set()
+
     for sample in dl:
+        curr_w_id = sample[0][0].item()
+        used_wokers = used_wokers.union({curr_w_id})
+
         n_samples += 1
         assert isinstance(sample, list), \
             (f"When a labels dataset specification is passed to ZarrDataset "
@@ -483,15 +494,17 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         labels_array = sample[label_idx]
 
         expected_shape = [batch_size] + [
-            min(patch_size, specs["shape"][specs["source_axes"].index(ax)])
+            min(patch_size,
+                specs[im_id]["shape"][specs[im_id]["source_axes"].index(ax)]
+            )
             if ax in patch_sampler.spatial_axes else
-            specs["shape"][specs["source_axes"].index(ax)]
-            for ax in specs["source_axes"]
+            specs[im_id]["shape"][specs[im_id]["source_axes"].index(ax)]
+            for ax in specs[im_id]["source_axes"]
         ]
 
         expected_labels_shape = [batch_size] + [
             patch_size if ax in patch_sampler.spatial_axes else
-            specs["shape"]["YX".index(ax)]
+            specs[im_id]["shape"]["YX".index(ax)]
             for ax in "YX"
         ]
 
@@ -509,6 +522,10 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
 
     assert n_samples > 0, ("Expected more than zero samples extracted from "
                            "this experiment.")
+
+    assert len(used_wokers) == num_workers, \
+        (f"Expected {num_workers} to be used to load the dataset, but only "
+         f"{len(used_wokers)} ({used_wokers}) were used.")
 
 
 @pytest.mark.parametrize(
@@ -521,19 +538,20 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
 def test_multithread_chained_ZarrDataset(image_dataset_specs,
-                                          patch_sampler_specs,
-                                          shuffle,
-                                          draw_same_chunk,
-                                          batch_size,
-                                          num_workers,
-                                          repeat_dataset):
+                                         patch_sampler_specs,
+                                         shuffle,
+                                         draw_same_chunk,
+                                         batch_size,
+                                         num_workers,
+                                         repeat_dataset):
     dataset_specs, specs = image_dataset_specs
     patch_sampler, patch_size = patch_sampler_specs
 
     ds = [zds.ZarrDataset(dataset_specs=dataset_specs,
                           shuffle=shuffle,
                           patch_sampler=patch_sampler,
-                          draw_same_chunk=draw_same_chunk
+                          draw_same_chunk=draw_same_chunk,
+                          return_worker_id=True,
         )] * repeat_dataset
 
     chained_ds = ChainDataset(ds)
@@ -546,35 +564,42 @@ def test_multithread_chained_ZarrDataset(image_dataset_specs,
         drop_last=True
     )
 
-    array_idx = 0
-    label_idx = 1
+    array_idx = 1
+    label_idx = 2
+    im_id = 0
 
     n_samples = 0
 
+    used_wokers = set()
+
     for sample in dl:
+        curr_w_id = sample[0][0].item()
+        used_wokers = used_wokers.union({curr_w_id})
+
         n_samples += 1
         assert isinstance(sample, list), \
             (f"When a labels dataset specification is passed to ZarrDataset "
              f"and used with PyTorch DataLoader, samples should be a list, got"
              f" {type(sample)} instead.")
 
-        assert isinstance(sample[0], torch.Tensor), \
-            (f"Sample should be a PyTorch Tensor, got {type(sample[0])} "
-             f"instead.")
+        assert isinstance(sample[array_idx], torch.Tensor), \
+            (f"Sample should be a PyTorch Tensor, got "
+             f"{type(sample[array_idx])} instead.")
 
         sample_array = sample[array_idx]
         labels_array = sample[label_idx]
 
         expected_shape = [batch_size] + [
-            min(patch_size, specs["shape"][specs["source_axes"].index(ax)])
+            min(patch_size,
+                specs[im_id]["shape"][specs[im_id]["source_axes"].index(ax)])
             if ax in patch_sampler.spatial_axes else
-            specs["shape"][specs["source_axes"].index(ax)]
-            for ax in specs["source_axes"]
+            specs[im_id]["shape"][specs[im_id]["source_axes"].index(ax)]
+            for ax in specs[im_id]["source_axes"]
         ]
 
         expected_labels_shape = [batch_size] + [
             patch_size if ax in patch_sampler.spatial_axes else
-            specs["shape"]["YX".index(ax)]
+            specs[im_id]["shape"]["YX".index(ax)]
             for ax in "YX"
         ]
 
@@ -593,6 +618,10 @@ def test_multithread_chained_ZarrDataset(image_dataset_specs,
     assert n_samples > 0, ("Expected more than zero samples extracted from "
                            "this experiment.")
 
+    assert len(used_wokers) == min(num_workers, repeat_dataset), \
+        (f"Expected {min(num_workers, repeat_dataset)} to be used to load the "
+         f"dataset, but only {len(used_wokers)} ({used_wokers}) were used.")
+
 
 def test_compatibility_no_pytroch():
     with mock.patch.dict('sys.modules', {'torch': None}):
@@ -604,22 +633,8 @@ def test_compatibility_no_pytroch():
             (f"When pytorch is not installed, ZarrDataset should be inherited"
              f" from object, not {type(dataset).__bases__}")
 
-        try:
-            zds._zarrdataset.zarrdataset_worker_init_fn(None)
-
-        except Exception as e:
-            raise AssertionError(f"No exceptions where expected when using "
-                                 f"`zarrdataset_worker_init_fn` without "
-                                 f"pytorch installed, got {e} instead.")
-
-        try:
-            zds._zarrdataset.chained_zarrdataset_worker_init_fn(None)
-
-        except Exception as e:
-            raise AssertionError(f"No exceptions where expected when using "
-                                 f"`chained_zarrdataset_worker_init_fn` "
-                                 f"without pytorch installed, got {e} "
-                                 f"instead.")
+    # Reload torch module after testing the compatibility of ZarrDataset when
+    # pytorch is not found in the environment.
     with mock.patch.dict('sys.modules', {'torch': torch}):
         importlib.reload(zds._zarrdataset)
         importlib.reload(zds)
