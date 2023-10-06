@@ -438,7 +438,8 @@ def test_greater_patch_ZarrDataset(image_dataset_specs, patch_sampler_specs):
     "image_dataset_specs, patch_sampler_specs, shuffle, draw_same_chunk,"
     "batch_size, num_workers", [
         (IMAGE_SPECS[10], 32, True, False, 2, 2),
-        ([IMAGE_SPECS[10]] * 4, 32, True, True, 2, 3),
+        ([IMAGE_SPECS[10]], 32, True, True, 2, 1),
+        ([IMAGE_SPECS[10]] * 3, 32, True, True, 2, 2),
         ([IMAGE_SPECS[10]] * 2, 32, True, True, 2, 3),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
