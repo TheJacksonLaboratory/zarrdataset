@@ -6,6 +6,7 @@ from functools import reduce
 import operator
 
 import poisson_disc
+from skimage import measure
 
 from ._imageloaders import ImageCollection, ImageBase
 
@@ -35,10 +36,14 @@ class PatchSampler(object):
         covered by the mask.
     spatial_axes : str
         The spatial axes from where patches can be extracted.
+    pad_if_needed: bool
+        If True, will pad the image with 0's for these patches outside the
+        image.
     """
     def __init__(self, patch_size: Union[int, Iterable[int], dict],
                  min_area: Union[int, float] = 1,
-                 spatial_axes: str ="ZYX"):
+                 spatial_axes: str ="ZYX",
+                 pad_if_needed: bool = False):
         # The maximum chunk sizes are used to generate a reference sampling
         # position array used fo every sampled chunk.
         self._max_chunk_size = dict((ax, 0) for ax in spatial_axes)
@@ -70,6 +75,8 @@ class PatchSampler(object):
         )
 
         self._min_area = min_area
+
+        self._pad_if_needed = pad_if_needed
 
     def _compute_corners(self, non_zero_pos: tuple, axes: str) -> np.ndarray:
         toplefts = np.stack(non_zero_pos).T
@@ -138,11 +145,11 @@ class PatchSampler(object):
             shape = mask_relative_shape
 
             mask_is_greater = False
-            
+
             patch_ratio = [
-                    image_size[ax] // ps
-                    for ax, ps in zip(mask_axes, patch_shape.astype(np.int64))
-                    if ax in self.spatial_axes
+                max(1 if self._pad_if_needed else 0, image_size[ax] // ps)
+                for ax, ps in zip(mask_axes, patch_shape.astype(np.int64))
+                if ax in self.spatial_axes
             ]
 
             if not all(patch_ratio):
@@ -153,7 +160,8 @@ class PatchSampler(object):
 
         else:
             active_coordinates = np.meshgrid(
-                *[np.arange(image_size[ax] // ps)
+                *[np.arange(max(1 if self._pad_if_needed else 0,
+                                image_size[ax] // ps))
                   for ax, ps in zip(mask_axes, patch_shape)
                   if ax in self.spatial_axes]
             )
@@ -247,7 +255,7 @@ class PatchSampler(object):
                     br = ((chunk_tlbr[ax].start
                            if chunk_tlbr[ax].start is not None else 0)
                           + tls[mask.axes.index(ax)] + patch_size[ax])
-                    if br <= image_shape[ax]:
+                    if self._pad_if_needed or br <= image_shape[ax]:
                         curr_tl.append((ax, slice(tl, br)))
                     else:
                         break
@@ -293,11 +301,13 @@ class PatchSampler(object):
         image_shape = dict(map(tuple, zip(image.axes, image.shape)))
 
         self._max_chunk_size = dict(
-            (ax, (min(max(self._max_chunk_size[ax],
-                          spatial_chunk_sizes[ax],
-                          self._patch_size[ax]),
-                      image_shape[ax]))
-                 if ax in image.axes else 1)
+            (ax,
+             min(
+                 max(self._max_chunk_size[ax], spatial_chunk_sizes[ax],
+                     self._patch_size[ax]),
+                 float('inf') if self._pad_if_needed else image_shape[ax]
+             ) if ax in image.axes else 1
+            )
             for ax in self.spatial_axes
         )
 
@@ -308,15 +318,15 @@ class PatchSampler(object):
         chunk_mask = mask[chunk_tlbr]
 
         valid_mask_toplefts = self._compute_grid(
-            chunk_mask,
-            mask.axes,
-            mask.scale,
-            self._max_chunk_size,
-            image_shape
+            chunk_mask=chunk_mask,
+            mask_axes=mask.axes,
+            mask_scale=mask.scale,
+            patch_size=self._max_chunk_size,
+            image_size=image_shape
         )
 
         chunks_slices = self._compute_toplefts_slices(
-            mask,
+            mask=mask,
             image_shape=image_shape,
             patch_size=self._max_chunk_size,
             valid_mask_toplefts=valid_mask_toplefts,
@@ -329,7 +339,15 @@ class PatchSampler(object):
                         chunk_tlbr: dict) -> Iterable[dict]:
         image = image_collection.collection[image_collection.reference_mode]
         mask = image_collection.collection[image_collection.mask_mode]
-        image_shape = dict(map(tuple, zip(image.axes, image.shape)))
+
+        image_shape = dict(
+            map(lambda ax, s:
+                (ax, float('inf') if self._pad_if_needed else s),
+                image.axes,
+                image.shape
+            )
+        )
+
         chunk_size = dict(
             (ax,
              (ctb.stop if ctb.stop is not None else image_shape[ax])
@@ -341,15 +359,15 @@ class PatchSampler(object):
         chunk_mask = mask[chunk_tlbr]
 
         valid_mask_toplefts = self._compute_valid_toplefts(
-            chunk_mask,
-            mask.axes,
-            mask.scale,
-            self._patch_size,
-            chunk_size
+            chunk_mask=chunk_mask,
+            mask_axes=mask.axes,
+            mask_scale=mask.scale,
+            patch_size=self._patch_size,
+            image_size=chunk_size
         )
 
         patches_slices = self._compute_toplefts_slices(
-            mask,
+            mask=mask,
             image_shape=image_shape,
             patch_size=self._patch_size,
             valid_mask_toplefts=valid_mask_toplefts,
@@ -383,7 +401,7 @@ class BlueNoisePatchSampler(PatchSampler):
                  resample_positions=False,
                  allow_overlap=False,
                  **kwargs):
-        super(BlueNoisePatchSampler, self).__init__(patch_size)
+        super(BlueNoisePatchSampler, self).__init__(patch_size, **kwargs)
         self._base_chunk_tls = None
         self._resample_positions = resample_positions
         self._allow_overlap = allow_overlap
@@ -430,7 +448,7 @@ class BlueNoisePatchSampler(PatchSampler):
                                 mask_axes: str,
                                 mask_scale: dict,
                                 patch_size: dict,
-                                image_shape: dict):
+                                image_size: dict):
         self.compute_sampling_positions(force=self._resample_positions)
 
         # Filter sampling positions that does not contain any mask portion.
@@ -464,5 +482,44 @@ class BlueNoisePatchSampler(PatchSampler):
         )
 
         toplefts = sampling_pos[mask_samplable_pos]
+
+        return toplefts
+
+
+class CenteredPatchSampler(PatchSampler):
+    """Patch sampler that retrieves patches centered at connected components
+    computed from the mask image.
+    This method requires that the mask image has been labeled and only one
+    center pixel is labeled per object. That prevents from trying to retrieve
+    partial objects.
+
+    Parameters
+    ----------
+    patch_size : int, iterable, dict
+        Size in pixels of the patches extracted. Only squared patches are
+        supported by now.
+    """
+    def __init__(self, patch_size: Union[int, Iterable[int], dict],
+                 **kwargs):
+        super(CenteredPatchSampler, self).__init__(patch_size, **kwargs)
+ 
+    def _compute_valid_toplefts(self,
+                                chunk_mask: np.ndarray,
+                                mask_axes: str,
+                                mask_scale: dict,
+                                patch_size: dict,
+                                image_size: dict):
+
+        centroids = np.nonzero(chunk_mask)
+
+        toplefts = np.vstack(
+            tuple(
+                np.round(
+                    centroids[mask_axes.index(ax)] * mask_scale[ax]
+                ).astype(np.int64)
+                - patch_size[ax] // 2
+                for ax in mask_axes
+            )
+        ).T
 
         return toplefts

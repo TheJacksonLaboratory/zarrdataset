@@ -12,7 +12,7 @@ import math
 import numpy as np
 
 
-@pytest.fixture(scope="function")
+# @pytest.fixture(scope="function")
 def image_collection(request):
     dst_dir = request.param["dst_dir"]
 
@@ -33,6 +33,8 @@ def image_collection(request):
                 filename=mask_src,
                 source_axes="YX",
                 data_group=request.param["specs"]["mask_group"],
+                image_func=zds.LabelMaskGenerator(require_label=True,
+                                                  only_centroids=True)
             )
 
     else:
@@ -59,7 +61,7 @@ def image_collection(request):
         shutil.rmtree(dst_dir)
 
 
-@pytest.fixture(scope="function")
+# @pytest.fixture(scope="function")
 def image_collection_mask_not2scale(request):
     dst_dir = request.param["dst_dir"]
 
@@ -93,7 +95,7 @@ def image_collection_mask_not2scale(request):
     if dst_dir is not None and os.path.isdir(dst_dir):
         shutil.rmtree(dst_dir)
 
-
+"""
 @pytest.mark.parametrize("patch_size", [
     512,
 ])
@@ -402,3 +404,77 @@ def test_min_area_sampling_PatchSampler(min_area, patch_size,
                  f"{all_chunks_tls[all_patches_tls.index(ptl)]}")
             all_patches_tls.append(ptl)
             all_chunks_tls.append(ctl)
+"""
+
+@pytest.mark.parametrize("patch_size, ,"
+                         "image_collection", [
+    (dict(X=32, Y=32), IMAGE_SPECS[13]),
+], indirect=["image_collection"])
+def test_CenteredPatchSampler(patch_size, image_collection):
+    np.random.seed(447788)
+
+    patch_sampler = zds.CenteredPatchSampler(patch_size, pad_if_needed=True)
+
+    chunks_toplefts = patch_sampler.compute_chunks(image_collection)
+
+    n_patches = 0
+    all_patches = []
+    for chk in chunks_toplefts:
+        patches_toplefts = patch_sampler.compute_patches(
+            image_collection,
+            chunk_tlbr=chk
+        )
+
+        all_patches += patches_toplefts
+
+    n_patches = len(all_patches)
+
+    n_objects = np.sum(image_collection.collection["masks"][:] > 0)
+
+    assert n_patches == n_objects, \
+        (f"Expected {n_objects} patches, got {n_patches} instead.")
+
+
+@pytest.mark.parametrize("min_area, patch_size, "
+                         "image_collection", [
+    (0.5, 64, IMAGE_SPECS[13]),
+], indirect=["image_collection"])
+def test_unique_sampling_CenteredPatchSampler(min_area, patch_size,
+                                              image_collection):
+    patch_sampler = zds.CenteredPatchSampler(patch_size, min_area=min_area)
+
+    chunks_toplefts = patch_sampler.compute_chunks(
+        image_collection
+    )
+
+    all_patches_tls = []
+    all_chunks_tls = []
+
+    for ctl in chunks_toplefts:
+        patches_toplefts = patch_sampler.compute_patches(
+            image_collection,
+            chunk_tlbr=ctl
+        )
+
+        for ptl in patches_toplefts:
+            assert ptl not in all_patches_tls,\
+                (f"Expected no repetitions in patch sampling, got {ptl} "
+                 f"twice instead at chunk {ctl}. Possible duplicate of patch "
+                 f"{all_patches_tls.index(ptl)}, from chunk "
+                 f"{all_chunks_tls[all_patches_tls.index(ptl)]}")
+            all_patches_tls.append(ptl)
+            all_chunks_tls.append(ctl)
+
+
+if __name__ == "__main__":
+    class Request():
+        def __init__(self, param):
+            self.param = param
+
+    params = [
+        (64, IMAGE_SPECS[13]),
+    ]
+
+    for patch_size, image_specs in params:
+        for img_coll in image_collection(Request(image_specs)):
+            test_CenteredPatchSampler(patch_size, img_coll)

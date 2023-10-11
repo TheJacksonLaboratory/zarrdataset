@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import zarr
 from PIL import Image
+from skimage.draw import disk
 import tifffile
 
 
@@ -28,8 +29,9 @@ def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
                         mask_group="labels/masks/0/0",
                         labels_group="labels/segmentation/0/0",
                         classes_group="labels/classes/0/0",
+                        mask_objects=0,
                         **kwargs):
-
+    np.random.seed(64453)
     img_axes = "CYX"
 
     rel_axes_order = zds.map_axes_order(source_axes=source_axes,
@@ -51,9 +53,20 @@ def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
     img = img * 255
     img = img.astype(dtype)
 
-    # Generate a mask from the image
-    mask = img.mean(axis=0) < mask_threshold
-    mask = mask[::2, ::2]
+    if mask_objects:
+        # Generate a mask with fake objects
+        mask = np.zeros(shape=(img.shape[1], img.shape[2]), dtype=np.int64)
+        for l in range(1, mask_objects + 1):
+            rr, cc = disk((np.random.randint(0, img.shape[1]),
+                           np.random.randint(0, img.shape[2])),
+                           32, shape=(img.shape[1], img.shape[2]))
+
+            mask[rr, cc] = l
+
+    else:
+        # Generate a mask from the image
+        mask = img.mean(axis=0) < mask_threshold
+        mask = mask[::2, ::2]
 
     # Label the regions of `img`
     labs = np.log2(img.mean(axis=0) + 1).round().astype(np.uint32)
@@ -436,6 +449,22 @@ IMAGE_SPECS = [
             "chunks": [3648, 5472, 3],
             "source_axes": "YXC",
             "dtype": np.uint8
+        }
+    },
+    {
+        "dst_dir": None,
+        "source": generate_zarr_array,
+        "credit": None,
+        "specs": {
+            "data_group": "0",
+            "mask_group": "masks/0",
+            "labels_group": "labels/0",
+            "classes_group": "classes/0",
+            "shape": [1, 3, 1024, 512, 1],
+            "chunks": [1, 3, 256, 128, 1],
+            "source_axes": "ZCXYT",
+            "dtype": np.float32,
+            "mask_objects": 13,
         }
     },
 ]

@@ -220,6 +220,29 @@ class ImageBase(object):
                     self._cached_coords,
                     self.arr.shape))
 
+    def _apply_transform(self, array : np.ndarray):
+        # Permute the axes order to match `axes`
+        t_array = array.transpose(self.permute_order)
+
+        # Drop axes with length 1 that are not in `axes`.
+        out_shape = [
+            s
+            for s, p_a in zip(t_array.shape, self.permute_order)
+            if self.source_axes[p_a] not in self._drop_axes
+        ]
+        t_array = t_array.reshape(out_shape)
+
+        # Add axes requested in `axes` that does not exist on `source_axes`.
+        t_array = np.expand_dims(
+            t_array,
+            tuple(self.axes.index(a) for a in self._new_axes)
+        )
+
+        if self._image_func is not None:
+            t_array = self._image_func(t_array)
+
+        return t_array
+
     def _cache_chunk(self, index):
         if not self._iscached(index):
             self._cached_coords = tuple(
@@ -233,7 +256,8 @@ class ImageBase(object):
                     self.arr.chunks,
                     self.arr.shape)
             )
-            self._cache = self.arr[self._cached_coords]
+
+            self._cache = self._apply_transform(self.arr[self._cached_coords])
 
         cached_index = tuple(
             map(lambda cache, i:
@@ -279,22 +303,6 @@ class ImageBase(object):
         # Save the corresponding cache of this patch for faster access.
         cached_index = self._cache_chunk(roi_mode_index)
         selection = self._cache[cached_index]
-
-        # Permute the axes order to match `axes`
-        selection = selection.transpose(self.permute_order)
-
-        # Drop axes with length 1 that are not in `axes`.
-        out_shape = [s
-                     for s, p_a in zip(selection.shape, self.permute_order)
-                     if self.source_axes[p_a] not in self._drop_axes]
-        selection = selection.reshape(out_shape)
-
-        # Add axes requested in `axes` that does not exist on `source_axes`.
-        selection = np.expand_dims(selection, tuple(self.axes.index(a)
-                                                    for a in self._new_axes))
-
-        if self._image_func is not None:
-            selection = self._image_func(selection)
 
         return selection
 

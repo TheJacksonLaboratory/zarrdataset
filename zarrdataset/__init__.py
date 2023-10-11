@@ -1,8 +1,10 @@
 from ._samplers import (PatchSampler,
-                        BlueNoisePatchSampler)
+                        BlueNoisePatchSampler,
+                        CenteredPatchSampler)
 
 from ._maskfuncs import (MaskGenerator,
-                         WSITissueMaskGenerator)
+                         WSITissueMaskGenerator,
+                         LabelMaskGenerator)
 
 from ._imageloaders import (image2array,
                             ImageBase,
@@ -38,6 +40,7 @@ __all__ = ['DatasetSpecs',
            'chained_zarrdataset_worker_init_fn',
            'PatchSampler',
            'BlueNoisePatchSampler',
+           'CenteredPatchSampler',
            'ToDtype',
            'parse_rois',
            'parse_metadata',
@@ -52,4 +55,5 @@ __all__ = ['DatasetSpecs',
            'ImageLoader',
            'ImageCollection',
            'MaskGenerator',
-           'WSITissueMaskGenerator']
+           'WSITissueMaskGenerator',
+           'LabelMaskGenerator']
