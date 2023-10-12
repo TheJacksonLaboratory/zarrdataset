@@ -640,8 +640,6 @@ class ZarrDataset(IterableDataset):
 
             # # Initialize the count of top-left positions for patches inside
             # # this chunk.
-            # if samples[curr_chk].num_patches is None:
-
             curr_patch, is_empty = samples[curr_chk].next_patch()
 
             # When all possible patches have been extracted from the current

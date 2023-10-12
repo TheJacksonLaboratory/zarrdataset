@@ -165,6 +165,7 @@ def test_ImageBase_slicing():
 
 @pytest.mark.parametrize("axes, roi, expected_size", [
     (None, None, (16, 16, 3)),
+    (None, (slice(-1, None), slice(-2, 18), slice(None)), (17, 20, 3)),
     (None, slice(None), (16, 16, 3)),
     (None, (slice(2, None, None), slice(7, None, None), slice(1, 2, None)),
      (14, 9, 1)),
@@ -313,3 +314,11 @@ def test_compatibility_no_tifffile():
     with mock.patch.dict('sys.modules', {'tifffile': tifffile}):
         importlib.reload(zds._imageloaders)
         importlib.reload(zds)
+
+
+if __name__ == "__main__":
+    class Request():
+        def __init__(self, param):
+            self.param = param
+
+    test_ImageLoader_function(dummy_array())

@@ -260,7 +260,7 @@ class PatchSampler(object):
                     else:
                         break
                 else:
-                    curr_tl.append((ax, slice(0, 1)))
+                    curr_tl.append((ax, slice(None)))
 
             else:
                 toplefts.append(dict(curr_tl))
@@ -354,6 +354,7 @@ class PatchSampler(object):
              - (ctb.start if ctb.start is not None else 0)
             )
             for ax, ctb in chunk_tlbr.items()
+            if ax in image.axes
         )
 
         chunk_mask = mask[chunk_tlbr]

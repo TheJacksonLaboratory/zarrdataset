@@ -30,6 +30,7 @@ def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
                         labels_group="labels/segmentation/0/0",
                         classes_group="labels/classes/0/0",
                         mask_objects=0,
+                        mask_3D=False,
                         **kwargs):
     np.random.seed(64453)
     img_axes = "CYX"
@@ -77,6 +78,14 @@ def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
     img = img.transpose(permute_order)
     img = np.expand_dims(img, tuple(source_axes.index(a) for a in new_axes))
 
+    if "Z" in source_axes:
+        img = np.tile(img, tuple(
+            map(lambda r_s, s:
+                1 if s == r_s else r_s,
+                shape, img.shape
+            )
+        ))
+
     store = zarr.MemoryStore()
     main_grp = zarr.open(store)
     main_grp.create_dataset(data_group, data=img, dtype=dtype,
@@ -85,8 +94,21 @@ def generate_collection(source_axes="CYX", shape=(3, 2048, 2048),
     chunk_height = chunks[rel_axes_order[-2]]
     chunk_width = chunks[rel_axes_order[-1]]
 
+    if mask_3D and "Z" in source_axes:
+        mask = np.stack(
+            [np.zeros_like(mask)] * (shape[source_axes.index("Z")] // 2)
+            + [mask]
+            + [np.zeros_like(mask)] * (shape[source_axes.index("Z")]
+                                       - shape[source_axes.index("Z")] // 2
+                                       - 1)
+        )
+
+        mask_chunks = (1, chunk_height, chunk_width)
+    else:
+        mask_chunks = (chunk_height, chunk_width)
+
     main_grp.create_dataset(mask_group, data=mask, dtype=bool,
-                            chunks=(chunk_height, chunk_width))
+                            chunks=mask_chunks)
 
     main_grp.create_dataset(labels_group, data=labs, dtype=np.uint32,
                             chunks=(chunk_height, chunk_width))
@@ -460,11 +482,28 @@ IMAGE_SPECS = [
             "mask_group": "masks/0",
             "labels_group": "labels/0",
             "classes_group": "classes/0",
-            "shape": [1, 3, 1024, 512, 1],
-            "chunks": [1, 3, 256, 128, 1],
-            "source_axes": "ZCXYT",
+            "shape": [1, 3, 16, 1024, 512],
+            "chunks": [1, 3, 4, 256, 128],
+            "source_axes": "TCZYX",
             "dtype": np.float32,
             "mask_objects": 13,
+        }
+    },
+    {
+        "dst_dir": None,
+        "source": generate_zarr_array,
+        "credit": None,
+        "specs": {
+            "data_group": "0",
+            "mask_group": "masks/0",
+            "labels_group": "labels/0",
+            "classes_group": "classes/0",
+            "shape": [1, 3, 16, 1024, 512],
+            "chunks": [1, 3, 4, 256, 128],
+            "source_axes": "TCZYX",
+            "dtype": np.float32,
+            "mask_objects": 13,
+            "mask_3D": True,
         }
     },
 ]

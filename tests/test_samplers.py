@@ -12,7 +12,7 @@ import math
 import numpy as np
 
 
-# @pytest.fixture(scope="function")
+@pytest.fixture(scope="function")
 def image_collection(request):
     dst_dir = request.param["dst_dir"]
 
@@ -31,7 +31,54 @@ def image_collection(request):
         if mask_src is not None:
             mask_args = dict(
                 filename=mask_src,
-                source_axes="YX",
+                source_axes="YX" if mask_src.ndim == 2 else "ZYX",
+                data_group=request.param["specs"]["mask_group"],
+            )
+
+    else:
+        img_src = request.param["source"]
+
+    collection_args = dict(
+        images=dict(
+            filename=img_src,
+            source_axes=request.param["specs"]["source_axes"],
+            axes=request.param["specs"].get("axes", None),
+            data_group=request.param["specs"].get("data_group", None),
+            roi=request.param["specs"].get("roi", None),
+        ),
+    )
+
+    if mask_args is not None:
+        collection_args["masks"] = mask_args
+
+    image_collection = zds.ImageCollection(collection_args=collection_args)
+
+    yield image_collection
+
+    if dst_dir is not None and os.path.isdir(dst_dir):
+        shutil.rmtree(dst_dir)
+
+
+@pytest.fixture(scope="function")
+def image_collection_maks_object(request):
+    dst_dir = request.param["dst_dir"]
+
+    if dst_dir is not None:
+        dst_dir = Path(request.param["dst_dir"])
+        dst_dir.mkdir(parents=True, exist_ok=True)
+
+    mask_args = None
+    if not isinstance(request.param["source"], str):
+        (img_src,
+         mask_src,
+         labels_src,
+         classes_src) = request.param["source"](request.param["dst_dir"],
+                                                request.param["specs"])
+
+        if mask_src is not None:
+            mask_args = dict(
+                filename=mask_src,
+                source_axes="YX" if mask_src.ndim == 2 else "ZYX",
                 data_group=request.param["specs"]["mask_group"],
                 image_func=zds.LabelMaskGenerator(require_label=True,
                                                   only_centroids=True)
@@ -61,7 +108,7 @@ def image_collection(request):
         shutil.rmtree(dst_dir)
 
 
-# @pytest.fixture(scope="function")
+@pytest.fixture(scope="function")
 def image_collection_mask_not2scale(request):
     dst_dir = request.param["dst_dir"]
 
@@ -95,7 +142,7 @@ def image_collection_mask_not2scale(request):
     if dst_dir is not None and os.path.isdir(dst_dir):
         shutil.rmtree(dst_dir)
 
-"""
+
 @pytest.mark.parametrize("patch_size", [
     512,
 ])
@@ -169,7 +216,7 @@ def test_PatchSampler_chunk_generation(patch_size, image_collection):
 
     expected_chunks_toplefts = [
         dict(
-            [("Z", slice(0, 1, None))]
+            [("Z", slice(None))]
             + [
                (ax, slice(tl * chunk_size[ax], (tl + 1) * chunk_size[ax]))
                for ax, tl in zip("YX", tls)
@@ -184,7 +231,8 @@ def test_PatchSampler_chunk_generation(patch_size, image_collection):
 
 
 @pytest.mark.parametrize("patch_size, image_collection", [
-    (32, IMAGE_SPECS[10])
+    (32, IMAGE_SPECS[10]),
+    (1024, IMAGE_SPECS[10])
 ], indirect=["image_collection"])
 def test_PatchSampler(patch_size, image_collection):
     patch_sampler = zds.PatchSampler(patch_size)
@@ -209,7 +257,7 @@ def test_PatchSampler(patch_size, image_collection):
 
     expected_patches_toplefts = [
         dict(
-            [("Z", slice(0, 1, None))]
+            [("Z", slice(None))]
             + [
                (ax, slice(int(tl * patch_size),
                           int(math.ceil((tl + 1) * patch_size))))
@@ -404,24 +452,26 @@ def test_min_area_sampling_PatchSampler(min_area, patch_size,
                  f"{all_chunks_tls[all_patches_tls.index(ptl)]}")
             all_patches_tls.append(ptl)
             all_chunks_tls.append(ctl)
-"""
+
 
 @pytest.mark.parametrize("patch_size, ,"
-                         "image_collection", [
-    (dict(X=32, Y=32), IMAGE_SPECS[13]),
-], indirect=["image_collection"])
-def test_CenteredPatchSampler(patch_size, image_collection):
+                         "image_collection_maks_object", [
+    (dict(X=64, Y=64), IMAGE_SPECS[13]),
+], indirect=["image_collection_maks_object"])
+def test_CenteredPatchSampler(patch_size, image_collection_maks_object):
     np.random.seed(447788)
 
     patch_sampler = zds.CenteredPatchSampler(patch_size, pad_if_needed=True)
 
-    chunks_toplefts = patch_sampler.compute_chunks(image_collection)
+    chunks_toplefts = patch_sampler.compute_chunks(
+        image_collection_maks_object
+    )
 
     n_patches = 0
     all_patches = []
     for chk in chunks_toplefts:
         patches_toplefts = patch_sampler.compute_patches(
-            image_collection,
+            image_collection_maks_object,
             chunk_tlbr=chk
         )
 
@@ -429,22 +479,22 @@ def test_CenteredPatchSampler(patch_size, image_collection):
 
     n_patches = len(all_patches)
 
-    n_objects = np.sum(image_collection.collection["masks"][:] > 0)
+    n_objects = np.sum(image_collection_maks_object.collection["masks"][:] > 0)
 
     assert n_patches == n_objects, \
         (f"Expected {n_objects} patches, got {n_patches} instead.")
 
 
 @pytest.mark.parametrize("min_area, patch_size, "
-                         "image_collection", [
+                         "image_collection_maks_object", [
     (0.5, 64, IMAGE_SPECS[13]),
-], indirect=["image_collection"])
+], indirect=["image_collection_maks_object"])
 def test_unique_sampling_CenteredPatchSampler(min_area, patch_size,
-                                              image_collection):
+                                              image_collection_maks_object):
     patch_sampler = zds.CenteredPatchSampler(patch_size, min_area=min_area)
 
     chunks_toplefts = patch_sampler.compute_chunks(
-        image_collection
+        image_collection_maks_object
     )
 
     all_patches_tls = []
@@ -452,7 +502,7 @@ def test_unique_sampling_CenteredPatchSampler(min_area, patch_size,
 
     for ctl in chunks_toplefts:
         patches_toplefts = patch_sampler.compute_patches(
-            image_collection,
+            image_collection_maks_object,
             chunk_tlbr=ctl
         )
 
@@ -472,9 +522,9 @@ if __name__ == "__main__":
             self.param = param
 
     params = [
-        (64, IMAGE_SPECS[13]),
+        (32, IMAGE_SPECS[10]),
     ]
 
     for patch_size, image_specs in params:
-        for img_coll in image_collection(Request(image_specs)):
-            test_CenteredPatchSampler(patch_size, img_coll)
+        for image_coll in image_collection(Request(image_specs)):
+            test_PatchSampler(patch_size, image_coll)

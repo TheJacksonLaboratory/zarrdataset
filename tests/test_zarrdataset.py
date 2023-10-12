@@ -25,10 +25,9 @@ def input_target_dtype_fn(input, target):
 
 @pytest.fixture(scope="function")
 def image_dataset_specs(request):
-    if not isinstance(request.param, list):
-        params = [request.param]
-    else:
-        params = request.param
+    img_specs, mask_func = request.param
+    if not isinstance(img_specs, list):
+        img_specs = [img_specs]
 
     dst_dirs = []
 
@@ -42,7 +41,7 @@ def image_dataset_specs(request):
     mask_group = None
     labels_group = None
 
-    for par in params:
+    for par in img_specs:
         if isinstance(par["source"], str):
             dst_dirs.append(None)
 
@@ -83,11 +82,17 @@ def image_dataset_specs(request):
     ]
 
     if mask_filenames:
+        if mask_func is not None:
+            mask_func = mask_func(axes="YX"
+                                  if mask_filenames[0].ndim == 2
+                                  else "ZYX")
+
         dataset_specs.append(
             zds.MasksDatasetSpecs(
                 filenames=mask_filenames,
                 data_group=mask_group,
-                source_axes="YX",
+                source_axes="YX" if mask_filenames[0].ndim == 2 else "ZYX",
+                image_loader_func=mask_func,
             )
         )
 
@@ -116,12 +121,19 @@ def image_dataset_specs(request):
 
 @pytest.fixture(scope="function")
 def patch_sampler_specs(request):
-    patch_sampler = zds.PatchSampler(patch_size=request.param)
-    return patch_sampler, request.param
+    patch_sampler_cls, patch_size, pad_if_needed = request.param
+    patch_sampler = patch_sampler_cls(patch_size=patch_size,
+                                      pad_if_needed=pad_if_needed)
+    if not isinstance(patch_size, dict):
+        patch_size = dict(
+            (ax, patch_size)
+            for ax in patch_sampler.spatial_axes
+        )
+    return patch_sampler, patch_size
 
 
 @pytest.mark.parametrize("image_dataset_specs", [
-    IMAGE_SPECS[10],
+    (IMAGE_SPECS[10], None),
 ], indirect=["image_dataset_specs"])
 def test_compatibility_no_tqdm(image_dataset_specs):
     with mock.patch.dict('sys.modules', {'tqdm': None}):
@@ -201,7 +213,7 @@ def test_no_images_ZarrDataset():
 
 
 @pytest.mark.parametrize("image_dataset_specs", [
-    IMAGE_SPECS[10],
+    (IMAGE_SPECS[10], None),
 ], indirect=["image_dataset_specs"])
 def test_string_ZarrDataset(image_dataset_specs):
     dataset_specs, specs = image_dataset_specs
@@ -223,10 +235,10 @@ def test_string_ZarrDataset(image_dataset_specs):
 
 @pytest.mark.parametrize(
     "image_dataset_specs, shuffle, return_positions, return_worker_id", [
-        (IMAGE_SPECS[10], False, False, False),
-        (IMAGE_SPECS[10], True, True, True),
-        (IMAGE_SPECS[11], False, False, False),
-        (IMAGE_SPECS[11], False, False, False),
+        ((IMAGE_SPECS[10], None), False, False, False),
+        ((IMAGE_SPECS[10], None), True, True, True),
+        ((IMAGE_SPECS[11], None), False, False, False),
+        ((IMAGE_SPECS[11], None), False, False, False),
     ],
     indirect=["image_dataset_specs"]
 )
@@ -304,9 +316,33 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
 
 @pytest.mark.parametrize(
     "image_dataset_specs, patch_sampler_specs, shuffle, draw_same_chunk", [
-        (IMAGE_SPECS[10], 32, True, False),
-        (IMAGE_SPECS[10], 32, True, True),
-        (IMAGE_SPECS[10], 32, False, True),
+        ((IMAGE_SPECS[10], None),
+         (zds.PatchSampler, {"X": 32, "Y": 32}, False), True, False),
+        ((IMAGE_SPECS[10], None),
+         (zds.PatchSampler, {"X": 32, "Y": 32}, False), True, True),
+        ((IMAGE_SPECS[10], None),
+         (zds.PatchSampler, {"X": 32, "Y": 32}, False), False, True),
+        ((IMAGE_SPECS[10], None),
+         (zds.PatchSampler, {"X": 256, "Y": 256}, True), False, True),
+        ((IMAGE_SPECS[10], None),
+         (zds.PatchSampler, {"X": 512, "Y": 512}, True), False, True),
+        ((IMAGE_SPECS[10], None),
+         (zds.PatchSampler, {"X": 1024, "Y": 1024}, True), False, True),
+        ((IMAGE_SPECS[13], zds.LabelMaskGenerator),
+         (zds.CenteredPatchSampler, {"Z": 16, "X": 256, "Y": 256}, True),
+         False, True),
+        ((IMAGE_SPECS[13], zds.LabelMaskGenerator),
+         (zds.CenteredPatchSampler, {"Z": 16, "X": 256, "Y": 256}, True),
+         False, True),
+        ((IMAGE_SPECS[13], zds.LabelMaskGenerator),
+         (zds.CenteredPatchSampler, {"Z": 32, "X": 512, "Y": 512}, True),
+          False, True),
+        ((IMAGE_SPECS[14], zds.LabelMaskGenerator),
+         (zds.CenteredPatchSampler, {"Z": 16, "X": 512, "Y": 1024}, False),
+         False, True),
+        ((IMAGE_SPECS[14], zds.LabelMaskGenerator),
+         (zds.CenteredPatchSampler, {"Z": 32, "X": 1024, "Y": 1024}, True),
+         False, True),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
@@ -343,14 +379,21 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         labels_array = sample[label_idx]
 
         expected_shape = tuple(
-            min(patch_size, specs["shape"][specs["source_axes"].index(ax)])
+            (patch_size.get(ax, 1)
+             if (patch_sampler._pad_if_needed
+                 and ax in dataset_specs[1]["source_axes"])
+             else min(
+                 patch_size.get(ax, 1),
+                 specs["shape"][specs["source_axes"].index(ax)]
+                 )
+            )
             if ax in patch_sampler.spatial_axes else
             specs["shape"][specs["source_axes"].index(ax)]
             for ax in specs["source_axes"]
         )
 
         expected_labels_shape = tuple(
-            patch_size if ax in patch_sampler.spatial_axes else
+            patch_size.get(ax, 1) if ax in patch_sampler.spatial_axes else
             specs["shape"]["YX".index(ax)]
             for ax in "YX"
         )
@@ -383,14 +426,21 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         labels_array = sample[label_idx]
 
         expected_shape = tuple(
-            min(patch_size, specs["shape"][specs["source_axes"].index(ax)])
+            (patch_size.get(ax, 1)
+             if (patch_sampler._pad_if_needed
+                 and ax in dataset_specs[1]["source_axes"])
+             else min(
+                 patch_size.get(ax, 1),
+                 specs["shape"][specs["source_axes"].index(ax)]
+                 )
+            )
             if ax in patch_sampler.spatial_axes else
             specs["shape"][specs["source_axes"].index(ax)]
             for ax in specs["source_axes"]
         )
 
         expected_labels_shape = tuple(
-            patch_size if ax in patch_sampler.spatial_axes else
+            patch_size.get(ax, 1) if ax in patch_sampler.spatial_axes else
             specs["shape"]["YX".index(ax)]
             for ax in "YX"
         )
@@ -409,7 +459,7 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
 
 @pytest.mark.parametrize(
     "image_dataset_specs, patch_sampler_specs", [
-        (IMAGE_SPECS[10], 1024),
+        ((IMAGE_SPECS[10], None), (zds.PatchSampler, 1024, False)),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
@@ -433,9 +483,12 @@ def test_greater_patch_ZarrDataset(image_dataset_specs, patch_sampler_specs):
 @pytest.mark.parametrize(
     "image_dataset_specs, patch_sampler_specs, shuffle, draw_same_chunk,"
     "batch_size, num_workers", [
-        (IMAGE_SPECS[10], 32, True, False, 2, 2),
-        ([IMAGE_SPECS[10]] * 4, 32, True, True, 2, 3),
-        ([IMAGE_SPECS[10]] * 2, 32, True, True, 2, 3),
+        ((IMAGE_SPECS[10], None),
+         (zds.PatchSampler, 32, False), True, False, 2, 2),
+        (([IMAGE_SPECS[10]] * 4, None),
+         (zds.PatchSampler, 32, False), True, True, 2, 3),
+        (([IMAGE_SPECS[10]] * 2, None),
+         (zds.PatchSampler, 32, False), True, True, 2, 3),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
@@ -483,14 +536,14 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
         labels_array = sample[label_idx]
 
         expected_shape = [batch_size] + [
-            min(patch_size, specs["shape"][specs["source_axes"].index(ax)])
+            min(patch_size.get(ax, 1), specs["shape"][specs["source_axes"].index(ax)])
             if ax in patch_sampler.spatial_axes else
             specs["shape"][specs["source_axes"].index(ax)]
             for ax in specs["source_axes"]
         ]
 
         expected_labels_shape = [batch_size] + [
-            patch_size if ax in patch_sampler.spatial_axes else
+            patch_size.get(ax, 1) if ax in patch_sampler.spatial_axes else
             specs["shape"]["YX".index(ax)]
             for ax in "YX"
         ]
@@ -514,9 +567,12 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
 @pytest.mark.parametrize(
     "image_dataset_specs, patch_sampler_specs, shuffle, draw_same_chunk,"
     "batch_size, num_workers, repeat_dataset", [
-        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 1),
-        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 2),
-        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 3),
+        ((IMAGE_SPECS[10:12], None),
+         (zds.PatchSampler, 32, False), True, False, 2, 2, 1),
+        ((IMAGE_SPECS[10:12], None),
+         (zds.PatchSampler, 32, False), True, False, 2, 2, 2),
+        ((IMAGE_SPECS[10:12], None),
+         (zds.PatchSampler, 32, False), True, False, 2, 2, 3),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
@@ -566,14 +622,14 @@ def test_multithread_chained_ZarrDataset(image_dataset_specs,
         labels_array = sample[label_idx]
 
         expected_shape = [batch_size] + [
-            min(patch_size, specs["shape"][specs["source_axes"].index(ax)])
+            min(patch_size.get(ax, 1), specs["shape"][specs["source_axes"].index(ax)])
             if ax in patch_sampler.spatial_axes else
             specs["shape"][specs["source_axes"].index(ax)]
             for ax in specs["source_axes"]
         ]
 
         expected_labels_shape = [batch_size] + [
-            patch_size if ax in patch_sampler.spatial_axes else
+            patch_size.get(ax, 1) if ax in patch_sampler.spatial_axes else
             specs["shape"]["YX".index(ax)]
             for ax in "YX"
         ]
@@ -623,3 +679,17 @@ def test_compatibility_no_pytroch():
     with mock.patch.dict('sys.modules', {'torch': torch}):
         importlib.reload(zds._zarrdataset)
         importlib.reload(zds)
+
+
+if __name__ == "__main__":
+    class Request():
+        def __init__(self, param):
+            self.param = param
+
+    parameters = [
+        ((IMAGE_SPECS[13], zds.LabelMaskGenerator), (zds.CenteredPatchSampler, {"Z": 32, "X":1024, "Y":1024}, True), False, True),
+    ]
+
+    for img_specs, patch_specs, shuffle, draw_same_chunk in parameters:
+        for img_coll in image_dataset_specs(Request(img_specs)):
+            test_patched_ZarrDataset(img_coll, patch_sampler_specs(Request(patch_specs)), shuffle, draw_same_chunk)

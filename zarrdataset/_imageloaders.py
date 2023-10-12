@@ -1,4 +1,4 @@
-from typing import Union, Iterable, Callable
+from typing import Union, Iterable, Callable, Tuple
 
 import math
 import zarr
@@ -181,6 +181,7 @@ class ImageBase(object):
     mode = ""
     permute_order = None
     _store = None
+    _pre_func_axes = ""
     _new_axes = ""
     _drop_axes = ""
     _scale = None
@@ -188,7 +189,8 @@ class ImageBase(object):
     _spatial_reference_shape = None
     _spatial_reference_axes = None
     _chunk_size = None
-    _cached_coords = None
+    _cached_t_coords = {}
+    _cache = None
     _image_func = None
 
     def __init__(self, shape: Iterable[int],
@@ -200,29 +202,65 @@ class ImageBase(object):
 
         self.source_axes = source_axes
         self.axes = source_axes
+        self._pre_func_axes = source_axes
         self.permute_order = list(range(len(source_axes)))
         self.arr = zarr.ones(shape=shape, dtype=bool, chunks=chunk_size)
         self.roi = tuple([slice(None)] * len(source_axes))
         self.mode = mode
         self._chunk_size = chunk_size
 
-    def _iscached(self, coords):
-        if self._cached_coords is None:
+    def _iscached(self, coords: Iterable[slice]):
+        if not self._cached_t_coords:
             return False
         else:
-            return all(
-                map(lambda coord, cache, s:
-                    (cache.start if cache.start is not None else 0)
-                    <= (coord.start if coord.start is not None else 0)
-                    and (coord.stop if coord.stop is not None else s)
-                    <= (cache.stop if cache.stop is not None else s),
-                    coords,
-                    self._cached_coords,
-                    self.arr.shape))
+            lower_bounded = map(
+                lambda t_c, i_c:
+                (t_c.start if t_c.start is not None else 0)
+                <= (i_c.start if i_c.start is not None else 0),
+                self._cached_t_coords,
+                coords
+            )
 
-    def _apply_transform(self, array : np.ndarray):
+            upper_bounded = map(
+                lambda t_c, i_c:
+                t_c.stop is None
+                or (i_c.stop is not None and t_c.stop >= i_c.stop),
+                self._cached_t_coords,
+                coords
+            )
+
+            return all(map(lambda l, u: l and u, lower_bounded, upper_bounded))
+
+    def _apply_transform(self,
+                         coords : Iterable[slice]) -> Tuple[np.ndarray,
+                                                            Iterable[slice]]:
+        # Check if padding is needed
+        padding = tuple(
+            map(
+                lambda c, s:
+                (-c.start if c.start is not None and c.start < 0 else 0,
+                 c.stop - s if c.stop is not None and c.stop > s else 0),
+                coords,
+                self.arr.shape
+            )
+        )
+
+        valid_coords = tuple(
+            map(
+                lambda c, s:
+                slice(c.start if c.start is None or c.start >= 0 else 0,
+                      c.stop if c.stop is None or c.stop <= s else s,
+                      None),
+                coords,
+                self.arr.shape
+            )
+        )
+
+        t_array = self.arr[valid_coords]
+        t_array = np.pad(t_array, padding, mode="constant", constant_values=0)
+
         # Permute the axes order to match `axes`
-        t_array = array.transpose(self.permute_order)
+        t_array = t_array.transpose(self.permute_order)
 
         # Drop axes with length 1 that are not in `axes`.
         out_shape = [
@@ -235,41 +273,77 @@ class ImageBase(object):
         # Add axes requested in `axes` that does not exist on `source_axes`.
         t_array = np.expand_dims(
             t_array,
-            tuple(self.axes.index(a) for a in self._new_axes)
+            tuple(self._pre_func_axes.index(ax) for ax in self._new_axes)
         )
 
         if self._image_func is not None:
             t_array = self._image_func(t_array)
 
-        return t_array
+        t_coords = [
+            coords[self.source_axes.index(ax)]
+            if ax in self.source_axes else slice(None)
+            for ax in self.axes
+        ]
 
-    def _cache_chunk(self, index):
-        if not self._iscached(index):
-            self._cached_coords = tuple(
-                map(lambda i, chk, s:
-                    slice(chk * int(i.start / chk)
-                          if i.start is not None else 0,
-                          min(s, chk * int(math.ceil(i.stop / chk)))
-                          if i.stop is not None else None,
-                          None),
-                    index,
-                    self.arr.chunks,
-                    self.arr.shape)
+        return t_array, t_coords
+
+    def _cache_chunk(self, index: dict) -> Iterable[slice]:
+        # Transform the selection coordinates backwards to the original
+        # array axes coordinates system.
+        mode_index, _ = select_axes(self._pre_func_axes, index)
+        mode_scales = tuple(
+            self.scale[ax] if ax in self.scale else 1.0            
+            for ax in self._pre_func_axes
             )
-
-            self._cache = self._apply_transform(self.arr[self._cached_coords])
-
-        cached_index = tuple(
-            map(lambda cache, i:
-                slice((i.start - cache.start) if i.start is not None else 0,
-                      (i.stop - cache.start) if i.stop is not None else None,
-                      None),
-                self._cached_coords, index)
+        mode_index = scale_coords(mode_index, mode_scales)
+        mode_index = dict(
+            ((ax, sel)
+            for ax, sel in zip(self._pre_func_axes, mode_index))
         )
 
-        return cached_index
+        # Locate the mode_index within the ROI:
+        roi_mode_index = translate2roi(mode_index, self.roi, self.source_axes,
+                                       self._pre_func_axes)
 
-    def __getitem__(self, index : Union[slice, tuple, dict]) -> np.ndarray:
+        if not self._iscached(roi_mode_index):
+            (self._cache,
+             self._cached_t_coords) =\
+                self._apply_transform(roi_mode_index)
+
+        offset_starts = map(
+            lambda ax, t_c:
+            ((roi_mode_index[self.source_axes.index(ax)].start
+             - (t_c.start if t_c.start is not None else 0))
+             if roi_mode_index[self.source_axes.index(ax)].start is not None
+             else None)
+            if ax in self.source_axes else None,
+            self.axes,
+            self._cached_t_coords
+        )
+
+        offset_stops = map(
+            lambda ax, t_c:
+            ((roi_mode_index[self.source_axes.index(ax)].stop
+             - (t_c.start if t_c.start is not None else 0))
+             if roi_mode_index[self.source_axes.index(ax)].stop is not None
+             else None)
+            if ax in self.source_axes else None,
+            self.axes,
+            self._cached_t_coords
+        )
+
+        t_coords = tuple(
+            map(
+                lambda start, stop: slice(start, stop, None),
+                offset_starts,
+                offset_stops
+            )
+        )
+
+        return t_coords
+
+    def __getitem__(self,
+                    index : Union[slice, Iterable[slice], dict]) -> np.ndarray:
         if self._spatial_reference_axes is not None:
             spatial_reference_axes = self._spatial_reference_axes
         else:
@@ -286,23 +360,9 @@ class ImageBase(object):
                 for ax, sel in zip(spatial_reference_axes, index))
             )
 
-        mode_index, _ = select_axes(self.axes, index)
-        mode_scales = tuple(self.scale[ax] for ax in self.axes)
-
-        mode_index = scale_coords(mode_index, mode_scales)
-
-        mode_index = dict(
-            ((ax, sel)
-            for ax, sel in zip(self.axes, mode_index))
-        )
-
-        # Locate the mode_index within the ROI:
-        roi_mode_index = translate2roi(mode_index, self.roi, self.source_axes,
-                                       self.axes)
-
         # Save the corresponding cache of this patch for faster access.
-        cached_index = self._cache_chunk(roi_mode_index)
-        selection = self._cache[cached_index]
+        transformed_cached_index = self._cache_chunk(index)
+        selection = self._cache[transformed_cached_index]
 
         return selection
 
@@ -460,6 +520,7 @@ class ImageLoader(ImageBase):
 
         self.roi = roi_slices
         self.source_axes = source_axes
+        self._pre_func_axes = source_axes
         self.axes = source_axes
 
         if axes is not None and axes != source_axes:
@@ -485,6 +546,7 @@ class ImageLoader(ImageBase):
             self.permute_order = map_axes_order(source_axes, axes)
             self._new_axes = list(set(axes) - set(source_axes))
             self.axes = axes
+            self._pre_func_axes = axes
         else:
             self.permute_order = list(range(len(self.axes)))
 

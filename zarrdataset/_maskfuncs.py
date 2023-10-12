@@ -69,8 +69,10 @@ class WSITissueMaskGenerator(MaskGenerator):
 
 class LabelMaskGenerator(MaskGenerator):
     """Label generator for masked images.
+
     This function can be used as pre-processing step to use the
-    CenteredPatchSampler method.
+    CenteredPatchSampler method and will retrieve only the object centroids by
+    default, unless `only_centroids` is set to False.
 
     Parameters
     ----------
@@ -86,7 +88,7 @@ class LabelMaskGenerator(MaskGenerator):
         generates.
     """
     def __init__(self, require_label: bool = True,
-                 only_centroids: bool = False,
+                 only_centroids: bool = True,
                  axes : str = "YX"):
         super(LabelMaskGenerator, self).__init__(axes=axes)
         self._require_label = require_label
