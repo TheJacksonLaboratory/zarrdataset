@@ -189,7 +189,8 @@ class ImageBase(object):
     _spatial_reference_shape = None
     _spatial_reference_axes = None
     _chunk_size = None
-    _cached_t_coords = {}
+    _cached_coords = None
+    _cached_t_coords = None
     _cache = None
     _image_func = None
 
@@ -210,14 +211,14 @@ class ImageBase(object):
         self._chunk_size = chunk_size
 
     def _iscached(self, coords: Iterable[slice]):
-        if not self._cached_t_coords:
+        if not self._cached_coords:
             return False
         else:
             lower_bounded = map(
                 lambda t_c, i_c:
                 (t_c.start if t_c.start is not None else 0)
                 <= (i_c.start if i_c.start is not None else 0),
-                self._cached_t_coords,
+                self._cached_coords,
                 coords
             )
 
@@ -225,7 +226,7 @@ class ImageBase(object):
                 lambda t_c, i_c:
                 t_c.stop is None
                 or (i_c.stop is not None and t_c.stop >= i_c.stop),
-                self._cached_t_coords,
+                self._cached_coords,
                 coords
             )
 
@@ -233,31 +234,49 @@ class ImageBase(object):
 
     def _apply_transform(self,
                          coords : Iterable[slice]) -> Tuple[np.ndarray,
+                                                            Iterable[slice],
                                                             Iterable[slice]]:
         # Check if padding is needed
         padding = tuple(
             map(
                 lambda c, s:
                 (-c.start if c.start is not None and c.start < 0 else 0,
-                 c.stop - s if c.stop is not None and c.stop > s else 0),
+                 (c.stop - s) if c.stop is not None and c.stop > s else 0),
                 coords,
                 self.arr.shape
             )
         )
 
+        valid_coords_starts = map(
+            lambda c, cs:
+            (0 if c.start is None else max(0, c.start)) // cs * cs,
+            coords,
+            self.arr.chunks
+        )
+
+        valid_coords_stops = map(
+            lambda c, s, cs:
+            int(math.ceil((s if c.stop is None else min(s, c.stop)) / cs))
+            * cs,
+            coords,
+            self.arr.shape,
+            self.arr.chunks
+        )
+
         valid_coords = tuple(
-            map(
-                lambda c, s:
-                slice(c.start if c.start is None or c.start >= 0 else 0,
-                      c.stop if c.stop is None or c.stop <= s else s,
-                      None),
-                coords,
-                self.arr.shape
-            )
+            map(slice, valid_coords_starts, valid_coords_stops)
         )
 
         t_array = self.arr[valid_coords]
         t_array = np.pad(t_array, padding, mode="constant", constant_values=0)
+
+        cached_coords = tuple(
+            map(lambda v, p:
+                slice(v.start - p[0], v.stop + p[1]),
+                valid_coords,
+                padding
+            )
+        )
 
         # Permute the axes order to match `axes`
         t_array = t_array.transpose(self.permute_order)
@@ -279,13 +298,22 @@ class ImageBase(object):
         if self._image_func is not None:
             t_array = self._image_func(t_array)
 
+        t_coords = {ax: c for ax, c in zip(self.source_axes, cached_coords)}
+        coords = {ax: c for ax, c in zip(self.source_axes, coords)}
+
         t_coords = [
-            coords[self.source_axes.index(ax)]
-            if ax in self.source_axes else slice(None)
-            for ax in self.axes
+            t_coords[ax]
+            if (coords[ax].start is not None and coords[ax].stop is not None)
+            else slice(
+                0 if coords[ax].start is None else coords[ax].start,
+                s if coords[ax].stop is None else coords[ax].stop,
+                None
+            )
+            if ax in self.source_axes else slice(0, s)
+            for ax, s in zip(self.axes, self.shape)
         ]
 
-        return t_array, t_coords
+        return t_array, cached_coords, t_coords
 
     def _cache_chunk(self, index: dict) -> Iterable[slice]:
         # Transform the selection coordinates backwards to the original
@@ -307,38 +335,35 @@ class ImageBase(object):
 
         if not self._iscached(roi_mode_index):
             (self._cache,
+             self._cached_coords,
              self._cached_t_coords) =\
                 self._apply_transform(roi_mode_index)
 
         offset_starts = map(
             lambda ax, t_c:
-            ((roi_mode_index[self.source_axes.index(ax)].start
-             - (t_c.start if t_c.start is not None else 0))
-             if roi_mode_index[self.source_axes.index(ax)].start is not None
-             else None)
-            if ax in self.source_axes else None,
+            (
+                (roi_mode_index[self.source_axes.index(ax)].start
+                 - (t_c.start if t_c.start is not None else 0))
+                if roi_mode_index[self.source_axes.index(ax)].start is not None
+                else None
+            ) if ax in self.source_axes else None,
             self.axes,
             self._cached_t_coords
         )
 
         offset_stops = map(
             lambda ax, t_c:
-            ((roi_mode_index[self.source_axes.index(ax)].stop
-             - (t_c.start if t_c.start is not None else 0))
-             if roi_mode_index[self.source_axes.index(ax)].stop is not None
-             else None)
-            if ax in self.source_axes else None,
+            (
+                (roi_mode_index[self.source_axes.index(ax)].stop
+                 - (t_c.start if t_c.start is not None else 0))
+                if roi_mode_index[self.source_axes.index(ax)].stop is not None
+                else None
+            ) if ax in self.source_axes else None,
             self.axes,
             self._cached_t_coords
         )
 
-        t_coords = tuple(
-            map(
-                lambda start, stop: slice(start, stop, None),
-                offset_starts,
-                offset_stops
-            )
-        )
+        t_coords = tuple(map(slice, offset_starts, offset_stops))
 
         return t_coords
 
