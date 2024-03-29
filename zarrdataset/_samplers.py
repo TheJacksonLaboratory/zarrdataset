@@ -130,7 +130,7 @@ class PatchSampler(object):
         # with respect to the input image, use the mask coordinates as
         # reference to overlap the coordinates of the sampling patches.
         # Otherwise, use the patches coordinates instead.
-        if all(map(operator.ge, patch_shape, mask_relative_shape)):
+        if all(map(operator.gt, patch_shape, mask_relative_shape)):
             active_coordinates = np.nonzero(chunk_mask)
             ref_axes = mask_axes
 
@@ -138,9 +138,9 @@ class PatchSampler(object):
             shape = mask_relative_shape
 
             mask_is_greater = False
-            
+
             patch_ratio = [
-                    image_size[ax] // ps
+                    round(image_size[ax] / ps)
                     for ax, ps in zip(mask_axes, patch_shape.astype(np.int64))
                     if ax in self.spatial_axes
             ]
@@ -153,7 +153,7 @@ class PatchSampler(object):
 
         else:
             active_coordinates = np.meshgrid(
-                *[np.arange(image_size[ax] // ps)
+                *[np.arange(round(image_size[ax] / ps))
                   for ax, ps in zip(mask_axes, patch_shape)
                   if ax in self.spatial_axes]
             )
@@ -285,7 +285,7 @@ class PatchSampler(object):
         mask = image_collection.collection[image_collection.mask_mode]
 
         spatial_chunk_sizes = dict(
-            (ax, chk)
+            (ax, self._patch_size[ax] * round(chk / self._patch_size[ax]))
             for ax, chk in zip(image.axes, image.chunk_size)
             if ax in self.spatial_axes
         )
