@@ -285,7 +285,8 @@ class PatchSampler(object):
         mask = image_collection.collection[image_collection.mask_mode]
 
         spatial_chunk_sizes = dict(
-            (ax, self._patch_size[ax] * round(chk / self._patch_size[ax]))
+            (ax,
+             self._patch_size[ax] * max(1, round(chk / self._patch_size[ax])))
             for ax, chk in zip(image.axes, image.chunk_size)
             if ax in self.spatial_axes
         )
