@@ -250,12 +250,11 @@ class PatchSampler(object):
                     if br <= image_shape[ax]:
                         curr_tl.append((ax, slice(tl, br)))
                     else:
-                        break
+                        curr_tl.append((ax, slice(image_shape[ax]-patch_size[ax], image_shape[ax])))
                 else:
                     curr_tl.append((ax, slice(0, 1)))
 
-            else:
-                toplefts.append(dict(curr_tl))
+            toplefts.append(dict(curr_tl))
 
         return toplefts
 
