@@ -153,7 +153,7 @@ class PatchSampler(object):
 
         else:
             active_coordinates = np.meshgrid(
-                *[np.arange(image_size[ax] // ps)
+                *[np.arange(np.ceil(image_size[ax] / ps))
                   for ax, ps in zip(mask_axes, patch_shape)
                   if ax in self.spatial_axes]
             )
