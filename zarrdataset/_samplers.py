@@ -179,14 +179,14 @@ class PatchSampler(object):
 
         if mask_is_greater:
             # The mask ratio is greater than the patches size
-            mask_values = chunk_mask[tuple(corners_idx.T)].T
+            mask_values = chunk_mask[tuple(corners_idx[0].T)].T
             patches_coverage = coverage * mask_values
 
             covered_tls = corners[0, ...].astype(np.int64)
 
         else:
             # The mask ratio is less than the patches size
-            patch_coordinates = np.ravel_multi_index(tuple(corners_idx.T),
+            patch_coordinates = np.ravel_multi_index(tuple(corners_idx[0].T),
                                                      chunk_mask.shape)
             patches_coverage = np.bincount(patch_coordinates.flatten(),
                                            weights=coverage.flatten())
