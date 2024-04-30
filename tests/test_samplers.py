@@ -276,7 +276,10 @@ def test_BlueNoisePatchSampler_mask_not2scale(image_collection_mask_not2scale):
         chunk_tlbr=chunks_toplefts[0]
     )
 
-    assert len(patches_toplefts) == 0, \
+    # Samples can be retrieved from chunks that are not multiple of the patch
+    # size. The ZarrDataset class should handle these cases, either by droping
+    # these patches, or by adding padding when allowed by the user.
+    assert len(patches_toplefts) == 1, \
         (f"Expected 0 patches, got {len(patches_toplefts)} instead.")
 
 
