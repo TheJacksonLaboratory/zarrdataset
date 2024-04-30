@@ -38,10 +38,10 @@ class PatchSampler(object):
     """
     def __init__(self, patch_size: Union[int, Iterable[int], dict],
                  min_area: Union[int, float] = 1,
-                 spatial_axes: str ="ZYX"):
+                 spatial_axes: str = "ZYX"):
         # The maximum chunk sizes are used to generate a reference sampling
         # position array used fo every sampled chunk.
-        self._max_chunk_size = dict((ax, 0) for ax in spatial_axes)
+        self._max_chunk_size = {ax: 0 for ax in spatial_axes}
 
         if isinstance(patch_size, (list, tuple)):
             if len(patch_size) != len(spatial_axes):
@@ -49,11 +49,10 @@ class PatchSampler(object):
                                  f"number of axes in `spatial_axes`, got "
                                  f"{len(patch_size)} for {spatial_axes}")
 
-            patch_size = dict((ax, ps)
-                              for ax, ps in zip(spatial_axes, patch_size))
+            patch_size = {ax: ps for ax, ps in zip(spatial_axes, patch_size)}
 
         elif isinstance(patch_size, int):
-            patch_size = dict((ax, patch_size) for ax in spatial_axes)
+            patch_size = {ax: patch_size for ax in spatial_axes}
 
         elif not isinstance(patch_size, dict):
             raise ValueError(f"Patch size must be a dictionary specifying the"
@@ -64,14 +63,13 @@ class PatchSampler(object):
 
         self.spatial_axes = spatial_axes
 
-        self._patch_size = dict(
-            (ax, patch_size.get(ax, 1))
-            for ax in spatial_axes
-        )
+        self._patch_size = {ax: patch_size.get(ax, 1) for ax in spatial_axes}
 
         self._min_area = min_area
 
-    def _compute_corners(self, non_zero_pos: tuple, axes: str) -> np.ndarray:
+    def _compute_corners(self, non_zero_pos: tuple, axes: str,
+                         limits_per_dim: Union[np.ndarray, None] = None,
+                         ) -> np.ndarray:
         toplefts = np.stack(non_zero_pos).T
         toplefts = toplefts.astype(np.float32)
 
@@ -80,13 +78,17 @@ class PatchSampler(object):
         dim = len(axes)
         factors = 2 ** np.arange(dim + 1)
         for d in range(2 ** dim):
-            corner_value =  np.array((d % factors[1:]) // factors[:-1],
-                                     dtype=np.float32)
+            corner_value = np.array((d % factors[1:]) // factors[:-1],
+                                    dtype=np.float32)
             toplefts_corners.append(
                 toplefts + (1 - 1e-4) * corner_value
             )
 
         corners = np.stack(toplefts_corners)
+
+        if limits_per_dim is not None:
+            corners = np.minimum(corners,
+                                 limits_per_dim[None, None, ...] - 1e-4)
 
         return corners
 
@@ -99,8 +101,11 @@ class PatchSampler(object):
 
         corners_cut = np.maximum(tls_scaled[0], tls_idx[-1])
 
-        dist2cut = np.fabs(scaled_corners - corners_cut[None])
+        dist2cut = np.fabs(corners - corners_cut[None])
         coverage = np.prod(dist2cut, axis=-1)
+
+        # Scale the coverage to the size of the input shape
+        coverage *= np.prod(shape)
 
         return coverage, tls_idx.astype(np.int64)
 
@@ -114,7 +119,7 @@ class PatchSampler(object):
             [1 / m_scl
              for ax, m_scl in mask_scale.items()
              if ax in self.spatial_axes
-            ],
+             ],
             dtype=np.float32
         )
 
@@ -122,7 +127,7 @@ class PatchSampler(object):
             [patch_size[ax]
              for ax in mask_axes
              if ax in self.spatial_axes
-            ],
+             ],
             dtype=np.float32
         )
 
@@ -132,6 +137,8 @@ class PatchSampler(object):
         # Otherwise, use the patches coordinates instead.
         if all(map(operator.gt, patch_shape, mask_relative_shape)):
             active_coordinates = np.nonzero(chunk_mask)
+            limits_per_dim = np.array(chunk_mask.shape) + 1
+
             ref_axes = mask_axes
 
             ref_shape = patch_shape
@@ -153,10 +160,16 @@ class PatchSampler(object):
 
         else:
             active_coordinates = np.meshgrid(
-                *[np.arange(image_size[ax] // ps)
+                *[np.arange(math.ceil(image_size[ax] / ps))
                   for ax, ps in zip(mask_axes, patch_shape)
                   if ax in self.spatial_axes]
             )
+
+            limits_per_dim = np.array([
+                image_size[ax] / ps
+                for ax, ps in zip(mask_axes, patch_shape)
+                if ax in self.spatial_axes
+            ])
 
             active_coordinates = tuple(
                 coord_ax.flatten()
@@ -172,10 +185,11 @@ class PatchSampler(object):
 
             mask_is_greater = True
 
-        corners = self._compute_corners(active_coordinates, axes=ref_axes)
+        corners = self._compute_corners(active_coordinates, axes=ref_axes,
+                                        limits_per_dim=limits_per_dim)
 
         (coverage,
-         corners_idx)= self._compute_overlap(corners, shape, ref_shape)
+         corners_idx) = self._compute_overlap(corners, shape, ref_shape)
 
         if mask_is_greater:
             # The mask ratio is greater than the patches size
@@ -247,15 +261,15 @@ class PatchSampler(object):
                     br = ((chunk_tlbr[ax].start
                            if chunk_tlbr[ax].start is not None else 0)
                           + tls[mask.axes.index(ax)] + patch_size[ax])
-                    if br <= image_shape[ax]:
-                        curr_tl.append((ax, slice(tl, br)))
-                    else:
-                        break
+
+                    curr_tl.append((ax, slice(tl,
+                                              br if br <= image_shape[ax]
+                                              else image_shape[ax])))
+
                 else:
                     curr_tl.append((ax, slice(0, 1)))
 
-            else:
-                toplefts.append(dict(curr_tl))
+            toplefts.append(dict(curr_tl))
 
         return toplefts
 
@@ -284,27 +298,26 @@ class PatchSampler(object):
         image = image_collection.collection[image_collection.reference_mode]
         mask = image_collection.collection[image_collection.mask_mode]
 
-        spatial_chunk_sizes = dict(
-            (ax,
-             self._patch_size[ax] * max(1, round(chk / self._patch_size[ax])))
+        # This computes a chunk size in terms of the patch size instead of the
+        # original array chunk size.
+        spatial_chunk_sizes = {
+            ax: (self._patch_size[ax]
+                 * max(1, math.ceil(chk / self._patch_size[ax])))
             for ax, chk in zip(image.axes, image.chunk_size)
             if ax in self.spatial_axes
-        )
+        }
 
-        image_shape = dict(map(tuple, zip(image.axes, image.shape)))
+        image_shape = {ax: s for ax, s in zip(image.axes, image.shape)}
 
-        self._max_chunk_size = dict(
-            (ax, (min(max(self._max_chunk_size[ax],
-                          spatial_chunk_sizes[ax],
-                          self._patch_size[ax]),
-                      image_shape[ax]))
-                 if ax in image.axes else 1)
+        self._max_chunk_size = {
+            ax: (min(max(self._max_chunk_size[ax],
+                         spatial_chunk_sizes[ax]),
+                     image_shape[ax]))
+            if ax in image.axes else 1
             for ax in self.spatial_axes
-        )
+        }
 
-        chunk_tlbr = dict(
-            map(tuple, zip(self.spatial_axes, repeat(slice(None))))
-        )
+        chunk_tlbr = {ax: slice(None) for ax in self.spatial_axes}
 
         chunk_mask = mask[chunk_tlbr]
 
@@ -330,14 +343,12 @@ class PatchSampler(object):
                         chunk_tlbr: dict) -> Iterable[dict]:
         image = image_collection.collection[image_collection.reference_mode]
         mask = image_collection.collection[image_collection.mask_mode]
-        image_shape = dict(map(tuple, zip(image.axes, image.shape)))
-        chunk_size = dict(
-            (ax,
-             (ctb.stop if ctb.stop is not None else image_shape[ax])
-             - (ctb.start if ctb.start is not None else 0)
-            )
+        image_shape = {ax: s for ax, s in zip(image.axes, image.shape)}
+        chunk_size = {
+            ax: ((ctb.stop if ctb.stop is not None else image_shape[ax])
+                 - (ctb.start if ctb.start is not None else 0))
             for ax, ctb in chunk_tlbr.items()
-        )
+        }
 
         chunk_mask = mask[chunk_tlbr]
 
@@ -388,7 +399,7 @@ class BlueNoisePatchSampler(PatchSampler):
         self._base_chunk_tls = None
         self._resample_positions = resample_positions
         self._allow_overlap = allow_overlap
- 
+
     def compute_sampling_positions(self, force=False) -> None:
         """Compute the sampling positions using blue-noise sampling.
 
