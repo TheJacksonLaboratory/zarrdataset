@@ -121,7 +121,7 @@ def test_PatchSampler_correct_patch_size(patch_size, spatial_axes,
                                          expected_patch_size):
     patch_sampler = zds.PatchSampler(patch_size=patch_size,
                                      spatial_axes=spatial_axes)
-    
+
     assert patch_sampler._patch_size == expected_patch_size, \
         (f"Expected `patch_size` to be a dictionary as {expected_patch_size}, "
          f"got {patch_sampler._patch_size} instead.")
@@ -146,18 +146,18 @@ def test_PatchSampler_chunk_generation(patch_size, image_collection):
 
     chunks_toplefts = patch_sampler.compute_chunks(image_collection)
 
-    chunk_size = dict(
-        (ax, cs)
+    chunk_size = {
+        ax: cs
         for ax, cs in zip(image_collection.collection["images"].axes,
                           image_collection.collection["images"].chunk_size)
-    )
+    }
 
-    scaled_chunk_size = dict(
-        (ax, int(cs * image_collection.collection["masks"].scale[ax]))
+    scaled_chunk_size = {
+        ax: int(cs * image_collection.collection["masks"].scale[ax])
         for ax, cs in zip(image_collection.collection["images"].axes,
                           image_collection.collection["images"].chunk_size)
         if ax in image_collection.collection["masks"].axes
-    )
+    }
 
     scaled_mask = transform.downscale_local_mean(
         image_collection.collection["masks"][:],
@@ -194,10 +194,10 @@ def test_PatchSampler(patch_size, image_collection):
         chunk_tlbr=chunks_toplefts[0]
     )
 
-    scaled_patch_size = dict(
-        (ax, int(patch_size * scl))
+    scaled_patch_size = {
+        ax: int(patch_size * scl)
         for ax, scl in image_collection.collection["masks"].scale.items()
-    )
+    }
 
     scaled_mask = transform.downscale_local_mean(
         image_collection.collection["masks"][chunks_toplefts[0]],
@@ -209,8 +209,90 @@ def test_PatchSampler(patch_size, image_collection):
         dict(
             [("Z", slice(0, 1, None))]
             + [
-               (ax, slice(int(tl * patch_size),
-                          int(math.ceil((tl + 1) * patch_size))))
+               (ax, slice(tl * patch_size, (tl + 1) * patch_size))
+               for ax, tl in zip("YX", tls)
+            ]
+        )
+        for tls in zip(*expected_patches_toplefts)
+    ]
+
+    assert all(map(operator.eq, patches_toplefts, expected_patches_toplefts)),\
+        (f"Expected patches to be {expected_patches_toplefts[:3]}, got "
+         f"{patches_toplefts[:3]} instead.")
+
+
+@pytest.mark.parametrize("patch_size, stride, image_collection", [
+    (32, 32, IMAGE_SPECS[10]),
+    (32, 16, IMAGE_SPECS[10]),
+    (32, 64, IMAGE_SPECS[10]),
+], indirect=["image_collection"])
+def test_PatchSampler_stride(patch_size, stride, image_collection):
+    patch_sampler = zds.PatchSampler(patch_size, stride=stride)
+
+    chunks_toplefts = patch_sampler.compute_chunks(image_collection)
+
+    patches_toplefts = patch_sampler.compute_patches(
+        image_collection,
+        chunk_tlbr=chunks_toplefts[0]
+    )
+
+    scaled_patch_size = {
+        ax: int(stride * scl)
+        for ax, scl in image_collection.collection["masks"].scale.items()
+    }
+
+    scaled_mask = transform.downscale_local_mean(
+        image_collection.collection["masks"][chunks_toplefts[0]],
+        factors=(scaled_patch_size["Y"], scaled_patch_size["X"])
+    )
+    expected_patches_toplefts = np.nonzero(scaled_mask)
+
+    expected_patches_toplefts = [
+        dict(
+            [("Z", slice(0, 1, None))]
+            + [
+               (ax, slice(tl * stride, tl * stride + patch_size))
+               for ax, tl in zip("YX", tls)
+            ]
+        )
+        for tls in zip(*expected_patches_toplefts)
+    ]
+    assert all(map(operator.eq, patches_toplefts, expected_patches_toplefts)),\
+        (f"Expected patches to be {expected_patches_toplefts[:3]}, got "
+         f"{patches_toplefts[:3]} instead.")
+
+
+@pytest.mark.parametrize("patch_size, pad, image_collection", [
+    (32, 0, IMAGE_SPECS[10]),
+    (32, 2, IMAGE_SPECS[10]),
+], indirect=["image_collection"])
+def test_PatchSampler_pad(patch_size, pad, image_collection):
+    patch_sampler = zds.PatchSampler(patch_size, pad=pad)
+
+    chunks_toplefts = patch_sampler.compute_chunks(image_collection)
+
+    patches_toplefts = patch_sampler.compute_patches(
+        image_collection,
+        chunk_tlbr=chunks_toplefts[0]
+    )
+
+    scaled_patch_size = {
+        ax: int(patch_size * scl)
+        for ax, scl in image_collection.collection["masks"].scale.items()
+    }
+
+    scaled_mask = transform.downscale_local_mean(
+        image_collection.collection["masks"][chunks_toplefts[0]],
+        factors=(scaled_patch_size["Y"], scaled_patch_size["X"])
+    )
+    expected_patches_toplefts = np.nonzero(scaled_mask)
+
+    # TODO: Change expected patches toplefts for strided ones
+    expected_patches_toplefts = [
+        dict(
+            [("Z", slice(0, 1, None))]
+            + [
+               (ax, slice(tl * patch_size - pad, (tl + 1) * patch_size + pad))
                for ax, tl in zip("YX", tls)
             ]
         )
@@ -283,10 +365,12 @@ def test_BlueNoisePatchSampler_mask_not2scale(image_collection_mask_not2scale):
         (f"Expected 0 patches, got {len(patches_toplefts)} instead.")
 
 
-@pytest.mark.parametrize("patch_size, image_collection, specs", [
-    (512, MASKABLE_IMAGE_SPECS[0], MASKABLE_IMAGE_SPECS[0])
+@pytest.mark.parametrize("patch_size, stride, image_collection, specs", [
+    (512, 512, MASKABLE_IMAGE_SPECS[0], MASKABLE_IMAGE_SPECS[0]),
+    (512, 256, MASKABLE_IMAGE_SPECS[0], MASKABLE_IMAGE_SPECS[0])
 ], indirect=["image_collection"])
-def test_unique_sampling_PatchSampler(patch_size, image_collection, specs):
+def test_unique_sampling_PatchSampler(patch_size, stride, image_collection,
+                                      specs):
     from skimage import color, filters, morphology
     import zarr
 
@@ -307,7 +391,8 @@ def test_unique_sampling_PatchSampler(patch_size, image_collection, specs):
                                                            mode="masks")
     image_collection.reset_scales()
 
-    patch_sampler = zds.PatchSampler(patch_size, min_area=1/16 ** 2)
+    patch_sampler = zds.PatchSampler(patch_size, stride=stride,
+                                     min_area=1/16 ** 2)
 
     chunks_toplefts = patch_sampler.compute_chunks(image_collection)
 

@@ -28,6 +28,14 @@ class PatchSampler(object):
          of the patch of the axes listed in `spatial_axes`.  Use the same 
         convention as how Zarr structure array chunks in order to handle patch 
         shapes and channels correctly.
+    stride : Union[int, Iterable[int], dict, None]
+        Distance in pixels of the movement of the sampling sliding window.
+        If `stride` is less than `patch_size` for an axis, patches will have an
+        overlap between them. This is usuful in inference mode for avoiding
+        edge artifacts. If None is passed, the `patch_size` will be used as 
+        `stride`.
+    pad : Union[int, Iterable[int], dict, None]
+        Padding in pixels added to the extracted patch at each specificed axis.
     min_area : Union[int, float]
         Minimum patch area covered by the mask to consider it samplable. A
         number in range [0, 1) will be used as percentage of the patch size. A
@@ -37,6 +45,8 @@ class PatchSampler(object):
         The spatial axes from where patches can be extracted.
     """
     def __init__(self, patch_size: Union[int, Iterable[int], dict],
+                 stride: Union[int, Iterable[int], dict, None] = None,
+                 pad: Union[int, Iterable[int], dict, None] = None,
                  min_area: Union[int, float] = 1,
                  spatial_axes: str = "ZYX"):
         # The maximum chunk sizes are used to generate a reference sampling
@@ -61,9 +71,53 @@ class PatchSampler(object):
                              f" or an integer for a cubic patch. Received "
                              f"{patch_size} of type {type(patch_size)}")
 
+        if isinstance(stride, (list, tuple)):
+            if len(stride) != len(spatial_axes):
+                raise ValueError(f"The size of `stride` must match the "
+                                 f"number of axes in `spatial_axes`, got "
+                                 f"{len(stride)} for {spatial_axes}")
+
+            stride = {ax: st for ax, st in zip(spatial_axes, stride)}
+
+        elif isinstance(stride, int):
+            stride = {ax: stride for ax in spatial_axes}
+
+        elif stride is None:
+            stride = patch_size
+
+        elif not isinstance(stride, dict):
+            raise ValueError(f"Stride size must be a dictionary specifying the"
+                             f" stride step size of each axes, an iterable ("
+                             f"list, tuple) with the same order as the spatial"
+                             f" axes, or an integer for a cubic patch. "
+                             f"Received {stride} of type {type(stride)}")
+
+        if pad is None:
+            pad = 0
+
+        if isinstance(pad, (list, tuple)):
+            if len(pad) != len(spatial_axes):
+                raise ValueError(f"The size of `pad` must match the "
+                                 f"number of axes in `spatial_axes`, got "
+                                 f"{len(pad)} for {spatial_axes}")
+
+            pad = {ax: st for ax, st in zip(spatial_axes, pad)}
+
+        elif isinstance(pad, int):
+            pad = {ax: pad for ax in spatial_axes}
+
+        elif not isinstance(pad, dict):
+            raise ValueError(f"Pad size must be a dictionary specifying the"
+                             f" numer of pixels added to each axes, an "
+                             f"iterable (list, tuple) with the same order as "
+                             f"the spatial axes, or an integer for a cubic "
+                             f"patch. Received {pad} of type {type(pad)}")
+
         self.spatial_axes = spatial_axes
 
         self._patch_size = {ax: patch_size.get(ax, 1) for ax in spatial_axes}
+        self._stride = {ax: stride.get(ax, 1) for ax in spatial_axes}
+        self._pad = {ax: pad.get(ax, 0) for ax in spatial_axes}
 
         self._min_area = min_area
 
@@ -114,7 +168,6 @@ class PatchSampler(object):
                       mask_scale: dict,
                       patch_size: dict,
                       image_size: dict):
-
         mask_relative_shape = np.array(
             [1 / m_scl
              for ax, m_scl in mask_scale.items()
@@ -248,7 +301,11 @@ class PatchSampler(object):
     def _compute_toplefts_slices(self, mask: ImageBase, image_shape: dict,
                                  patch_size: dict,
                                  valid_mask_toplefts: np.ndarray,
-                                 chunk_tlbr: dict):
+                                 chunk_tlbr: dict,
+                                 pad: Union[dict, None] = None):
+        if pad is None:
+            pad = {ax: 0 for ax in self.spatial_axes}
+
         toplefts = []
         for tls in valid_mask_toplefts:
             curr_tl = []
@@ -262,9 +319,10 @@ class PatchSampler(object):
                            if chunk_tlbr[ax].start is not None else 0)
                           + tls[mask.axes.index(ax)] + patch_size[ax])
 
-                    curr_tl.append((ax, slice(tl,
-                                              br if br <= image_shape[ax]
-                                              else image_shape[ax])))
+                    curr_tl.append((ax, slice(tl - pad[ax],
+                                              (br if br <= image_shape[ax]
+                                               else image_shape[ax])
+                                              + pad[ax])))
 
                 else:
                     curr_tl.append((ax, slice(0, 1)))
@@ -301,11 +359,17 @@ class PatchSampler(object):
         # This computes a chunk size in terms of the patch size instead of the
         # original array chunk size.
         spatial_chunk_sizes = {
-            ax: (self._patch_size[ax]
-                 * max(1, math.ceil(chk / self._patch_size[ax])))
+            ax: (self._stride[ax]
+                 * max(1, math.ceil(chk / self._stride[ax])))
             for ax, chk in zip(image.axes, image.chunk_size)
             if ax in self.spatial_axes
         }
+        # spatial_chunk_sizes = {
+        #     ax: (self._patch_size[ax]
+        #          * max(1, math.ceil(chk / self._patch_size[ax])))
+        #     for ax, chk in zip(image.axes, image.chunk_size)
+        #     if ax in self.spatial_axes
+        # }
 
         image_shape = {ax: s for ax, s in zip(image.axes, image.shape)}
 
@@ -356,16 +420,16 @@ class PatchSampler(object):
             chunk_mask,
             mask.axes,
             mask.scale,
-            self._patch_size,
-            chunk_size
-        )
+            self._stride,
+            chunk_size)
 
         patches_slices = self._compute_toplefts_slices(
             mask,
             image_shape=image_shape,
             patch_size=self._patch_size,
             valid_mask_toplefts=valid_mask_toplefts,
-            chunk_tlbr=chunk_tlbr
+            chunk_tlbr=chunk_tlbr,
+            pad=self._pad
         )
 
         return patches_slices
