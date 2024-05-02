@@ -320,9 +320,7 @@ class PatchSampler(object):
                           + tls[mask.axes.index(ax)] + patch_size[ax])
 
                     curr_tl.append((ax, slice(tl - pad[ax],
-                                              (br if br <= image_shape[ax]
-                                               else image_shape[ax])
-                                              + pad[ax])))
+                                              br + pad[ax])))
 
                 else:
                     curr_tl.append((ax, slice(0, 1)))
