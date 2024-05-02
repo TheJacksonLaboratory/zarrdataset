@@ -127,6 +127,32 @@ def test_PatchSampler_correct_patch_size(patch_size, spatial_axes,
          f"got {patch_sampler._patch_size} instead.")
 
 
+@pytest.mark.parametrize("stride, spatial_axes, expected_stride", [
+    (512, "X", dict(X=512)),
+    ((128, 64), "XY", dict(X=128, Y=64)),
+])
+def test_PatchSampler_correct_stride(stride, spatial_axes, expected_stride):
+    patch_sampler = zds.PatchSampler(patch_size=512, stride=stride,
+                                     spatial_axes=spatial_axes)
+
+    assert patch_sampler._stride == expected_stride, \
+        (f"Expected `stride` to be a dictionary as {expected_stride}, "
+         f"got {patch_sampler._stride} instead.")
+
+
+@pytest.mark.parametrize("pad, spatial_axes, expected_pad", [
+    (512, "X", dict(X=512)),
+    ((128, 64), "XY", dict(X=128, Y=64)),
+])
+def test_PatchSampler_correct_pad(pad, spatial_axes, expected_pad):
+    patch_sampler = zds.PatchSampler(patch_size=512, pad=pad,
+                                     spatial_axes=spatial_axes)
+
+    assert patch_sampler._pad == expected_pad, \
+        (f"Expected `pad` to be a dictionary as {expected_pad}, "
+         f"got {patch_sampler._pad} instead.")
+
+
 @pytest.mark.parametrize("patch_size, spatial_axes", [
     ((512, 128), "X"),
     ((128, ), "XY"),
@@ -135,6 +161,30 @@ def test_PatchSampler_correct_patch_size(patch_size, spatial_axes,
 def test_PatchSampler_incorrect_patch_size(patch_size, spatial_axes):
     with pytest.raises(ValueError):
         patch_sampler = zds.PatchSampler(patch_size=patch_size,
+                                         spatial_axes=spatial_axes)
+
+
+@pytest.mark.parametrize("stride, spatial_axes", [
+    ((512, 128), "X"),
+    ((128, ), "XY"),
+    ("stride", "ZYX"),
+])
+def test_PatchSampler_incorrect_stride(stride, spatial_axes):
+    with pytest.raises(ValueError):
+        patch_sampler = zds.PatchSampler(patch_size=512,
+                                         stride=stride,
+                                         spatial_axes=spatial_axes)
+
+
+@pytest.mark.parametrize("pad, spatial_axes", [
+    ((512, 128), "X"),
+    ((128, ), "XY"),
+    ("pad", "ZYX"),
+])
+def test_PatchSampler_incorrect_pad(pad, spatial_axes):
+    with pytest.raises(ValueError):
+        patch_sampler = zds.PatchSampler(patch_size=512,
+                                         pad=pad,
                                          spatial_axes=spatial_axes)
 
 
