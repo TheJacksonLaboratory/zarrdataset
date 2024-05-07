@@ -354,6 +354,33 @@ def test_PatchSampler_pad(patch_size, pad, image_collection):
          f"{patches_toplefts[:3]} instead.")
 
 
+@pytest.mark.parametrize("patch_size, allow_incomplete_patches,"
+                         "image_collection", [
+    (1024, True, IMAGE_SPECS[10]),
+    (1024, False, IMAGE_SPECS[10]),
+], indirect=["image_collection"])
+def test_PatchSampler_incomplete_patches(patch_size, allow_incomplete_patches,
+                                         image_collection):
+    patch_sampler = zds.PatchSampler(
+        patch_size,
+        allow_incomplete_patches=allow_incomplete_patches
+    )
+
+    chunks_toplefts = patch_sampler.compute_chunks(image_collection)
+
+    patches_toplefts = patch_sampler.compute_patches(
+        image_collection,
+        chunk_tlbr=chunks_toplefts[0]
+    )
+
+    expected_num_patches = 1 if allow_incomplete_patches else 0
+
+    assert len(patches_toplefts) == expected_num_patches,\
+        (f"Expected to have {expected_num_patches}, when "
+         f"`allow_incomplete_patches` is {allow_incomplete_patches} "
+         f"got {len(patches_toplefts)} instead.")
+
+
 @pytest.mark.parametrize("patch_size, axes, resample, allow_overlap,"
                          "image_collection", [
     (dict(X=32, Y=32, Z=1), "XYZ", True, True, IMAGE_SPECS[10]),
@@ -373,15 +400,6 @@ def test_BlueNoisePatchSampler(patch_size, axes, resample, allow_overlap,
     patches_toplefts = patch_sampler.compute_patches(
         image_collection,
         chunk_tlbr=chunks_toplefts[0]
-    )
-
-    assert len(patches_toplefts) == len(patch_sampler._base_chunk_tls), \
-        (f"Expected {len(patch_sampler._base_chunk_tls)} patches, got "
-         f"{len(patches_toplefts)} instead.")
-
-    patches_toplefts = patch_sampler.compute_patches(
-        image_collection,
-        chunk_tlbr=chunks_toplefts[-1]
     )
 
     assert len(patches_toplefts) == len(patch_sampler._base_chunk_tls), \

@@ -116,8 +116,12 @@ def image_dataset_specs(request):
 
 @pytest.fixture(scope="function")
 def patch_sampler_specs(request):
-    patch_sampler = zds.PatchSampler(patch_size=request.param)
-    return patch_sampler, request.param
+    patch_size, allow_incomplete_patches = request.param
+    patch_sampler = zds.PatchSampler(
+        patch_size=patch_size,
+        allow_incomplete_patches=allow_incomplete_patches
+    )
+    return patch_sampler, patch_size, allow_incomplete_patches
 
 
 @pytest.mark.parametrize("image_dataset_specs", [
@@ -142,7 +146,7 @@ def test_compatibility_no_tqdm(image_dataset_specs):
 
         try:
             next(iter(dataset))
-            
+
         except Exception as e:
             raise AssertionError(f"No exceptions where expected, got {e} "
                                  f"instead.")
@@ -304,9 +308,9 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
 
 @pytest.mark.parametrize(
     "image_dataset_specs, patch_sampler_specs, shuffle, draw_same_chunk", [
-        (IMAGE_SPECS[10], 32, True, False),
-        (IMAGE_SPECS[10], 32, True, True),
-        (IMAGE_SPECS[10], 32, False, True),
+        (IMAGE_SPECS[10], (32, False), True, False),
+        (IMAGE_SPECS[10], (32, False), True, True),
+        (IMAGE_SPECS[10], (32, False), False, True),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
@@ -314,7 +318,7 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
                              shuffle,
                              draw_same_chunk):
     dataset_specs, specs = image_dataset_specs
-    patch_sampler, patch_size = patch_sampler_specs
+    patch_sampler, patch_size, allow_incomplete_patches = patch_sampler_specs
 
     ds = zds.ZarrDataset(
         dataset_specs=dataset_specs,
@@ -409,33 +413,40 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
 
 @pytest.mark.parametrize(
     "image_dataset_specs, patch_sampler_specs", [
-        (IMAGE_SPECS[10], 1024),
+        (IMAGE_SPECS[10], (1024, True)),
+        (IMAGE_SPECS[10], (1024, False)),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
 def test_greater_patch_ZarrDataset(image_dataset_specs, patch_sampler_specs):
     dataset_specs, specs = image_dataset_specs
-    patch_sampler, patch_size = patch_sampler_specs
+    patch_sampler, patch_size, allow_incomplete_patches = patch_sampler_specs
 
     ds = zds.ZarrDataset(
         dataset_specs=dataset_specs,
-        patch_sampler=patch_sampler,
+        patch_sampler=patch_sampler
     )
 
     n_samples = 0
     for _ in ds:
         n_samples += 1
 
-    assert n_samples == 0, ("Expected zero samples since requested patch size"
-                            f" is greater than the image size.")
+    if allow_incomplete_patches:
+        assert n_samples > 0, ("Expected at elast one sample when patch"
+                               " size is greater than the image size, and"
+                               " `allow_incomplete_patches` is True.")
+    else:
+        assert n_samples == 0, ("Expected zero samples since requested patch"
+                                " size is greater than the image size, and"
+                                " `allow_incomplete_patches` is False.")
 
 
 @pytest.mark.parametrize(
     "image_dataset_specs, patch_sampler_specs, shuffle, draw_same_chunk,"
     "batch_size, num_workers", [
-        (IMAGE_SPECS[10], 32, True, False, 2, 2),
-        ([IMAGE_SPECS[10]] * 4, 32, True, True, 2, 3),
-        ([IMAGE_SPECS[10]] * 2, 32, True, True, 2, 3),
+        (IMAGE_SPECS[10], (32, False), True, False, 2, 2),
+        ([IMAGE_SPECS[10]] * 4, (32, False), True, True, 2, 3),
+        ([IMAGE_SPECS[10]] * 2, (32, False), True, True, 2, 3),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
@@ -446,7 +457,7 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
                                  num_workers):
     dataset_specs, specs = image_dataset_specs
 
-    patch_sampler, patch_size = patch_sampler_specs
+    patch_sampler, patch_size, allow_incomplete_patches = patch_sampler_specs
 
     ds = zds.ZarrDataset(
         dataset_specs=dataset_specs,
@@ -514,21 +525,21 @@ def test_multithread_ZarrDataset(image_dataset_specs, patch_sampler_specs,
 @pytest.mark.parametrize(
     "image_dataset_specs, patch_sampler_specs, shuffle, draw_same_chunk,"
     "batch_size, num_workers, repeat_dataset", [
-        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 1),
-        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 2),
-        (IMAGE_SPECS[10:12], 32, True, False, 2, 2, 3),
+        (IMAGE_SPECS[10:12], (32, False), True, False, 2, 2, 1),
+        (IMAGE_SPECS[10:12], (32, False), True, False, 2, 2, 2),
+        (IMAGE_SPECS[10:12], (32, False), True, False, 2, 2, 3),
     ],
     indirect=["image_dataset_specs", "patch_sampler_specs"]
 )
 def test_multithread_chained_ZarrDataset(image_dataset_specs,
-                                          patch_sampler_specs,
-                                          shuffle,
-                                          draw_same_chunk,
-                                          batch_size,
-                                          num_workers,
-                                          repeat_dataset):
+                                         patch_sampler_specs,
+                                         shuffle,
+                                         draw_same_chunk,
+                                         batch_size,
+                                         num_workers,
+                                         repeat_dataset):
     dataset_specs, specs = image_dataset_specs
-    patch_sampler, patch_size = patch_sampler_specs
+    patch_sampler, patch_size, allow_incomplete_patches = patch_sampler_specs
 
     ds = [zds.ZarrDataset(dataset_specs=dataset_specs,
                           shuffle=shuffle,
