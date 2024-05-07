@@ -1,3 +1,20 @@
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.15.1
+kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: python
+  name: python3
+execution:
+  timeout: 120
+---
+
+# Integration of ZarrDataset with PyTorch's DataLoader for inference (Advanced)
+
 ```python
 import zarrdataset as zds
 
@@ -32,7 +49,7 @@ random.seed(478965)
 ## Extracting patches of size 1024x1024 pixels from a Whole Slide Image (WSI)
 
 Retrieve samples for inference. Add padding to each patch to avoid edge artifacts when stitching the inference result.
-Finally, let the PatchSampler retrieve patches from the edge of the image that would be otherwise smaller than the patch size.
+Finally, let the PatchSampler retrieve patches from the edge of the image that would be otherwise smaller than the patch size by setting `allow_incomplete_patches=True`.
 
 
 ```python
