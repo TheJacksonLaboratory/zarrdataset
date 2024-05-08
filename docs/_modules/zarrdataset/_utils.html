@@ -1,23 +1,24 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>zarrdataset._utils &mdash; ZarrDataset  documentation</title>
-      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
-      <link rel="stylesheet" href="../../_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=fd3f3429" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-        <script src="../../_static/jquery.js"></script>
-        <script src="../../_static/underscore.js"></script>
-        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script src="../../_static/doctools.js"></script>
-        <script src="../../_static/sphinx_highlight.js"></script>
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -55,6 +56,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../examples/advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../examples/basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../examples/advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../examples/advanced_example_pytorch_inference.html">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
@@ -99,7 +101,9 @@
 <span class="kn">import</span> <span class="nn">zarr</span>
 
 
-<div class="viewcode-block" id="parse_rois"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.parse_rois">[docs]</a><span class="k">def</span> <span class="nf">parse_rois</span><span class="p">(</span><span class="n">rois_str</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">slice</span><span class="p">]:</span>
+<div class="viewcode-block" id="parse_rois">
+<a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.parse_rois">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_rois</span><span class="p">(</span><span class="n">rois_str</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">slice</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse a list of strings defining ROIs.</span>
 
 <span class="sd">    Parameters</span>
@@ -146,7 +150,10 @@
     <span class="k">return</span> <span class="n">rois</span></div>
 
 
-<div class="viewcode-block" id="parse_metadata"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.parse_metadata">[docs]</a><span class="k">def</span> <span class="nf">parse_metadata</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default_source_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+
+<div class="viewcode-block" id="parse_metadata">
+<a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.parse_metadata">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_metadata</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">default_source_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
                    <span class="n">default_data_group</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                    <span class="n">default_axes</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                    <span class="n">default_rois</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">slice</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -298,7 +305,10 @@
     <span class="k">return</span> <span class="n">parsed_metadata</span></div>
 
 
-<div class="viewcode-block" id="map_axes_order"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.map_axes_order">[docs]</a><span class="k">def</span> <span class="nf">map_axes_order</span><span class="p">(</span><span class="n">source_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target_axes</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;YX&quot;</span><span class="p">):</span>
+
+<div class="viewcode-block" id="map_axes_order">
+<a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.map_axes_order">[docs]</a>
+<span class="k">def</span> <span class="nf">map_axes_order</span><span class="p">(</span><span class="n">source_axes</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target_axes</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;YX&quot;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the indices of a set of axes that reorders it to match another set</span>
 <span class="sd">    of axes.</span>
 
@@ -331,7 +341,10 @@
     <span class="k">return</span> <span class="n">transpose_order</span></div>
 
 
-<div class="viewcode-block" id="select_axes"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.select_axes">[docs]</a><span class="k">def</span> <span class="nf">select_axes</span><span class="p">(</span><span class="n">source_axes</span> <span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">axes_selection</span> <span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+
+<div class="viewcode-block" id="select_axes">
+<a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.select_axes">[docs]</a>
+<span class="k">def</span> <span class="nf">select_axes</span><span class="p">(</span><span class="n">source_axes</span> <span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">axes_selection</span> <span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get a sliced selection of axes from a zarr array.</span>
 
 <span class="sd">    Parameters</span>
@@ -378,7 +391,10 @@
     <span class="k">return</span> <span class="n">sel_slices</span><span class="p">,</span> <span class="n">unfixed_axes</span></div>
 
 
-<div class="viewcode-block" id="connect_s3"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.connect_s3">[docs]</a><span class="k">def</span> <span class="nf">connect_s3</span><span class="p">(</span><span class="n">filename_sample</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+
+<div class="viewcode-block" id="connect_s3">
+<a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.connect_s3">[docs]</a>
+<span class="k">def</span> <span class="nf">connect_s3</span><span class="p">(</span><span class="n">filename_sample</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Stablish a connection with a S3 bucket.</span>
 
 <span class="sd">    Parameters</span>
@@ -413,7 +429,10 @@
     <span class="k">return</span> <span class="n">s3_obj</span></div>
 
 
-<div class="viewcode-block" id="isconsolidated"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.isconsolidated">[docs]</a><span class="k">def</span> <span class="nf">isconsolidated</span><span class="p">(</span><span class="n">arr_src</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span> <span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">]):</span>
+
+<div class="viewcode-block" id="isconsolidated">
+<a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.isconsolidated">[docs]</a>
+<span class="k">def</span> <span class="nf">isconsolidated</span><span class="p">(</span><span class="n">arr_src</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">zarr</span><span class="o">.</span><span class="n">Group</span><span class="p">,</span> <span class="n">zarr</span><span class="o">.</span><span class="n">Array</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if the zarr file is consolidated so it is faster to open.</span>
 
 <span class="sd">    Parameters</span>
@@ -438,7 +457,10 @@
     <span class="k">return</span> <span class="n">is_consolidated</span></div>
 
 
-<div class="viewcode-block" id="scale_coords"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.scale_coords">[docs]</a><span class="k">def</span> <span class="nf">scale_coords</span><span class="p">(</span><span class="n">selection_range</span> <span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">slice</span><span class="p">],</span>
+
+<div class="viewcode-block" id="scale_coords">
+<a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.scale_coords">[docs]</a>
+<span class="k">def</span> <span class="nf">scale_coords</span><span class="p">(</span><span class="n">selection_range</span> <span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">slice</span><span class="p">],</span>
                  <span class="n">scale</span> <span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Scale a set of top-lefts, bottom-rights coordinates, in any dimension,</span>
 <span class="sd">    by `scale` factor.</span>
@@ -497,7 +519,10 @@
     <span class="k">return</span> <span class="n">scaled_selection_range</span></div>
 
 
-<div class="viewcode-block" id="translate2roi"><a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.translate2roi">[docs]</a><span class="k">def</span> <span class="nf">translate2roi</span><span class="p">(</span><span class="n">index</span> <span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">roi</span> <span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">source_axes</span> <span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">axes</span> <span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+
+<div class="viewcode-block" id="translate2roi">
+<a class="viewcode-back" href="../../autoapi/zarrdataset/index.html#zarrdataset._utils.translate2roi">[docs]</a>
+<span class="k">def</span> <span class="nf">translate2roi</span><span class="p">(</span><span class="n">index</span> <span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">roi</span> <span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">source_axes</span> <span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">axes</span> <span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
     <span class="n">roi_mode_index</span> <span class="o">=</span> <span class="p">{}</span>
     <span class="k">for</span> <span class="n">a_i</span><span class="p">,</span> <span class="n">ax</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">source_axes</span><span class="p">):</span>
         <span class="n">r</span> <span class="o">=</span> <span class="n">roi</span><span class="p">[</span><span class="n">a_i</span><span class="p">]</span>
@@ -526,6 +551,7 @@
     <span class="n">roi_mode_index</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">select_axes</span><span class="p">(</span><span class="n">source_axes</span><span class="p">,</span> <span class="n">roi_mode_index</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">roi_mode_index</span></div>
+
 </pre></div>
 
            </div>

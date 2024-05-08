@@ -509,7 +509,7 @@ class ZarrDataset(IterableDataset):
         modes = self._collections.keys()
 
         for collection in zip(*self._collections.values()):
-            collection = dict([(m, c) for m, c in zip(modes, collection)])
+            collection = {m: c for m, c in zip(modes, collection)}
             for mode in collection.keys():
                 collection[mode]["zarr_store"] = self._zarr_store[mode]
                 collection[mode]["image_func"] = self._image_loader_func[mode]
@@ -527,8 +527,8 @@ class ZarrDataset(IterableDataset):
                 toplefts.append(self._patch_sampler.compute_chunks(curr_img))
             else:
                 toplefts.append([
-                    dict((ax, slice(None))
-                         for ax in curr_img.collection[self._ref_mod].axes)
+                    {ax: slice(None)
+                     for ax in curr_img.collection[self._ref_mod].axes}
                     ]
                 )
 

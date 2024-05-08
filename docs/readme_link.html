@@ -1,24 +1,25 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ZarrDataset &mdash; ZarrDataset  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
-      <link rel="stylesheet" href="_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=fd3f3429" />
+
+  
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -67,6 +68,7 @@
 <li class="toctree-l1"><a class="reference internal" href="examples/advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples/basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples/advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/advanced_example_pytorch_inference.html">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
@@ -101,11 +103,11 @@
            <div itemprop="articleBody">
              
   <section id="zarrdataset">
-<h1>ZarrDataset<a class="headerlink" href="#zarrdataset" title="Permalink to this heading"></a></h1>
+<h1>ZarrDataset<a class="headerlink" href="#zarrdataset" title="Link to this heading"></a></h1>
 <p>A class for handling large-volume datasets stored in OME-NGFF Zarr format.
 This can be used primarly with PyTorch’s DataLoader in machine learning training workflows.</p>
 <section id="usage">
-<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this heading"></a></h2>
+<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h2>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
 
 <span class="c1"># Open a set of Zarr files stored locally or in a S3 bucket. Must specify the</span>
@@ -123,7 +125,7 @@ This can be used primarly with PyTorch’s DataLoader in machine learning traini
 </div>
 </section>
 <section id="integration">
-<h2>Integration<a class="headerlink" href="#integration" title="Permalink to this heading"></a></h2>
+<h2>Integration<a class="headerlink" href="#integration" title="Link to this heading"></a></h2>
 <p>The <strong>ZarrDataset</strong> class is derived from PyTorch’s <em>IterableDataset</em> class, and can be used with a <em>DataLoader</em> object to generate batches of inputs for machine learning training workflows.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">DataLoader</span>
 <span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
@@ -146,12 +148,12 @@ This can be used primarly with PyTorch’s DataLoader in machine learning traini
 </pre></div>
 </div>
 <section id="multithread-data-loading">
-<h3>Multithread data loading<a class="headerlink" href="#multithread-data-loading" title="Permalink to this heading"></a></h3>
+<h3>Multithread data loading<a class="headerlink" href="#multithread-data-loading" title="Link to this heading"></a></h3>
 <p>Use of multiple workers through multithread requires the use of the <strong>zarrdataset_worker_init_fn</strong> function provided in this package.
 This allows to load only a fraction of the dataset on each worker instead of the full dataset.</p>
 </section>
 <section id="patch-sampling">
-<h3>Patch sampling<a class="headerlink" href="#patch-sampling" title="Permalink to this heading"></a></h3>
+<h3>Patch sampling<a class="headerlink" href="#patch-sampling" title="Link to this heading"></a></h3>
 <p><strong>ZarrDataset</strong> retrieve the whole array contained in <em>data_group</em> by default.
 To retrieve patches from that array instead, use any of the two samplers provided within this package, or implement a custom one derived from the <strong>PatchSampler</strong> class.</p>
 <p>The two existing samplers are <strong>PatchSampler</strong> and <strong>BlueNoisePatchSampler</strong>.
@@ -171,7 +173,7 @@ The patch sampler can be integated into a <strong>ZarrDataset</strong> object as
 </section>
 </section>
 <section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h2>
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
 <p>This package can be installed from PyPI with the following command</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">zarrdataset</span>
 </pre></div>

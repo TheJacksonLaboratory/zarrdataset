@@ -61,7 +61,8 @@ Functions
 
 
 
-.. py:class:: PatchSampler(patch_size: Union[int, Iterable[int], dict], min_area: Union[int, float] = 1, spatial_axes: str = 'ZYX')
+.. py:class:: PatchSampler(patch_size: Union[int, Iterable[int], dict], stride: Union[int, Iterable[int], dict, None] = None, pad: Union[int, Iterable[int], dict, None] = None, min_area: Union[int, float] = 1, spatial_axes: str = 'ZYX', allow_incomplete_patches: bool = False)
+
 
    Bases: :py:obj:`object`
 
@@ -80,6 +81,14 @@ Functions
                       convention as how Zarr structure array chunks in order to handle patch
                       shapes and channels correctly.
    :type patch_size: Union[int, Iterable[int], dict]
+   :param stride: Distance in pixels of the movement of the sampling sliding window.
+                  If `stride` is less than `patch_size` for an axis, patches will have an
+                  overlap between them. This is usuful in inference mode for avoiding
+                  edge artifacts. If None is passed, the `patch_size` will be used as
+                  `stride`.
+   :type stride: Union[int, Iterable[int], dict, None]
+   :param pad: Padding in pixels added to the extracted patch at each specificed axis.
+   :type pad: Union[int, Iterable[int], dict, None]
    :param min_area: Minimum patch area covered by the mask to consider it samplable. A
                     number in range [0, 1) will be used as percentage of the patch size. A
                     number >= 1 will be considered as the number of minimum patch pixels
@@ -87,20 +96,27 @@ Functions
    :type min_area: Union[int, float]
    :param spatial_axes: The spatial axes from where patches can be extracted.
    :type spatial_axes: str
+   :param allow_incomplete_patches: Allow to retrieve patches that are smaller than the patch size. This is
+                                    the case of samples at the edge of the image that are usually smaller
+                                    than the specified patch size.
+   :type allow_incomplete_patches: bool
 
-   .. py:method:: _compute_corners(non_zero_pos: tuple, axes: str) -> numpy.ndarray
-
-
-   .. py:method:: _compute_overlap(corners: numpy.ndarray, shape: numpy.ndarray, ref_shape: numpy.ndarray) -> Tuple[numpy.ndarray, numpy.ndarray]
-
-
-   .. py:method:: _compute_grid(chunk_mask: numpy.ndarray, mask_axes: str, mask_scale: dict, patch_size: dict, image_size: dict)
+   .. py:method:: _compute_corners(coordinates: numpy.ndarray, scale: numpy.ndarray) -> numpy.ndarray
 
 
-   .. py:method:: _compute_valid_toplefts(chunk_mask: numpy.ndarray, mask_axes: str, mask_scale: dict, patch_size: dict, image_size: dict)
+   .. py:method:: _compute_reference_indices(reference_coordinates: numpy.ndarray) -> Tuple[List[numpy.ndarray], List[Tuple[int]]]
 
 
-   .. py:method:: _compute_toplefts_slices(mask: zarrdataset._imageloaders.ImageBase, image_shape: dict, patch_size: dict, valid_mask_toplefts: numpy.ndarray, chunk_tlbr: dict)
+   .. py:method:: _compute_overlap(corners_coordinates: numpy.ndarray, reference_per_axis: numpy.ndarray) -> Tuple[numpy.ndarray, numpy.ndarray]
+
+
+   .. py:method:: _compute_grid(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, image_size: dict, allow_incomplete_patches: bool = False)
+
+
+   .. py:method:: _compute_valid_toplefts(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, **kwargs)
+
+
+   .. py:method:: _compute_toplefts_slices(chunk_tlbr: dict, valid_mask_toplefts: numpy.ndarray, patch_size: dict, pad: Union[dict, None] = None)
 
 
    .. py:method:: compute_chunks(image_collection: zarrdataset._imageloaders.ImageCollection) -> Iterable[dict]
@@ -132,6 +148,7 @@ Functions
 
 .. py:class:: BlueNoisePatchSampler(patch_size: Union[int, Iterable[int], dict], resample_positions=False, allow_overlap=False, **kwargs)
 
+
    Bases: :py:obj:`PatchSampler`
 
    Patch sampler that retrieves patches from coordinates sampled using the
@@ -153,11 +170,12 @@ Functions
       :type force: bool
 
 
-   .. py:method:: _compute_valid_toplefts(chunk_mask: numpy.ndarray, mask_axes: str, mask_scale: dict, patch_size: dict, image_shape: dict)
+   .. py:method:: _compute_valid_toplefts(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, **kwargs)
 
 
 
 .. py:class:: MaskGenerator(axes)
+
 
    Bases: :py:obj:`object`
 
@@ -173,6 +191,7 @@ Functions
 
 
 .. py:class:: WSITissueMaskGenerator(mask_scale: float = 1 / 16, min_size: int = 16, area_threshold: int = 128, thresh: Union[float, None] = None, axes: str = 'YX')
+
 
    Bases: :py:obj:`MaskGenerator`
 
@@ -217,6 +236,7 @@ Functions
 
 
 .. py:class:: ImageBase(shape: Iterable[int], chunk_size: Union[Iterable[int], None] = None, source_axes: str = '', mode: str = '')
+
 
    Bases: :py:obj:`object`
 
@@ -326,6 +346,7 @@ Functions
 
 .. py:class:: ImageLoader(filename: str, source_axes: str, data_group: Union[str, None] = None, axes: Union[str, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, spatial_axes: str = 'ZYX', mode: str = '')
 
+
    Bases: :py:obj:`ImageBase`
 
    Image lazy loader class.
@@ -357,6 +378,7 @@ Functions
 
 
 .. py:class:: ImageCollection(collection_args: dict, spatial_axes: str = 'ZYX')
+
 
    Bases: :py:obj:`object`
 
@@ -573,6 +595,7 @@ Functions
 
 .. py:class:: ToDtype(dtype: numpy.dtype)
 
+
    Bases: :py:obj:`object`
 
    Converted a numpy NDArray to the specified data type.
@@ -598,6 +621,7 @@ Functions
 
 
 .. py:class:: DatasetSpecs(modality: str, filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, add_to_output: bool = True)
+
 
    Bases: :py:obj:`dict`
 
@@ -643,6 +667,7 @@ Functions
 
 .. py:class:: ImagesDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, modality: str = 'images')
 
+
    Bases: :py:obj:`DatasetSpecs`
 
    Specification to add `image` data to a ZarrDataset.
@@ -682,6 +707,7 @@ Functions
 
 
 .. py:class:: LabelsDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, input_label_transform: Union[Callable, None] = None, input_mode: str = 'images', modality: str = 'labels')
+
 
    Bases: :py:obj:`DatasetSpecs`
 
@@ -726,6 +752,7 @@ Functions
 
 .. py:class:: MasksDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, modality: str = 'masks')
 
+
    Bases: :py:obj:`DatasetSpecs`
 
    Specification to add `masks` to a ZarrDataset.
@@ -762,6 +789,7 @@ Functions
 
 
 .. py:class:: ZarrDataset(dataset_specs: Union[Iterable[dict], None] = None, patch_sampler: Union[zarrdataset._samplers.PatchSampler, None] = None, shuffle: bool = False, progress_bar: bool = False, return_positions: bool = False, return_worker_id: bool = False, draw_same_chunk: bool = False)
+
 
    Bases: :py:obj:`torch.utils.data.IterableDataset`
 

@@ -10,7 +10,7 @@ import random
 from pathlib import Path
 import zarr
 import numpy as np
-from sample_images_generator import IMAGE_SPECS, UNSUPPORTED_IMAGE_SPECS
+from tests.utils import IMAGE_SPECS, UNSUPPORTED_IMAGE_SPECS
 
 
 @pytest.fixture
@@ -161,6 +161,29 @@ def test_ImageBase_slicing():
     assert img_sel_2.shape == expected_selection_shape, \
         (f"Expected selection {selection_2} to have shape "
          f"{expected_selection_shape}, got {img_sel_2.shape} instead")
+
+
+def test_ImageBase_padding():
+    shape = (16, 16, 3)
+    axes = "YXC"
+    img = zds.ImageBase(shape, chunk_size=None, source_axes=axes, mode="image")
+
+    random.seed(44512)
+    selection_1 = dict(
+        (ax, slice(random.randint(-10, 0),
+                   random.randint(1, r_s + 10)))
+        for ax, r_s in zip(axes, shape)
+    )
+
+    expected_selection_shape = tuple(
+        selection_1[ax].stop - selection_1[ax].start for ax in axes
+    )
+
+    img_sel_1 = img[selection_1]
+
+    assert img_sel_1.shape == expected_selection_shape, \
+        (f"Expected selection {selection_1} to have shape "
+         f"{expected_selection_shape}, got {img_sel_1.shape} instead")
 
 
 @pytest.mark.parametrize("axes, roi, expected_size", [

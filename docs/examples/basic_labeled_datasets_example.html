@@ -1,24 +1,25 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Labeled dataset loading with ZarrDataset &mdash; ZarrDataset  documentation</title>
-      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+
+  
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -65,6 +66,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch_inference.html">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
@@ -90,7 +92,7 @@
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Labeled dataset loading with ZarrDataset</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/examples/basic_labeled_datasets_example.md.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/examples/basic_labeled_datasets_example.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -99,18 +101,12 @@
            <div itemprop="articleBody">
              
   <section id="labeled-dataset-loading-with-zarrdataset">
-<h1>Labeled dataset loading with ZarrDataset<a class="headerlink" href="#labeled-dataset-loading-with-zarrdataset" title="Permalink to this heading"></a></h1>
+<h1>Labeled dataset loading with ZarrDataset<a class="headerlink" href="#labeled-dataset-loading-with-zarrdataset" title="Link to this heading"></a></h1>
 <p>Import the “zarrdataset” package</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
 <span class="kn">import</span> <span class="nn">zarr</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\tqdm\auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-  from .autonotebook import tqdm as notebook_tqdm
 </pre></div>
 </div>
 </div>
@@ -142,7 +138,7 @@
 </div>
 </div>
 <section id="extract-pair-of-patches-of-size-512x512-pixels-and-their-respective-label-from-a-labeled-whole-slide-image-wsi">
-<h2>Extract pair of patches of size 512x512 pixels and their respective label from a labeled Whole Slide Image (WSI)<a class="headerlink" href="#extract-pair-of-patches-of-size-512x512-pixels-and-their-respective-label-from-a-labeled-whole-slide-image-wsi" title="Permalink to this heading"></a></h2>
+<h2>Extract pair of patches of size 512x512 pixels and their respective label from a labeled Whole Slide Image (WSI)<a class="headerlink" href="#extract-pair-of-patches-of-size-512x512-pixels-and-their-respective-label-from-a-labeled-whole-slide-image-wsi" title="Link to this heading"></a></h2>
 <p>LabeledZarrDataset can retrieve the associated label to each patch extracted as a pair of input and target samples.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -153,7 +149,7 @@
 </div>
 </div>
 <section id="weakly-labeled-exmaple">
-<h3>Weakly labeled exmaple<a class="headerlink" href="#weakly-labeled-exmaple" title="Permalink to this heading"></a></h3>
+<h3>Weakly labeled exmaple<a class="headerlink" href="#weakly-labeled-exmaple" title="Link to this heading"></a></h3>
 <p>Weakly labeled means that there is a few labels (or only one) associated to the whole image.</p>
 <p>These labels could be loaded directly from a list or arrays.</p>
 <div class="cell docutils container">
@@ -190,10 +186,6 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\boto3\compat.py:82: PythonDeprecationWarning: Boto3 will no longer support Python 3.7 starting December 13, 2023. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.8 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
-  warnings.warn(warning, PythonDeprecationWarning)
-</pre></div>
-</div>
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 0, patch size: (1, 3, 1, 512, 512), label: [1]
 </pre></div>
 </div>
@@ -213,7 +205,7 @@
 </div>
 </section>
 <section id="densely-labeled-example">
-<h3>Densely labeled example<a class="headerlink" href="#densely-labeled-example" title="Permalink to this heading"></a></h3>
+<h3>Densely labeled example<a class="headerlink" href="#densely-labeled-example" title="Link to this heading"></a></h3>
 <p>Densely labeled images contain more spatial information about the image.</p>
 <p>This could be the case when pixels of the image belong to a specific class, like in object segmentation problems.</p>
 <p>The image label does not need to be of the same size of the image, since ZarrDataset will match the coordinates of the image and the label.</p>
@@ -249,7 +241,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/65b572fcf82244a99506ade52de4e79392d9b28a7575bda6661981a5249498a4.png" src="../_images/65b572fcf82244a99506ade52de4e79392d9b28a7575bda6661981a5249498a4.png" />
+<img alt="../_images/c0aad9886864fd5540f95b7de730df00d72537e30f3657afab993ac8af83f29f.png" src="../_images/c0aad9886864fd5540f95b7de730df00d72537e30f3657afab993ac8af83f29f.png" />
 </div>
 </div>
 <p>In this case, the labels are passed as a list of Numpy NDArrays, but these could be also stored in Zarr, either locally or in a remote S3 bucket.</p>
@@ -297,10 +289,6 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\boto3\compat.py:82: PythonDeprecationWarning: Boto3 will no longer support Python 3.7 starting December 13, 2023. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.8 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
-  warnings.warn(warning, PythonDeprecationWarning)
-</pre></div>
-</div>
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 0, patch size: (1, 3, 1, 512, 512), label: (33, 33)
 </pre></div>
 </div>
@@ -328,7 +316,7 @@
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 8, patch size: (1, 3, 1, 512, 512), label: (33, 33)
 </pre></div>
 </div>
-<img alt="../_images/42fe9617dbfd95e5cd0e49a04e46a2c31749b53f8ec60cc211baa6b1fc43839e.png" src="../_images/42fe9617dbfd95e5cd0e49a04e46a2c31749b53f8ec60cc211baa6b1fc43839e.png" />
+<img alt="../_images/95f58c26684cbbe45de43ea15a89e02104a9413ae12920b7239a452de73e9dd4.png" src="../_images/95f58c26684cbbe45de43ea15a89e02104a9413ae12920b7239a452de73e9dd4.png" />
 </div>
 </div>
 </section>

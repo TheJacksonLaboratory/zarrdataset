@@ -89,7 +89,7 @@ def image2array(arr_src: Union[str, zarr.Group, zarr.Array, np.ndarray],
         arr = zarr.array(data=arr_src, shape=arr_src.shape,
                          chunks=arr_src.shape)
         return arr, None
-    
+
     # Try to create a connection with the file, to determine if it is a remote
     # resource or local file.
     s3_obj = connect_s3(arr_src)
@@ -98,7 +98,7 @@ def image2array(arr_src: Union[str, zarr.Group, zarr.Array, np.ndarray],
         # Try to open the input file with tifffile (if installed).
         try:
             if (data_group is None
-              or (isinstance(data_group, str) and not len(data_group))):
+               or (isinstance(data_group, str) and not len(data_group))):
                 tiff_args = dict(
                     key=None,
                     level=None,
@@ -192,9 +192,9 @@ class ImageBase(object):
     _image_func = None
 
     def __init__(self, shape: Iterable[int],
-                 chunk_size: Union[Iterable[int], None]=None,
-                 source_axes: str="",
-                 mode: str=""):
+                 chunk_size: Union[Iterable[int], None] = None,
+                 source_axes: str = "",
+                 mode: str = ""):
         if chunk_size is None:
             chunk_size = shape
 
@@ -204,6 +204,7 @@ class ImageBase(object):
         self.arr = zarr.ones(shape=shape, dtype=bool, chunks=chunk_size)
         self.roi = tuple([slice(None)] * len(source_axes))
         self.mode = mode
+
         self._chunk_size = chunk_size
 
     def _iscached(self, coords):
@@ -224,16 +225,29 @@ class ImageBase(object):
         if not self._iscached(index):
             self._cached_coords = tuple(
                 map(lambda i, chk, s:
-                    slice(chk * int(i.start / chk)
+                    slice(max(0, chk * int(i.start / chk))
                           if i.start is not None else 0,
                           min(s, chk * int(math.ceil(i.stop / chk)))
-                          if i.stop is not None else None,
-                          None),
+                          if i.stop is not None else s),
                     index,
                     self.arr.chunks,
                     self.arr.shape)
             )
+
+            padding = tuple(
+                (cc.start - i.start if i.start is not None and i.start < 0 else 0,
+                 i.stop - cc.stop if i.stop is not None and i.stop > s else 0)
+                for cc, i, s in zip(self._cached_coords, index, self.arr.shape)
+            )
+
             self._cache = self.arr[self._cached_coords]
+
+            if any([any(pad) for pad in padding]):
+                self._cache = np.pad(self._cache, padding)
+                self._cached_coords = tuple(
+                    slice(cc.start - p_low, cc.stop + p_high)
+                    for (p_low, p_high), cc in zip(padding, self._cached_coords)
+                )
 
         cached_index = tuple(
             map(lambda cache, i:
@@ -257,20 +271,14 @@ class ImageBase(object):
         if not isinstance(index, dict):
             # Arrange the indices requested using the reference image axes
             # ordering.
-            index = dict(
-                ((ax, sel)
-                for ax, sel in zip(spatial_reference_axes, index))
-            )
+            index = {ax: sel for ax, sel in zip(spatial_reference_axes, index)}
 
         mode_index, _ = select_axes(self.axes, index)
         mode_scales = tuple(self.scale[ax] for ax in self.axes)
 
         mode_index = scale_coords(mode_index, mode_scales)
 
-        mode_index = dict(
-            ((ax, sel)
-            for ax, sel in zip(self.axes, mode_index))
-        )
+        mode_index = {ax: sel for ax, sel in zip(self.axes, mode_index)}
 
         # Locate the mode_index within the ROI:
         roi_mode_index = translate2roi(mode_index, self.roi, self.source_axes,
@@ -430,7 +438,7 @@ class ImageLoader(ImageBase):
                 parsed_roi = roi
         elif isinstance(roi, slice):
             if (len(source_axes) > 1
-              and not (roi.start is None and roi.stop is None)):
+               and not (roi.start is None and roi.stop is None)):
                 raise ValueError(f"ROIs must specify a slice per axes. "
                                  f"Expected {len(source_axes)} slices, got "
                                  f"only {roi}")
@@ -440,11 +448,10 @@ class ImageLoader(ImageBase):
             raise ValueError(f"Incorrect ROI format, expected a list of "
                              f"slices, or a parsable string, got {roi}")
 
-        roi_slices = list(
-            map(lambda r:
-                slice(r.start if r.start is not None else 0, r.stop, None),
-                parsed_roi)
-        )
+        roi_slices = [
+            slice(r.start if r.start is not None else 0, r.stop, None)
+            for r in parsed_roi
+        ]
 
         (self.arr,
          self._store) = image2array(filename, data_group=data_group,
@@ -512,11 +519,11 @@ class ImageCollection(object):
 
         self.spatial_axes = spatial_axes
 
-        self.collection = dict((
-            (mode, ImageLoader(spatial_axes=spatial_axes, mode=mode,
-                               **mode_args))
+        self.collection = {
+            mode: ImageLoader(spatial_axes=spatial_axes, mode=mode,
+                              **mode_args)
             for mode, mode_args in collection_args.items()
-        ))
+        }
 
         self._generate_mask()
         self.reset_scales()
@@ -574,9 +581,7 @@ class ImageCollection(object):
             img.rescale(spatial_reference_shape, spatial_reference_axes)
 
     def __getitem__(self, index):
-        collection_set = dict(
-            (mode, img[index])
-            for mode, img in self.collection.items()
-        )
+        collection_set = {mode: img[index]
+                          for mode, img in self.collection.items()}
 
         return collection_set

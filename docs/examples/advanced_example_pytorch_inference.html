@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced) &mdash; ZarrDataset  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="License" href="../license_link.html" />
+    <link rel="prev" title="Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)" href="advanced_example_pytorch.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            ZarrDataset
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../readme_link.html">ZarrDataset</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="basic_example.html">Basic ZarrDataset usage example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_example_tensorflow.html">Integration of ZarrDataset with Tensorflow Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_masked_datasets_example.html">Loading patches/windows from masked regions of images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#extracting-patches-of-size-1024x1024-pixels-from-a-whole-slide-image-wsi">Extracting patches of size 1024x1024 pixels from a Whole Slide Image (WSI)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#create-a-dataloader-from-the-dataset-object">Create a DataLoader from the dataset object</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#visualize-the-result">Visualize the result</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../license_link.html">License</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../autoapi/index.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">ZarrDataset</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/examples/advanced_example_pytorch_inference.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="integration-of-zarrdataset-with-pytorch-s-dataloader-for-inference-advanced">
+<h1>Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)<a class="headerlink" href="#integration-of-zarrdataset-with-pytorch-s-dataloader-for-inference-advanced" title="Link to this heading"></a></h1>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">DataLoader</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># These are images from the Image Data Resource (IDR) </span>
+<span class="c1"># https://idr.openmicroscopy.org/ that are publicly available and were </span>
+<span class="c1"># converted to the OME-NGFF (Zarr) format by the OME group. More examples</span>
+<span class="c1"># can be found at Public OME-Zarr data (Nov. 2020)</span>
+<span class="c1"># https://www.openmicroscopy.org/2020/11/04/zarr-data.html</span>
+
+<span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr&quot;</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="c1"># For reproducibility</span>
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">478963</span><span class="p">)</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">478964</span><span class="p">)</span>
+<span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">478965</span><span class="p">)</span>
+</pre></div>
+</div>
+<section id="extracting-patches-of-size-1024x1024-pixels-from-a-whole-slide-image-wsi">
+<h2>Extracting patches of size 1024x1024 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extracting-patches-of-size-1024x1024-pixels-from-a-whole-slide-image-wsi" title="Link to this heading"></a></h2>
+<p>Retrieve samples for inference. Add padding to each patch to avoid edge artifacts when stitching the inference result.
+Finally, let the PatchSampler retrieve patches from the edge of the image that would be otherwise smaller than the patch size by setting <code class="docutils literal notranslate"><span class="pre">allow_incomplete_patches=True</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">patch_size</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">Y</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
+<span class="n">pad</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">Y</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">X</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="n">patch_sampler</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">PatchSampler</span><span class="p">(</span><span class="n">patch_size</span><span class="o">=</span><span class="n">patch_size</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="n">pad</span><span class="p">,</span> <span class="n">allow_incomplete_patches</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Create a dataset from the list of filenames. All those files should be stored within their respective group “0”.</p>
+<p>Also, specify that the axes order in the image is Time-Channel-Depth-Height-Width (TCZYX), so the data can be handled correctly</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">image_specs</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ImagesDatasetSpecs</span><span class="p">(</span>
+  <span class="n">filenames</span><span class="o">=</span><span class="n">filenames</span><span class="p">,</span>
+  <span class="n">data_group</span><span class="o">=</span><span class="s2">&quot;4&quot;</span><span class="p">,</span>
+  <span class="n">source_axes</span><span class="o">=</span><span class="s2">&quot;TCZYX&quot;</span><span class="p">,</span>
+  <span class="n">axes</span><span class="o">=</span><span class="s2">&quot;YXC&quot;</span><span class="p">,</span>
+  <span class="n">roi</span><span class="o">=</span><span class="s2">&quot;0,0,0,0,0:1,-1,1,-1,-1&quot;</span>
+<span class="p">)</span>
+
+<span class="n">my_dataset</span> <span class="o">=</span> <span class="n">zds</span><span class="o">.</span><span class="n">ZarrDataset</span><span class="p">(</span><span class="n">image_specs</span><span class="p">,</span>
+                             <span class="n">patch_sampler</span><span class="o">=</span><span class="n">patch_sampler</span><span class="p">,</span>
+                             <span class="n">return_positions</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">my_dataset</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>ZarrDataset (PyTorch support:True, tqdm support :True)
+Modalities: images
+Transforms order: []
+Using images modality as reference.
+Using &lt;class &#39;zarrdataset._samplers.PatchSampler&#39;&gt; for sampling patches of size {&#39;Z&#39;: 1, &#39;Y&#39;: 128, &#39;X&#39;: 128}.
+</pre></div>
+</div>
+<p>Add a pre-processing step before creating the image batches, where the input arrays are casted from int16 to float32.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">torchvision</span>
+
+<span class="n">img_preprocessing</span> <span class="o">=</span> <span class="n">torchvision</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span>
+    <span class="n">zds</span><span class="o">.</span><span class="n">ToDtype</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+    <span class="n">torchvision</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">(),</span>
+    <span class="n">torchvision</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">Normalize</span><span class="p">(</span><span class="mi">127</span><span class="p">,</span> <span class="mi">255</span><span class="p">)</span>
+<span class="p">])</span>
+
+<span class="n">my_dataset</span><span class="o">.</span><span class="n">add_transform</span><span class="p">(</span><span class="s2">&quot;images&quot;</span><span class="p">,</span> <span class="n">img_preprocessing</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">my_dataset</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>ZarrDataset (PyTorch support:True, tqdm support :True)
+Modalities: images
+Transforms order: [(&#39;images&#39;,)]
+Using images modality as reference.
+Using &lt;class &#39;zarrdataset._samplers.PatchSampler&#39;&gt; for sampling patches of size {&#39;Z&#39;: 1, &#39;Y&#39;: 128, &#39;X&#39;: 128}.
+</pre></div>
+</div>
+</section>
+<section id="create-a-dataloader-from-the-dataset-object">
+<h2>Create a DataLoader from the dataset object<a class="headerlink" href="#create-a-dataloader-from-the-dataset-object" title="Link to this heading"></a></h2>
+<p>ZarrDataset is compatible with DataLoader from PyTorch since it is inherited from the IterableDataset class of the torch.utils.data module.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">my_dataloader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">my_dataset</span><span class="p">,</span> <span class="n">num_workers</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">dask.array</span> <span class="k">as</span> <span class="nn">da</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">zarr</span>
+
+<span class="n">z_arr</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0073A/9798462.zarr/4&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
+
+<span class="n">H</span> <span class="o">=</span> <span class="n">z_arr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+<span class="n">W</span> <span class="o">=</span> <span class="n">z_arr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="n">pad_H</span> <span class="o">=</span> <span class="p">(</span><span class="mi">128</span> <span class="o">-</span> <span class="n">H</span><span class="p">)</span> <span class="o">%</span> <span class="mi">128</span>
+<span class="n">pad_W</span> <span class="o">=</span> <span class="p">(</span><span class="mi">128</span> <span class="o">-</span> <span class="n">W</span><span class="p">)</span> <span class="o">%</span> <span class="mi">128</span>
+<span class="n">z_prediction</span> <span class="o">=</span> <span class="n">zarr</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">H</span> <span class="o">+</span> <span class="n">pad_H</span><span class="p">,</span> <span class="n">W</span> <span class="o">+</span> <span class="n">pad_W</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">chunks</span><span class="o">=</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">))</span>
+<span class="n">z_prediction</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>&lt;zarr.core.Array (1152, 1408) float32&gt;
+</pre></div>
+</div>
+<p>Set up a simple model for illustration purpose</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">out_channels</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">pos</span><span class="p">,</span> <span class="n">sample</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">my_dataloader</span><span class="p">):</span>
+    <span class="n">pred_pos</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">slice</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">+</span> <span class="mi">16</span><span class="p">,</span>
+              <span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">-</span> <span class="mi">16</span><span class="p">),</span>
+        <span class="nb">slice</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">+</span> <span class="mi">16</span><span class="p">,</span>
+              <span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">-</span> <span class="mi">16</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">pred</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+    <span class="n">z_prediction</span><span class="p">[</span><span class="n">pred_pos</span><span class="p">]</span> <span class="o">=</span> <span class="n">pred</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">16</span><span class="p">:</span><span class="o">-</span><span class="mi">16</span><span class="p">,</span> <span class="mi">16</span><span class="p">:</span><span class="o">-</span><span class="mi">16</span><span class="p">]</span>
+</pre></div>
+</div>
+</section>
+<section id="visualize-the-result">
+<h2>Visualize the result<a class="headerlink" href="#visualize-the-result" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">moveaxis</span><span class="p">(</span><span class="n">z_arr</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">z_prediction</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="advanced_example_pytorch.html" class="btn btn-neutral float-left" title="Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../license_link.html" class="btn btn-neutral float-right" title="License" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, The Jackson Laboratory.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

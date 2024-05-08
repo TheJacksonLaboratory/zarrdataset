@@ -1,27 +1,30 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../../../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>zarrdataset._maskfuncs &mdash; ZarrDataset  documentation</title>
-      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
-      <link rel="stylesheet" href="../../../_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=fd3f3429" />
+
+  
   <!--[if lt IE 9]>
     <script src="../../../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-        <script src="../../../_static/jquery.js"></script>
-        <script src="../../../_static/underscore.js"></script>
-        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script src="../../../_static/doctools.js"></script>
-        <script src="../../../_static/sphinx_highlight.js"></script>
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../genindex.html" />
-    <link rel="search" title="Search" href="../../../search.html" /> 
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="zarrdataset._samplers" href="../_samplers/index.html" />
+    <link rel="prev" title="zarrdataset._imageloaders" href="../_imageloaders/index.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -56,13 +59,29 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../examples/advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../examples/basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../examples/advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../examples/advanced_example_pytorch_inference.html">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../license_link.html">License</a></li>
 </ul>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../../index.html">API Reference</a></li>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset</span></code></a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../index.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../_augs/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._augs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_imageloaders/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._imageloaders</span></code></a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._maskfuncs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_samplers/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._samplers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_utils/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._utils</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_zarrdataset/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._zarrdataset</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../index.html#package-contents">Package Contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 
         </div>
@@ -79,6 +98,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">API Reference</a></li>
+          <li class="breadcrumb-item"><a href="../index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset</span></code></a></li>
       <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._maskfuncs</span></code></li>
       <li class="wy-breadcrumbs-aside">
             <a href="../../../_sources/autoapi/zarrdataset/_maskfuncs/index.rst.txt" rel="nofollow"> View page source</a>
@@ -90,11 +111,11 @@
            <div itemprop="articleBody">
              
   <section id="module-zarrdataset._maskfuncs">
-<span id="zarrdataset-maskfuncs"></span><h1><a class="reference internal" href="#module-zarrdataset._maskfuncs" title="zarrdataset._maskfuncs"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._maskfuncs</span></code></a><a class="headerlink" href="#module-zarrdataset._maskfuncs" title="Permalink to this heading"></a></h1>
+<span id="zarrdataset-maskfuncs"></span><h1><a class="reference internal" href="#module-zarrdataset._maskfuncs" title="zarrdataset._maskfuncs"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._maskfuncs</span></code></a><a class="headerlink" href="#module-zarrdataset._maskfuncs" title="Link to this heading"></a></h1>
 <section id="module-contents">
-<h2>Module Contents<a class="headerlink" href="#module-contents" title="Permalink to this heading"></a></h2>
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
 <section id="classes">
-<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this heading"></a></h3>
+<h3>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h3>
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset._maskfuncs.MaskGenerator" title="zarrdataset._maskfuncs.MaskGenerator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MaskGenerator</span></code></a></p></td>
@@ -107,24 +128,24 @@
 </table>
 <dl class="py class">
 <dt class="sig sig-object py" id="zarrdataset._maskfuncs.MaskGenerator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._maskfuncs.</span></span><span class="sig-name descname"><span class="pre">MaskGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axes</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#MaskGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.MaskGenerator" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._maskfuncs.</span></span><span class="sig-name descname"><span class="pre">MaskGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axes</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#MaskGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.MaskGenerator" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Base class to define transformation functions on ImageBase objects.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset._maskfuncs.MaskGenerator._compute_transform">
-<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">_compute_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#MaskGenerator._compute_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.MaskGenerator._compute_transform" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">_compute_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#MaskGenerator._compute_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.MaskGenerator._compute_transform" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset._maskfuncs.MaskGenerator.__call__">
-<span class="sig-name descname"><span class="pre">__call__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#MaskGenerator.__call__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.MaskGenerator.__call__" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__call__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#MaskGenerator.__call__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.MaskGenerator.__call__" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="zarrdataset._maskfuncs.WSITissueMaskGenerator">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._maskfuncs.</span></span><span class="sig-name descname"><span class="pre">WSITissueMaskGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask_scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">area_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'YX'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#WSITissueMaskGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.WSITissueMaskGenerator" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset._maskfuncs.</span></span><span class="sig-name descname"><span class="pre">WSITissueMaskGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask_scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span> <span class="pre">/</span> <span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">area_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'YX'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#WSITissueMaskGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.WSITissueMaskGenerator" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="#zarrdataset._maskfuncs.MaskGenerator" title="zarrdataset._maskfuncs.MaskGenerator"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MaskGenerator</span></code></a></p>
 <p>Mask generator for tissue objects in Whole Slide Images (WSI).</p>
 <p>This will compute a mask of scale <cite>mask_scale</cite> from the input image where
@@ -132,17 +153,17 @@ tissue (darker pixels than white background) are present.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>mask_scale</strong> (<em>float</em>) – </p></li>
-<li><p><strong>min_size</strong> (<em>int</em>) – </p></li>
-<li><p><strong>area_threshold</strong> (<em>int</em><em>,</em>) – </p></li>
-<li><p><strong>thresh</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>None</em><em>]</em>) – </p></li>
-<li><p><strong>axes</strong> (<em>str</em>) – </p></li>
+<li><p><strong>mask_scale</strong> (<em>float</em>)</p></li>
+<li><p><strong>min_size</strong> (<em>int</em>)</p></li>
+<li><p><strong>area_threshold</strong> (<em>int</em><em>,</em>)</p></li>
+<li><p><strong>thresh</strong> (<em>Union</em><em>[</em><em>float</em><em>, </em><em>None</em><em>]</em>)</p></li>
+<li><p><strong>axes</strong> (<em>str</em>)</p></li>
 </ul>
 </dd>
 </dl>
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset._maskfuncs.WSITissueMaskGenerator._compute_transform">
-<span class="sig-name descname"><span class="pre">_compute_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#WSITissueMaskGenerator._compute_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.WSITissueMaskGenerator._compute_transform" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_compute_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../../_modules/zarrdataset/_maskfuncs.html#WSITissueMaskGenerator._compute_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset._maskfuncs.WSITissueMaskGenerator._compute_transform" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -154,7 +175,10 @@ tissue (darker pixels than white background) are present.</p>
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../_imageloaders/index.html" class="btn btn-neutral float-left" title="zarrdataset._imageloaders" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../_samplers/index.html" class="btn btn-neutral float-right" title="zarrdataset._samplers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 

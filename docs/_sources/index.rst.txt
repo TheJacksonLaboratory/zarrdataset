@@ -30,6 +30,8 @@ Welcome to ZarrDataset's documentation!
 
    examples/advanced_example_pytorch
 
+   examples/advanced_example_pytorch_inference
+
 
 REFERENCE
 =========

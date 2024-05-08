@@ -1,24 +1,25 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Integration of ZarrDataset with PyTorch’s DataLoader &mdash; ZarrDataset  documentation</title>
-      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+
+  
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -63,6 +64,7 @@
 <li class="toctree-l1"><a class="reference internal" href="advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch_inference.html">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
@@ -88,7 +90,7 @@
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Integration of ZarrDataset with PyTorch’s DataLoader</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/examples/basic_example_pytorch.md.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/examples/basic_example_pytorch.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -97,19 +99,13 @@
            <div itemprop="articleBody">
              
   <section id="integration-of-zarrdataset-with-pytorch-s-dataloader">
-<h1>Integration of ZarrDataset with PyTorch’s DataLoader<a class="headerlink" href="#integration-of-zarrdataset-with-pytorch-s-dataloader" title="Permalink to this heading"></a></h1>
+<h1>Integration of ZarrDataset with PyTorch’s DataLoader<a class="headerlink" href="#integration-of-zarrdataset-with-pytorch-s-dataloader" title="Link to this heading"></a></h1>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
 
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">DataLoader</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\tqdm\auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-  from .autonotebook import tqdm as notebook_tqdm
 </pre></div>
 </div>
 </div>
@@ -143,7 +139,7 @@
 </div>
 </div>
 <section id="extracting-patches-of-size-1024x1024-pixels-from-a-whole-slide-image-wsi">
-<h2>Extracting patches of size 1024x1024 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extracting-patches-of-size-1024x1024-pixels-from-a-whole-slide-image-wsi" title="Permalink to this heading"></a></h2>
+<h2>Extracting patches of size 1024x1024 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extracting-patches-of-size-1024x1024-pixels-from-a-whole-slide-image-wsi" title="Link to this heading"></a></h2>
 <p>Sample the image randomly</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -218,7 +214,7 @@ Using &lt;class &#39;zarrdataset._samplers.BlueNoisePatchSampler&#39;&gt; for sa
 </div>
 </section>
 <section id="create-a-dataloader-from-the-dataset-object">
-<h2>Create a DataLoader from the dataset object<a class="headerlink" href="#create-a-dataloader-from-the-dataset-object" title="Permalink to this heading"></a></h2>
+<h2>Create a DataLoader from the dataset object<a class="headerlink" href="#create-a-dataloader-from-the-dataset-object" title="Link to this heading"></a></h2>
 <p>ZarrDataset is compatible with DataLoader from PyTorch since it is inherited from the IterableDataset class of the torch.utils.data module.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -245,10 +241,6 @@ Using &lt;class &#39;zarrdataset._samplers.BlueNoisePatchSampler&#39;&gt; for sa
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\boto3\compat.py:82: PythonDeprecationWarning: Boto3 will no longer support Python 3.7 starting December 13, 2023. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.8 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
-  warnings.warn(warning, PythonDeprecationWarning)
-</pre></div>
-</div>
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 1 with size torch.Size([1, 1, 3, 1, 1024, 1024])
 </pre></div>
 </div>
@@ -276,12 +268,12 @@ Using &lt;class &#39;zarrdataset._samplers.BlueNoisePatchSampler&#39;&gt; for sa
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/45ab7f50e82c785d3067486cc95251eb17f8251bdf410af9dfc8198a5efdc1b4.png" src="../_images/45ab7f50e82c785d3067486cc95251eb17f8251bdf410af9dfc8198a5efdc1b4.png" />
+<img alt="../_images/e880a407e638d92dfbb3ecddfb7e77f00928d4513ef46732aad1a34f268aaba6.png" src="../_images/e880a407e638d92dfbb3ecddfb7e77f00928d4513ef46732aad1a34f268aaba6.png" />
 </div>
 </div>
 </section>
 <section id="multithread-data-loading-with-torch-s-dataloader">
-<h2>Multithread data loading with Torch’s DataLoader<a class="headerlink" href="#multithread-data-loading-with-torch-s-dataloader" title="Permalink to this heading"></a></h2>
+<h2>Multithread data loading with Torch’s DataLoader<a class="headerlink" href="#multithread-data-loading-with-torch-s-dataloader" title="Link to this heading"></a></h2>
 <p>This example will use multiple workers to load patches of size 256x256 from the same image</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -341,7 +333,9 @@ Using &lt;class &#39;zarrdataset._samplers.BlueNoisePatchSampler&#39;&gt; for sa
 </pre></div>
 </div>
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 2 with size torch.Size([1, 1, 3, 1, 256, 256])
-Sample 3 with size torch.Size([1, 1, 3, 1, 256, 256])
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 3 with size torch.Size([1, 1, 3, 1, 256, 256])
 Sample 4 with size torch.Size([1, 1, 3, 1, 256, 256])
 Sample 5 with size torch.Size([1, 1, 3, 1, 256, 256])
 </pre></div>
@@ -356,7 +350,7 @@ Sample 5 with size torch.Size([1, 1, 3, 1, 256, 256])
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/284bd1500b03d8fd065dbd9eaee853fdc86a95176ebecbf8c97e8545cfba3b26.png" src="../_images/284bd1500b03d8fd065dbd9eaee853fdc86a95176ebecbf8c97e8545cfba3b26.png" />
+<img alt="../_images/436ea478c2ee0d47a17897babbdadb6f03141f6ce5da68079b1003253690ac07.png" src="../_images/436ea478c2ee0d47a17897babbdadb6f03141f6ce5da68079b1003253690ac07.png" />
 </div>
 </div>
 </section>

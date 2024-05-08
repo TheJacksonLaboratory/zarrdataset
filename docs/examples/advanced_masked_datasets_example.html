@@ -1,24 +1,25 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Custom masks for sampling specific regions from images with ZarrDataset &mdash; ZarrDataset  documentation</title>
-      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+
+  
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -62,6 +63,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch_inference.html">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
@@ -87,7 +89,7 @@
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Custom masks for sampling specific regions from images with ZarrDataset</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/examples/advanced_masked_datasets_example.md.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/examples/advanced_masked_datasets_example.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -96,17 +98,11 @@
            <div itemprop="articleBody">
              
   <section id="custom-masks-for-sampling-specific-regions-from-images-with-zarrdataset">
-<h1>Custom masks for sampling specific regions from images with ZarrDataset<a class="headerlink" href="#custom-masks-for-sampling-specific-regions-from-images-with-zarrdataset" title="Permalink to this heading"></a></h1>
+<h1>Custom masks for sampling specific regions from images with ZarrDataset<a class="headerlink" href="#custom-masks-for-sampling-specific-regions-from-images-with-zarrdataset" title="Link to this heading"></a></h1>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
 <span class="kn">import</span> <span class="nn">zarr</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\tqdm\auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-  from .autonotebook import tqdm as notebook_tqdm
 </pre></div>
 </div>
 </div>
@@ -156,7 +152,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/759c21caeefcd6a675de044a901404b2cfe633e307d03bbbbcb77ee793965f7a.png" src="../_images/759c21caeefcd6a675de044a901404b2cfe633e307d03bbbbcb77ee793965f7a.png" />
+<img alt="../_images/d495d73aa08da19be90e594be5c54833cf2e178ae7cae10432fb766694918ab3.png" src="../_images/d495d73aa08da19be90e594be5c54833cf2e178ae7cae10432fb766694918ab3.png" />
 </div>
 </div>
 <p>Define a mask from where patches can be extracted</p>
@@ -190,7 +186,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/546b7437007e4b4c05161d8a64f9f506e92e7411e065c4da18d130c20f0af04f.png" src="../_images/546b7437007e4b4c05161d8a64f9f506e92e7411e065c4da18d130c20f0af04f.png" />
+<img alt="../_images/628f1844e583b33a7d21cfb31d784a0127a2d2e0b31286c7e6a97418267d54b6.png" src="../_images/628f1844e583b33a7d21cfb31d784a0127a2d2e0b31286c7e6a97418267d54b6.png" />
 </div>
 </div>
 <div class="cell docutils container">
@@ -202,11 +198,11 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/5c7c833fd17625ecdc07808087725c86964ec2d9a2da87d1f87a55c4624f59b8.png" src="../_images/5c7c833fd17625ecdc07808087725c86964ec2d9a2da87d1f87a55c4624f59b8.png" />
+<img alt="../_images/e1f81ad79bdec8d2d1e0b42caadd6aeedc1c4b984f42f2245afab36b2797d930.png" src="../_images/e1f81ad79bdec8d2d1e0b42caadd6aeedc1c4b984f42f2245afab36b2797d930.png" />
 </div>
 </div>
 <section id="extract-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi">
-<h2>Extract patches of size 512x512 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extract-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi" title="Permalink to this heading"></a></h2>
+<h2>Extract patches of size 512x512 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extract-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi" title="Link to this heading"></a></h2>
 <p>Sample the image uniformly in a squared grid pattern</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -257,10 +253,6 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\boto3\compat.py:82: PythonDeprecationWarning: Boto3 will no longer support Python 3.7 starting December 13, 2023. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.8 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
-  warnings.warn(warning, PythonDeprecationWarning)
-</pre></div>
-</div>
 <div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>(numpy.ndarray, (1, 64, 65), dtype(&#39;bool&#39;))
 </pre></div>
 </div>
@@ -274,7 +266,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/ed8dde5da314fd71e374da3c93d23bbfc0cdcfe260f0f753b63ac1cb29e9e5e7.png" src="../_images/ed8dde5da314fd71e374da3c93d23bbfc0cdcfe260f0f753b63ac1cb29e9e5e7.png" />
+<img alt="../_images/31d137495ce407f7d99f490ba69d6a5f41888c28cde21228a2f328edfa8e40cc.png" src="../_images/31d137495ce407f7d99f490ba69d6a5f41888c28cde21228a2f328edfa8e40cc.png" />
 </div>
 </div>
 <div class="cell docutils container">
@@ -285,7 +277,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/a315a7043534741ef8e5af67b62b88b66a39401fa1323cbce4e78677fbbfbef4.png" src="../_images/a315a7043534741ef8e5af67b62b88b66a39401fa1323cbce4e78677fbbfbef4.png" />
+<img alt="../_images/a11a8287536a394bfb61f648349fa849ec30be6019e44c5e83d5dd39647db45a.png" src="../_images/a11a8287536a394bfb61f648349fa849ec30be6019e44c5e83d5dd39647db45a.png" />
 </div>
 </div>
 <div class="cell docutils container">
@@ -314,7 +306,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/9321cb48ee042a15c373b9c81d4b76fe89dc6341a4b03c93295b97901385b10c.png" src="../_images/9321cb48ee042a15c373b9c81d4b76fe89dc6341a4b03c93295b97901385b10c.png" />
+<img alt="../_images/3df2b153ce1d397ef26580e18fca6fabc6fa681bcb24ee1065f4744e6ddc3726.png" src="../_images/3df2b153ce1d397ef26580e18fca6fabc6fa681bcb24ee1065f4744e6ddc3726.png" />
 </div>
 </div>
 <div class="cell docutils container">
@@ -325,12 +317,12 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/1ddb40eec18c790a468ed22c33d9c5408a8dd92bb70786de64906450c6a1328b.png" src="../_images/1ddb40eec18c790a468ed22c33d9c5408a8dd92bb70786de64906450c6a1328b.png" />
+<img alt="../_images/523c9cb27868c1f9957633dfa750a39e75335ba153fa5f301d10035d659dcb2c.png" src="../_images/523c9cb27868c1f9957633dfa750a39e75335ba153fa5f301d10035d659dcb2c.png" />
 </div>
 </div>
 </section>
 <section id="use-a-function-to-generate-the-masks-for-each-image-in-the-dataset">
-<h2>Use a function to generate the masks for each image in the dataset<a class="headerlink" href="#use-a-function-to-generate-the-masks-for-each-image-in-the-dataset" title="Permalink to this heading"></a></h2>
+<h2>Use a function to generate the masks for each image in the dataset<a class="headerlink" href="#use-a-function-to-generate-the-masks-for-each-image-in-the-dataset" title="Link to this heading"></a></h2>
 <p>Get only patches that are covered by at least 1/16th of their area by the mask</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -404,7 +396,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/38a14f61047648036e141d3c632dba37af9066300a151d29c8b4c8b81feb7220.png" src="../_images/38a14f61047648036e141d3c632dba37af9066300a151d29c8b4c8b81feb7220.png" />
+<img alt="../_images/e2305cad629c84402e8d92c46063e80ab2e9403f84f20b4a8f666a6184359bbf.png" src="../_images/e2305cad629c84402e8d92c46063e80ab2e9403f84f20b4a8f666a6184359bbf.png" />
 </div>
 </div>
 </section>

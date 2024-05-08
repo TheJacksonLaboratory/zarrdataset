@@ -1,24 +1,25 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Integration of ZarrDataset with Tensorflow Datasets &mdash; ZarrDataset  documentation</title>
-      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+
+  
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -62,6 +63,7 @@
 <li class="toctree-l1"><a class="reference internal" href="advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch_inference.html">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
@@ -87,7 +89,7 @@
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Integration of ZarrDataset with Tensorflow Datasets</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/examples/basic_example_tensorflow.md.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/examples/basic_example_tensorflow.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -96,7 +98,7 @@
            <div itemprop="articleBody">
              
   <section id="integration-of-zarrdataset-with-tensorflow-datasets">
-<h1>Integration of ZarrDataset with Tensorflow Datasets<a class="headerlink" href="#integration-of-zarrdataset-with-tensorflow-datasets" title="Permalink to this heading"></a></h1>
+<h1>Integration of ZarrDataset with Tensorflow Datasets<a class="headerlink" href="#integration-of-zarrdataset-with-tensorflow-datasets" title="Link to this heading"></a></h1>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
@@ -138,7 +140,7 @@
 </div>
 </div>
 <section id="extracting-patches-of-size-1024x1024-pixels-from-a-whole-slide-image-wsi">
-<h2>Extracting patches of size 1024x1024 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extracting-patches-of-size-1024x1024-pixels-from-a-whole-slide-image-wsi" title="Permalink to this heading"></a></h2>
+<h2>Extracting patches of size 1024x1024 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extracting-patches-of-size-1024x1024-pixels-from-a-whole-slide-image-wsi" title="Link to this heading"></a></h2>
 <p>Sample the image randomly using a <a class="reference external" href="https://blog.demofox.org/2017/10/20/generating-blue-noise-sample-points-with-mitchells-best-candidate-algorithm/">Blue Noise</a> sampling.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -173,7 +175,7 @@
 </div>
 </section>
 <section id="create-a-tensoflow-dataset-from-the-zarrdataset-object">
-<h2>Create a Tensoflow Dataset from the ZarrDataset object<a class="headerlink" href="#create-a-tensoflow-dataset-from-the-zarrdataset-object" title="Permalink to this heading"></a></h2>
+<h2>Create a Tensoflow Dataset from the ZarrDataset object<a class="headerlink" href="#create-a-tensoflow-dataset-from-the-zarrdataset-object" title="Link to this heading"></a></h2>
 <p>When PyTorch is not present in the system, ZarrDataset will still work as a python generator.</p>
 <p>This makes it easy to connect ZarrDataset with <code class="docutils literal notranslate"><span class="pre">tensorflow.data.Dataset</span></code> and create an iterable dataset.</p>
 <div class="cell docutils container">
@@ -208,10 +210,6 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-tf\lib\site-packages\boto3\compat.py:82: PythonDeprecationWarning: Boto3 will no longer support Python 3.7 starting December 13, 2023. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.8 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
-  warnings.warn(warning, PythonDeprecationWarning)
-</pre></div>
-</div>
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Sample 1 with size (1, 3, 1, 1024, 1024), and target [1]
 </pre></div>
 </div>
@@ -248,7 +246,7 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/1261d0c4c4d7c0a3ecd6bafd9c78fef2bcdfb3839bfda7758e9a80d2268a8ae0.png" src="../_images/1261d0c4c4d7c0a3ecd6bafd9c78fef2bcdfb3839bfda7758e9a80d2268a8ae0.png" />
+<img alt="../_images/2adb5f39b2ce57d03aec408559073bd89eb5ff02db286383554d5399b26888e6.png" src="../_images/2adb5f39b2ce57d03aec408559073bd89eb5ff02db286383554d5399b26888e6.png" />
 </div>
 </div>
 </section>

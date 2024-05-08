@@ -62,6 +62,7 @@ Attributes
 
 .. py:class:: ImageBase(shape: Iterable[int], chunk_size: Union[Iterable[int], None] = None, source_axes: str = '', mode: str = '')
 
+
    Bases: :py:obj:`object`
 
    .. py:property:: shape
@@ -170,6 +171,7 @@ Attributes
 
 .. py:class:: ImageLoader(filename: str, source_axes: str, data_group: Union[str, None] = None, axes: Union[str, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, spatial_axes: str = 'ZYX', mode: str = '')
 
+
    Bases: :py:obj:`ImageBase`
 
    Image lazy loader class.
@@ -201,6 +203,7 @@ Attributes
 
 
 .. py:class:: ImageCollection(collection_args: dict, spatial_axes: str = 'ZYX')
+
 
    Bases: :py:obj:`object`
 

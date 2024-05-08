@@ -1,24 +1,25 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="../">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Basic ZarrDataset usage example &mdash; ZarrDataset  documentation</title>
-      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" type="text/css" />
-      <link rel="stylesheet" href="../_static/graphviz.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+
+  
   <!--[if lt IE 9]>
     <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -64,6 +65,7 @@
 <li class="toctree-l1"><a class="reference internal" href="advanced_masked_datasets_example.html">Custom masks for sampling specific regions from images with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_labeled_datasets_example.html">Labeled dataset loading with ZarrDataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch.html">Integration of ZarrDataset with PyTorch’s DataLoader (Advanced)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_example_pytorch_inference.html">Integration of ZarrDataset with PyTorch’s DataLoader for inference (Advanced)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
@@ -89,7 +91,7 @@
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Basic ZarrDataset usage example</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/examples/basic_example.md.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/examples/basic_example.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -98,18 +100,12 @@
            <div itemprop="articleBody">
              
   <section id="basic-zarrdataset-usage-example">
-<h1>Basic ZarrDataset usage example<a class="headerlink" href="#basic-zarrdataset-usage-example" title="Permalink to this heading"></a></h1>
+<h1>Basic ZarrDataset usage example<a class="headerlink" href="#basic-zarrdataset-usage-example" title="Link to this heading"></a></h1>
 <p>Import the “zarrdataset” package</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">zarrdataset</span> <span class="k">as</span> <span class="nn">zds</span>
 <span class="kn">import</span> <span class="nn">zarr</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\tqdm\auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-  from .autonotebook import tqdm as notebook_tqdm
 </pre></div>
 </div>
 </div>
@@ -162,11 +158,11 @@
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/e771d152f9dbe94148fc4addcb61d975657816cfb11dc8fc7d8196c89372c06c.png" src="../_images/e771d152f9dbe94148fc4addcb61d975657816cfb11dc8fc7d8196c89372c06c.png" />
+<img alt="../_images/b81b5e68fea296a45ecf3fb8038c73c05814c5ee297739ea62e161e40cde4e35.png" src="../_images/b81b5e68fea296a45ecf3fb8038c73c05814c5ee297739ea62e161e40cde4e35.png" />
 </div>
 </div>
 <section id="retrieving-whole-images">
-<h2>Retrieving whole images<a class="headerlink" href="#retrieving-whole-images" title="Permalink to this heading"></a></h2>
+<h2>Retrieving whole images<a class="headerlink" href="#retrieving-whole-images" title="Link to this heading"></a></h2>
 <p>Create a ZarrDataset to handle the image dataset instead of opening all the dataset images by separate and hold them in memory until they are not used anymore.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -198,7 +194,7 @@ The source array axes should be specified in order to handle images properly, in
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;generator object ZarrDataset.__iter__ at 0x000001B5DBBD86D8&gt;
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;generator object ZarrDataset.__iter__ at 0x00000180B797DBA0&gt;
 </pre></div>
 </div>
 </div>
@@ -212,10 +208,6 @@ The source array axes should be specified in order to handle images properly, in
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>C:\Users\cervaf\Documents\Apps\miniconda3\envs\zds-dev\lib\site-packages\boto3\compat.py:82: PythonDeprecationWarning: Boto3 will no longer support Python 3.7 starting December 13, 2023. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.8 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
-  warnings.warn(warning, PythonDeprecationWarning)
-</pre></div>
-</div>
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;class &#39;numpy.ndarray&#39;&gt; (1, 3, 1, 256, 329)
 </pre></div>
 </div>
@@ -233,7 +225,7 @@ The source array axes should be specified in order to handle images properly, in
 </div>
 </section>
 <section id="extracting-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi">
-<h2>Extracting patches of size 512x512 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extracting-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi" title="Permalink to this heading"></a></h2>
+<h2>Extracting patches of size 512x512 pixels from a Whole Slide Image (WSI)<a class="headerlink" href="#extracting-patches-of-size-512x512-pixels-from-a-whole-slide-image-wsi" title="Link to this heading"></a></h2>
 <p>The PatchSampler class can be used along with ZarrDataset to retrieve patches from WSIs without having to tiling them in a pre-process step.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -307,12 +299,12 @@ Using &lt;class &#39;zarrdataset._samplers.PatchSampler&#39;&gt; for sampling pa
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/4f1b8c74ed0d04804ca5d4a9a0e37577fc7181043fdbf3e7de98719a8e4761c0.png" src="../_images/4f1b8c74ed0d04804ca5d4a9a0e37577fc7181043fdbf3e7de98719a8e4761c0.png" />
+<img alt="../_images/442afeaee0db8644a42ce68c122ccca163d886ecfcaf09919887d754abf3a9f4.png" src="../_images/442afeaee0db8644a42ce68c122ccca163d886ecfcaf09919887d754abf3a9f4.png" />
 </div>
 </div>
 </section>
 <section id="using-zarrdataset-in-a-for-loop">
-<h2>Using ZarrDataset in a for loop<a class="headerlink" href="#using-zarrdataset-in-a-for-loop" title="Permalink to this heading"></a></h2>
+<h2>Using ZarrDataset in a for loop<a class="headerlink" href="#using-zarrdataset-in-a-for-loop" title="Link to this heading"></a></h2>
 <p>ZarrDatasets can be used as generators, for example in for loops</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -337,12 +329,12 @@ Using &lt;class &#39;zarrdataset._samplers.PatchSampler&#39;&gt; for sampling pa
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/fb630474c71de89ee3caa6802976f1163c3c0f693073ade571d1fcb0dd209bf4.png" src="../_images/fb630474c71de89ee3caa6802976f1163c3c0f693073ade571d1fcb0dd209bf4.png" />
+<img alt="../_images/fe86b6d8810d299e3543743032a0cbcd4eba27c089864fb48df21d03d4fcb6f6.png" src="../_images/fe86b6d8810d299e3543743032a0cbcd4eba27c089864fb48df21d03d4fcb6f6.png" />
 </div>
 </div>
 </section>
 <section id="create-a-zarrdataset-with-all-the-dataset-specifications">
-<h2>Create a ZarrDataset with all the dataset specifications.<a class="headerlink" href="#create-a-zarrdataset-with-all-the-dataset-specifications" title="Permalink to this heading"></a></h2>
+<h2>Create a ZarrDataset with all the dataset specifications.<a class="headerlink" href="#create-a-zarrdataset-with-all-the-dataset-specifications" title="Link to this heading"></a></h2>
 <p>Use a dictionary (or a list of them for multiple modalities) to define the dataset specifications.
 Alternatively, use a list of DatasetSpecs (or derived classes) to define the dataset specifications that ZarrDataset requires.</p>
 <p>For example, <code class="docutils literal notranslate"><span class="pre">ImagesDatasetSpecs</span></code> can be used to define an <em>image</em> data modality. Other pre-defined modalities are <code class="docutils literal notranslate"><span class="pre">LabelsDatasetSpecs</span></code> for <em>labels</em>, and <code class="docutils literal notranslate"><span class="pre">MaskDatasetSpecs</span></code> for <em>masks</em>.</p>
@@ -390,7 +382,7 @@ Alternatively, use a list of DatasetSpecs (or derived classes) to define the dat
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/10c0688efdd4c373469d4b2fad3e9f07a0a1bc3938611fff89a858e17eccd0a0.png" src="../_images/10c0688efdd4c373469d4b2fad3e9f07a0a1bc3938611fff89a858e17eccd0a0.png" />
+<img alt="../_images/1528ca22aa9e20c37abe9ccb2a01949c073ee4c570c4bbbd74470c352dfefaad.png" src="../_images/1528ca22aa9e20c37abe9ccb2a01949c073ee4c570c4bbbd74470c352dfefaad.png" />
 </div>
 </div>
 </section>
