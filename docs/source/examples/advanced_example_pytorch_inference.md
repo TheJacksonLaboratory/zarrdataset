@@ -58,7 +58,7 @@ pad = dict(Y=16, X=16)
 patch_sampler = zds.PatchSampler(patch_size=patch_size, pad=pad, allow_incomplete_patches=True)
 ```
 
-Create a dataset from the list of filenames. All those files should be stored within their respective group "0".
+Create a dataset from the list of filenames. All those files should be stored within their respective group "4", which in this case it correspond to a downsampled version of the full resolution image by a factor of 16.
 
 Also, specify that the axes order in the image is Time-Channel-Depth-Height-Width (TCZYX), so the data can be handled correctly
 
