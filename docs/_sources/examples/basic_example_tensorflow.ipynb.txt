@@ -2,7 +2,7 @@
  "cells": [
   {
    "cell_type": "markdown",
-   "id": "e7e1967a",
+   "id": "6d9fb03a",
    "metadata": {},
    "source": [
     "# Integration of ZarrDataset with Tensorflow Datasets"
@@ -11,7 +11,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "d44bae3d",
+   "id": "6468a31a",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -22,7 +22,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "65703edd",
+   "id": "b25034b5",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -40,7 +40,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "243b7f8c",
+   "id": "8fb5811b",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -54,7 +54,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "fad1438a",
+   "id": "3ebb3cca",
    "metadata": {},
    "source": [
     "## Extracting patches of size 1024x1024 pixels from a Whole Slide Image (WSI)"
@@ -62,7 +62,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "398fc76e",
+   "id": "5064cd2e",
    "metadata": {},
    "source": [
     "Sample the image randomly using a [Blue Noise](https://blog.demofox.org/2017/10/20/generating-blue-noise-sample-points-with-mitchells-best-candidate-algorithm/) sampling."
@@ -71,7 +71,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "0fe02956",
+   "id": "16e6278d",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -81,7 +81,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "d2dc6d35",
+   "id": "38bdc472",
    "metadata": {},
    "source": [
     "Create a dataset from the list of filenames. All those files should be stored within their respective group \"0\".\n",
@@ -92,7 +92,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "edb67cbb",
+   "id": "e9b1137d",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -115,7 +115,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "63eb3f4c",
+   "id": "cdcb2ca5",
    "metadata": {},
    "source": [
     "## Create a Tensoflow Dataset from the ZarrDataset object"
@@ -123,7 +123,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "c458f388",
+   "id": "0f554555",
    "metadata": {},
    "source": [
     "When PyTorch is not present in the system, ZarrDataset will still work as a python generator.\n",
@@ -134,7 +134,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "fdcc77de",
+   "id": "3173e008",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -150,7 +150,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "ca484baf",
+   "id": "7ce458ae",
    "metadata": {},
    "source": [
     "This data loader can be used within Tensorflow training pipelines."
@@ -159,7 +159,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "d2dfbc4d",
+   "id": "e9efb890",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -179,7 +179,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "ef732fd0",
+   "id": "633c34c1",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -189,7 +189,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "a7884e0a",
+   "id": "572112e9",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -201,6 +201,9 @@
   }
  ],
  "metadata": {
+  "execution": {
+   "timeout": 600
+  },
   "kernelspec": {
    "display_name": "Python 3 (ipykernel)",
    "language": "python",

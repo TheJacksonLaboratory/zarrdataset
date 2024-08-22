@@ -1,31 +1,33 @@
-:py:mod:`zarrdataset._augs`
-===========================
+zarrdataset._augs
+=================
 
 .. py:module:: zarrdataset._augs
 
 
-Module Contents
----------------
-
 Classes
-~~~~~~~
+-------
 
 .. autoapisummary::
 
    zarrdataset._augs.ToDtype
 
 
-
+Module Contents
+---------------
 
 .. py:class:: ToDtype(dtype: numpy.dtype)
 
-
    Bases: :py:obj:`object`
+
 
    Converted a numpy NDArray to the specified data type.
 
    :param dtype: The data type to cast the input array.
    :type dtype: numpy.dtype
+
+
+   .. py:attribute:: _dtype
+
 
    .. py:method:: __call__(image: numpy.ndarray) -> numpy.ndarray
 
@@ -36,6 +38,7 @@ Classes
 
       :returns: **casted_image** -- The sampe input image
       :rtype: numpy.ndarray
+
 
 
    .. py:method:: __repr__() -> str

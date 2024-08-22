@@ -1,14 +1,11 @@
-:py:mod:`zarrdataset._samplers`
-===============================
+zarrdataset._samplers
+=====================
 
 .. py:module:: zarrdataset._samplers
 
 
-Module Contents
----------------
-
 Classes
-~~~~~~~
+-------
 
 .. autoapisummary::
 
@@ -16,12 +13,13 @@ Classes
    zarrdataset._samplers.BlueNoisePatchSampler
 
 
-
+Module Contents
+---------------
 
 .. py:class:: PatchSampler(patch_size: Union[int, Iterable[int], dict], stride: Union[int, Iterable[int], dict, None] = None, pad: Union[int, Iterable[int], dict, None] = None, min_area: Union[int, float] = 1, spatial_axes: str = 'ZYX', allow_incomplete_patches: bool = False)
 
-
    Bases: :py:obj:`object`
+
 
    Patch sampling algorithm to retrieve image patches/windows from images.
 
@@ -58,16 +56,38 @@ Classes
                                     than the specified patch size.
    :type allow_incomplete_patches: bool
 
+
+   .. py:attribute:: _max_chunk_size
+
+
+   .. py:attribute:: spatial_axes
+
+
+   .. py:attribute:: _patch_size
+
+
+   .. py:attribute:: _stride
+
+
+   .. py:attribute:: _pad
+
+
+   .. py:attribute:: _min_area
+
+
+   .. py:attribute:: _allow_incomplete_patches
+
+
    .. py:method:: _compute_corners(coordinates: numpy.ndarray, scale: numpy.ndarray) -> numpy.ndarray
 
 
-   .. py:method:: _compute_reference_indices(reference_coordinates: numpy.ndarray) -> Tuple[List[numpy.ndarray], List[Tuple[int]]]
+   .. py:method:: _compute_reference_indices(reference_coordinates: numpy.ndarray, reference_axes_sizes: numpy.ndarray) -> Tuple[List[numpy.ndarray], List[Tuple[int]]]
 
 
    .. py:method:: _compute_overlap(corners_coordinates: numpy.ndarray, reference_per_axis: numpy.ndarray) -> Tuple[numpy.ndarray, numpy.ndarray]
 
 
-   .. py:method:: _compute_grid(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, image_size: dict, allow_incomplete_patches: bool = False)
+   .. py:method:: _compute_grid(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, image_size: dict, min_area: float, allow_incomplete_patches: bool = False)
 
 
    .. py:method:: _compute_valid_toplefts(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, **kwargs)
@@ -93,6 +113,7 @@ Classes
       :rtype: list of tuples of slices
 
 
+
    .. py:method:: compute_patches(image_collection: zarrdataset._imageloaders.ImageCollection, chunk_tlbr: dict) -> Iterable[dict]
 
 
@@ -105,8 +126,8 @@ Classes
 
 .. py:class:: BlueNoisePatchSampler(patch_size: Union[int, Iterable[int], dict], resample_positions=False, allow_overlap=False, **kwargs)
 
-
    Bases: :py:obj:`PatchSampler`
+
 
    Patch sampler that retrieves patches from coordinates sampled using the
    Bridson sampling algorithm, also known as Blue-noise sampling algorithm.
@@ -119,6 +140,18 @@ Classes
    :param allow_overlap: Whether overlapping of patches is allowed or not.
    :type allow_overlap: bool
 
+
+   .. py:attribute:: _base_chunk_tls
+      :value: None
+
+
+
+   .. py:attribute:: _resample_positions
+
+
+   .. py:attribute:: _allow_overlap
+
+
    .. py:method:: compute_sampling_positions(force=False) -> None
 
       Compute the sampling positions using blue-noise sampling.
@@ -127,7 +160,7 @@ Classes
       :type force: bool
 
 
-   .. py:method:: _compute_valid_toplefts(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, **kwargs)
 
+   .. py:method:: _compute_valid_toplefts(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, **kwargs)
 
 

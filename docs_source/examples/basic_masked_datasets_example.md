@@ -9,6 +9,8 @@ kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
   name: python3
+execution:
+  timeout: 600
 ---
 
 # Loading patches/windows from masked regions of images with ZarrDataset
@@ -60,11 +62,9 @@ plt.show()
 
 ```{code-cell} ipython3
 mask = np.array([
-    [0, 0, 0, 0, 0],
-    [0, 0, 1, 0, 0],
-    [0, 1, 0, 0, 0],
-    [0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1],
+    [0, 0, 0, 0],
+    [0, 0, 1, 0],
+    [0, 1, 0, 0],
 ], dtype=bool)
 ```
 

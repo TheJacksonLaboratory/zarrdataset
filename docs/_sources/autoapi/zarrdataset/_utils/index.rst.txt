@@ -1,15 +1,11 @@
-:py:mod:`zarrdataset._utils`
-============================
+zarrdataset._utils
+==================
 
 .. py:module:: zarrdataset._utils
 
 
-Module Contents
----------------
-
-
 Functions
-~~~~~~~~~
+---------
 
 .. autoapisummary::
 
@@ -23,6 +19,8 @@ Functions
    zarrdataset._utils.translate2roi
 
 
+Module Contents
+---------------
 
 .. py:function:: parse_rois(rois_str: Iterable[str]) -> List[slice]
 
@@ -209,5 +207,4 @@ Functions
 
 
 .. py:function:: translate2roi(index: dict, roi: tuple, source_axes: str, axes: str)
-
 

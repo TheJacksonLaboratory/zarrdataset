@@ -7,7 +7,7 @@
   <title>zarrdataset &mdash; ZarrDataset  documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
-      <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css?v=be8a1c11" />
       <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=fd3f3429" />
 
   
@@ -67,19 +67,43 @@
 </ul>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../index.html">API Reference</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset</span></code></a><ul>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">zarrdataset</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="_augs/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._augs</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="_imageloaders/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._imageloaders</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="_maskfuncs/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._maskfuncs</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="_samplers/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._samplers</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="_utils/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._utils</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="_zarrdataset/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._zarrdataset</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="_augs/index.html">zarrdataset._augs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_imageloaders/index.html">zarrdataset._imageloaders</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_maskfuncs/index.html">zarrdataset._maskfuncs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_samplers/index.html">zarrdataset._samplers</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_utils/index.html">zarrdataset._utils</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_zarrdataset/index.html">zarrdataset._zarrdataset</a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#classes">Classes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#functions">Functions</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#package-contents">Package Contents</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#classes">Classes</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#functions">Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.PatchSampler"><code class="docutils literal notranslate"><span class="pre">PatchSampler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.BlueNoisePatchSampler"><code class="docutils literal notranslate"><span class="pre">BlueNoisePatchSampler</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.MaskGenerator"><code class="docutils literal notranslate"><span class="pre">MaskGenerator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.WSITissueMaskGenerator"><code class="docutils literal notranslate"><span class="pre">WSITissueMaskGenerator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.image2array"><code class="docutils literal notranslate"><span class="pre">image2array()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.ImageBase"><code class="docutils literal notranslate"><span class="pre">ImageBase</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.ImageLoader"><code class="docutils literal notranslate"><span class="pre">ImageLoader</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.ImageCollection"><code class="docutils literal notranslate"><span class="pre">ImageCollection</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.parse_rois"><code class="docutils literal notranslate"><span class="pre">parse_rois()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.parse_metadata"><code class="docutils literal notranslate"><span class="pre">parse_metadata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.map_axes_order"><code class="docutils literal notranslate"><span class="pre">map_axes_order()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.select_axes"><code class="docutils literal notranslate"><span class="pre">select_axes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.connect_s3"><code class="docutils literal notranslate"><span class="pre">connect_s3()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.isconsolidated"><code class="docutils literal notranslate"><span class="pre">isconsolidated()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.scale_coords"><code class="docutils literal notranslate"><span class="pre">scale_coords()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.translate2roi"><code class="docutils literal notranslate"><span class="pre">translate2roi()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.ToDtype"><code class="docutils literal notranslate"><span class="pre">ToDtype</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.DatasetSpecs"><code class="docutils literal notranslate"><span class="pre">DatasetSpecs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.ImagesDatasetSpecs"><code class="docutils literal notranslate"><span class="pre">ImagesDatasetSpecs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.LabelsDatasetSpecs"><code class="docutils literal notranslate"><span class="pre">LabelsDatasetSpecs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.MasksDatasetSpecs"><code class="docutils literal notranslate"><span class="pre">MasksDatasetSpecs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.ZarrDataset"><code class="docutils literal notranslate"><span class="pre">ZarrDataset</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.zarrdataset_worker_init_fn"><code class="docutils literal notranslate"><span class="pre">zarrdataset_worker_init_fn()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#zarrdataset.chained_zarrdataset_worker_init_fn"><code class="docutils literal notranslate"><span class="pre">chained_zarrdataset_worker_init_fn()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -103,7 +127,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../index.html">API Reference</a></li>
-      <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset</span></code></li>
+      <li class="breadcrumb-item active">zarrdataset</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../../_sources/autoapi/zarrdataset/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -114,24 +138,22 @@
            <div itemprop="articleBody">
              
   <section id="module-zarrdataset">
-<span id="zarrdataset"></span><h1><a class="reference internal" href="#module-zarrdataset" title="zarrdataset"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset</span></code></a><a class="headerlink" href="#module-zarrdataset" title="Link to this heading"></a></h1>
+<span id="zarrdataset"></span><h1>zarrdataset<a class="headerlink" href="#module-zarrdataset" title="Link to this heading"></a></h1>
 <section id="submodules">
 <h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="_augs/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._augs</span></code></a></li>
-<li class="toctree-l1"><a class="reference internal" href="_imageloaders/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._imageloaders</span></code></a></li>
-<li class="toctree-l1"><a class="reference internal" href="_maskfuncs/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._maskfuncs</span></code></a></li>
-<li class="toctree-l1"><a class="reference internal" href="_samplers/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._samplers</span></code></a></li>
-<li class="toctree-l1"><a class="reference internal" href="_utils/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._utils</span></code></a></li>
-<li class="toctree-l1"><a class="reference internal" href="_zarrdataset/index.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">zarrdataset._zarrdataset</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="_augs/index.html">zarrdataset._augs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_imageloaders/index.html">zarrdataset._imageloaders</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_maskfuncs/index.html">zarrdataset._maskfuncs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_samplers/index.html">zarrdataset._samplers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_utils/index.html">zarrdataset._utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="_zarrdataset/index.html">zarrdataset._zarrdataset</a></li>
 </ul>
 </div>
 </section>
-<section id="package-contents">
-<h2>Package Contents<a class="headerlink" href="#package-contents" title="Link to this heading"></a></h2>
 <section id="classes">
-<h3>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h3>
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset.PatchSampler" title="zarrdataset.PatchSampler"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PatchSampler</span></code></a></p></td>
@@ -177,7 +199,7 @@
 </table>
 </section>
 <section id="functions">
-<h3>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h3>
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#zarrdataset.image2array" title="zarrdataset.image2array"><code class="xref py py-obj docutils literal notranslate"><span class="pre">image2array</span></code></a>(arr_src[, data_group, zarr_store])</p></td>
@@ -215,6 +237,9 @@
 </tr>
 </tbody>
 </table>
+</section>
+<section id="package-contents">
+<h2>Package Contents<a class="headerlink" href="#package-contents" title="Link to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="zarrdataset.PatchSampler">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset.</span></span><span class="sig-name descname"><span class="pre">PatchSampler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_area</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'ZYX'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_incomplete_patches</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/zarrdataset/_samplers.html#PatchSampler"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.PatchSampler" title="Link to this definition"></a></dt>
@@ -256,6 +281,41 @@ than the specified patch size.</p></li>
 </ul>
 </dd>
 </dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.PatchSampler._max_chunk_size">
+<span class="sig-name descname"><span class="pre">_max_chunk_size</span></span><a class="headerlink" href="#zarrdataset.PatchSampler._max_chunk_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.PatchSampler.spatial_axes">
+<span class="sig-name descname"><span class="pre">spatial_axes</span></span><a class="headerlink" href="#zarrdataset.PatchSampler.spatial_axes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.PatchSampler._patch_size">
+<span class="sig-name descname"><span class="pre">_patch_size</span></span><a class="headerlink" href="#zarrdataset.PatchSampler._patch_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.PatchSampler._stride">
+<span class="sig-name descname"><span class="pre">_stride</span></span><a class="headerlink" href="#zarrdataset.PatchSampler._stride" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.PatchSampler._pad">
+<span class="sig-name descname"><span class="pre">_pad</span></span><a class="headerlink" href="#zarrdataset.PatchSampler._pad" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.PatchSampler._min_area">
+<span class="sig-name descname"><span class="pre">_min_area</span></span><a class="headerlink" href="#zarrdataset.PatchSampler._min_area" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.PatchSampler._allow_incomplete_patches">
+<span class="sig-name descname"><span class="pre">_allow_incomplete_patches</span></span><a class="headerlink" href="#zarrdataset.PatchSampler._allow_incomplete_patches" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.PatchSampler._compute_corners">
 <span class="sig-name descname"><span class="pre">_compute_corners</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coordinates</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../_modules/zarrdataset/_samplers.html#PatchSampler._compute_corners"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.PatchSampler._compute_corners" title="Link to this definition"></a></dt>
@@ -263,7 +323,7 @@ than the specified patch size.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.PatchSampler._compute_reference_indices">
-<span class="sig-name descname"><span class="pre">_compute_reference_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reference_coordinates</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/zarrdataset/_samplers.html#PatchSampler._compute_reference_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.PatchSampler._compute_reference_indices" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_compute_reference_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reference_coordinates</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_axes_sizes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/zarrdataset/_samplers.html#PatchSampler._compute_reference_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.PatchSampler._compute_reference_indices" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -273,7 +333,7 @@ than the specified patch size.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.PatchSampler._compute_grid">
-<span class="sig-name descname"><span class="pre">_compute_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chunk_tlbr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="_imageloaders/index.html#zarrdataset._imageloaders.ImageBase" title="zarrdataset._imageloaders.ImageBase"><span class="pre">zarrdataset._imageloaders.ImageBase</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">patch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_incomplete_patches</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/zarrdataset/_samplers.html#PatchSampler._compute_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.PatchSampler._compute_grid" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_compute_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chunk_tlbr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="_imageloaders/index.html#zarrdataset._imageloaders.ImageBase" title="zarrdataset._imageloaders.ImageBase"><span class="pre">zarrdataset._imageloaders.ImageBase</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">patch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_area</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_incomplete_patches</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/zarrdataset/_samplers.html#PatchSampler._compute_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.PatchSampler._compute_grid" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -337,6 +397,21 @@ supported by now.</p></li>
 </ul>
 </dd>
 </dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.BlueNoisePatchSampler._base_chunk_tls">
+<span class="sig-name descname"><span class="pre">_base_chunk_tls</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.BlueNoisePatchSampler._base_chunk_tls" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.BlueNoisePatchSampler._resample_positions">
+<span class="sig-name descname"><span class="pre">_resample_positions</span></span><a class="headerlink" href="#zarrdataset.BlueNoisePatchSampler._resample_positions" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.BlueNoisePatchSampler._allow_overlap">
+<span class="sig-name descname"><span class="pre">_allow_overlap</span></span><a class="headerlink" href="#zarrdataset.BlueNoisePatchSampler._allow_overlap" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.BlueNoisePatchSampler.compute_sampling_positions">
 <span class="sig-name descname"><span class="pre">compute_sampling_positions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/zarrdataset/_samplers.html#BlueNoisePatchSampler.compute_sampling_positions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.BlueNoisePatchSampler.compute_sampling_positions" title="Link to this definition"></a></dt>
@@ -360,6 +435,11 @@ supported by now.</p></li>
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset.</span></span><span class="sig-name descname"><span class="pre">MaskGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">axes</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/zarrdataset/_maskfuncs.html#MaskGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.MaskGenerator" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Base class to define transformation functions on ImageBase objects.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.MaskGenerator.axes">
+<span class="sig-name descname"><span class="pre">axes</span></span><a class="headerlink" href="#zarrdataset.MaskGenerator.axes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.MaskGenerator._compute_transform">
 <em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">_compute_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../_modules/zarrdataset/_maskfuncs.html#MaskGenerator._compute_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.MaskGenerator._compute_transform" title="Link to this definition"></a></dt>
@@ -390,6 +470,26 @@ tissue (darker pixels than white background) are present.</p>
 </ul>
 </dd>
 </dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.WSITissueMaskGenerator._mask_scale">
+<span class="sig-name descname"><span class="pre">_mask_scale</span></span><a class="headerlink" href="#zarrdataset.WSITissueMaskGenerator._mask_scale" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.WSITissueMaskGenerator._min_size">
+<span class="sig-name descname"><span class="pre">_min_size</span></span><a class="headerlink" href="#zarrdataset.WSITissueMaskGenerator._min_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.WSITissueMaskGenerator._area_threshold_2">
+<span class="sig-name descname"><span class="pre">_area_threshold_2</span></span><a class="headerlink" href="#zarrdataset.WSITissueMaskGenerator._area_threshold_2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.WSITissueMaskGenerator._thresh">
+<span class="sig-name descname"><span class="pre">_thresh</span></span><a class="headerlink" href="#zarrdataset.WSITissueMaskGenerator._thresh" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.WSITissueMaskGenerator._compute_transform">
 <span class="sig-name descname"><span class="pre">_compute_transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../_modules/zarrdataset/_maskfuncs.html#WSITissueMaskGenerator._compute_transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.WSITissueMaskGenerator._compute_transform" title="Link to this definition"></a></dt>
@@ -428,24 +528,9 @@ not needed, so this connection can be closed properly.</p></li>
 <dt class="sig sig-object py" id="zarrdataset.ImageBase">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">zarrdataset.</span></span><span class="sig-name descname"><span class="pre">ImageBase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_axes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/zarrdataset/_imageloaders.html#ImageBase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.ImageBase" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">object</span></code></p>
-<dl class="py property">
-<dt class="sig sig-object py" id="zarrdataset.ImageBase.shape">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shape</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#zarrdataset.ImageBase.shape" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="zarrdataset.ImageBase.chunk_size">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chunk_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#zarrdataset.ImageBase.chunk_size" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="zarrdataset.ImageBase.scale">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">scale</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span></em><a class="headerlink" href="#zarrdataset.ImageBase.scale" title="Link to this definition"></a></dt>
-<dd></dd></dl>
-
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase.arr">
-<span class="sig-name descname"><span class="pre">arr</span></span><a class="headerlink" href="#zarrdataset.ImageBase.arr" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">arr</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase.arr" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -455,12 +540,12 @@ not needed, so this connection can be closed properly.</p></li>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase.source_axes">
-<span class="sig-name descname"><span class="pre">source_axes</span></span><a class="headerlink" href="#zarrdataset.ImageBase.source_axes" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">source_axes</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase.source_axes" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase.axes">
-<span class="sig-name descname"><span class="pre">axes</span></span><a class="headerlink" href="#zarrdataset.ImageBase.axes" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">axes</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase.axes" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -470,12 +555,12 @@ not needed, so this connection can be closed properly.</p></li>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase.permute_order">
-<span class="sig-name descname"><span class="pre">permute_order</span></span><a class="headerlink" href="#zarrdataset.ImageBase.permute_order" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">permute_order</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase.permute_order" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase._store">
-<span class="sig-name descname"><span class="pre">_store</span></span><a class="headerlink" href="#zarrdataset.ImageBase._store" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_store</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase._store" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -490,37 +575,42 @@ not needed, so this connection can be closed properly.</p></li>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase._scale">
-<span class="sig-name descname"><span class="pre">_scale</span></span><a class="headerlink" href="#zarrdataset.ImageBase._scale" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_scale</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase._scale" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase._shape">
-<span class="sig-name descname"><span class="pre">_shape</span></span><a class="headerlink" href="#zarrdataset.ImageBase._shape" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_shape</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase._shape" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase._spatial_reference_shape">
-<span class="sig-name descname"><span class="pre">_spatial_reference_shape</span></span><a class="headerlink" href="#zarrdataset.ImageBase._spatial_reference_shape" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_spatial_reference_shape</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase._spatial_reference_shape" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase._spatial_reference_axes">
-<span class="sig-name descname"><span class="pre">_spatial_reference_axes</span></span><a class="headerlink" href="#zarrdataset.ImageBase._spatial_reference_axes" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_spatial_reference_axes</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase._spatial_reference_axes" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase._chunk_size">
-<span class="sig-name descname"><span class="pre">_chunk_size</span></span><a class="headerlink" href="#zarrdataset.ImageBase._chunk_size" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_chunk_size</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase._chunk_size" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase._cached_coords">
-<span class="sig-name descname"><span class="pre">_cached_coords</span></span><a class="headerlink" href="#zarrdataset.ImageBase._cached_coords" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_cached_coords</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase._cached_coords" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="zarrdataset.ImageBase._image_func">
-<span class="sig-name descname"><span class="pre">_image_func</span></span><a class="headerlink" href="#zarrdataset.ImageBase._image_func" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">_image_func</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ImageBase._image_func" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageBase.roi">
+<span class="sig-name descname"><span class="pre">roi</span></span><a class="headerlink" href="#zarrdataset.ImageBase.roi" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">
@@ -558,6 +648,21 @@ image (e.g., when calling __getitem__, or ImageBase[slice(…)])</p></li>
 </dl>
 </dd></dl>
 
+<dl class="py property">
+<dt class="sig sig-object py" id="zarrdataset.ImageBase.shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shape</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#zarrdataset.ImageBase.shape" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="zarrdataset.ImageBase.chunk_size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">chunk_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#zarrdataset.ImageBase.chunk_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="zarrdataset.ImageBase.scale">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">scale</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span></em><a class="headerlink" href="#zarrdataset.ImageBase.scale" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -582,6 +687,41 @@ Zarr array.</p>
 </ul>
 </dd>
 </dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageLoader.mode">
+<span class="sig-name descname"><span class="pre">mode</span></span><a class="headerlink" href="#zarrdataset.ImageLoader.mode" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageLoader.spatial_axes">
+<span class="sig-name descname"><span class="pre">spatial_axes</span></span><a class="headerlink" href="#zarrdataset.ImageLoader.spatial_axes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageLoader.roi_slices">
+<span class="sig-name descname"><span class="pre">roi_slices</span></span><a class="headerlink" href="#zarrdataset.ImageLoader.roi_slices" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageLoader.roi">
+<span class="sig-name descname"><span class="pre">roi</span></span><a class="headerlink" href="#zarrdataset.ImageLoader.roi" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageLoader.source_axes">
+<span class="sig-name descname"><span class="pre">source_axes</span></span><a class="headerlink" href="#zarrdataset.ImageLoader.source_axes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageLoader.axes">
+<span class="sig-name descname"><span class="pre">axes</span></span><a class="headerlink" href="#zarrdataset.ImageLoader.axes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageLoader._image_func">
+<span class="sig-name descname"><span class="pre">_image_func</span></span><a class="headerlink" href="#zarrdataset.ImageLoader._image_func" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.ImageLoader.__del__">
 <span class="sig-name descname"><span class="pre">__del__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/zarrdataset/_imageloaders.html#ImageLoader.__del__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.ImageLoader.__del__" title="Link to this definition"></a></dt>
@@ -605,6 +745,21 @@ modalities using as reference these axes from the <cite>images</cite> collection
 </ul>
 </dd>
 </dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageCollection.reference_mode">
+<span class="sig-name descname"><span class="pre">reference_mode</span></span><a class="headerlink" href="#zarrdataset.ImageCollection.reference_mode" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageCollection.spatial_axes">
+<span class="sig-name descname"><span class="pre">spatial_axes</span></span><a class="headerlink" href="#zarrdataset.ImageCollection.spatial_axes" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ImageCollection.collection">
+<span class="sig-name descname"><span class="pre">collection</span></span><a class="headerlink" href="#zarrdataset.ImageCollection.collection" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.ImageCollection._generate_mask">
 <span class="sig-name descname"><span class="pre">_generate_mask</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/zarrdataset/_imageloaders.html#ImageCollection._generate_mask"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.ImageCollection._generate_mask" title="Link to this definition"></a></dt>
@@ -854,6 +1009,11 @@ value is passed, all axes are rescaled by that factor.</p></li>
 <dd class="field-odd"><p><strong>dtype</strong> (<em>numpy.dtype</em>) – The data type to cast the input array.</p>
 </dd>
 </dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ToDtype._dtype">
+<span class="sig-name descname"><span class="pre">_dtype</span></span><a class="headerlink" href="#zarrdataset.ToDtype._dtype" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.ToDtype.__call__">
 <span class="sig-name descname"><span class="pre">__call__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">numpy.ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="reference internal" href="../../_modules/zarrdataset/_augs.html#ToDtype.__call__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.ToDtype.__call__" title="Link to this definition"></a></dt>
@@ -1068,6 +1228,96 @@ whithin the input image.</p></li>
 </ul>
 </dd>
 </dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._worker_sel">
+<span class="sig-name descname"><span class="pre">_worker_sel</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._worker_sel" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._worker_id">
+<span class="sig-name descname"><span class="pre">_worker_id</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#zarrdataset.ZarrDataset._worker_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._num_workers">
+<span class="sig-name descname"><span class="pre">_num_workers</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#zarrdataset.ZarrDataset._num_workers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._shuffle">
+<span class="sig-name descname"><span class="pre">_shuffle</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._shuffle" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._progress_bar">
+<span class="sig-name descname"><span class="pre">_progress_bar</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._progress_bar" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._return_positions">
+<span class="sig-name descname"><span class="pre">_return_positions</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._return_positions" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._return_worker_id">
+<span class="sig-name descname"><span class="pre">_return_worker_id</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._return_worker_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._draw_same_chunk">
+<span class="sig-name descname"><span class="pre">_draw_same_chunk</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._draw_same_chunk" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._patch_sampler">
+<span class="sig-name descname"><span class="pre">_patch_sampler</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._patch_sampler" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._transforms">
+<span class="sig-name descname"><span class="pre">_transforms</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._transforms" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._output_order">
+<span class="sig-name descname"><span class="pre">_output_order</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#zarrdataset.ZarrDataset._output_order" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._collections">
+<span class="sig-name descname"><span class="pre">_collections</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._collections" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._zarr_store">
+<span class="sig-name descname"><span class="pre">_zarr_store</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._zarr_store" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._image_loader_func">
+<span class="sig-name descname"><span class="pre">_image_loader_func</span></span><a class="headerlink" href="#zarrdataset.ZarrDataset._image_loader_func" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._arr_lists">
+<span class="sig-name descname"><span class="pre">_arr_lists</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#zarrdataset.ZarrDataset._arr_lists" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._toplefts">
+<span class="sig-name descname"><span class="pre">_toplefts</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#zarrdataset.ZarrDataset._toplefts" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._ref_mod">
+<span class="sig-name descname"><span class="pre">_ref_mod</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#zarrdataset.ZarrDataset._ref_mod" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="zarrdataset.ZarrDataset._initialized">
+<span class="sig-name descname"><span class="pre">_initialized</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#zarrdataset.ZarrDataset._initialized" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="zarrdataset.ZarrDataset._initialize">
 <span class="sig-name descname"><span class="pre">_initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/zarrdataset/_zarrdataset.html#ZarrDataset._initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#zarrdataset.ZarrDataset._initialize" title="Link to this definition"></a></dt>
@@ -1170,7 +1420,6 @@ image array, while masks might not be needed.</p></li>
 ChainedDatasets.</p>
 </dd></dl>
 
-</section>
 </section>
 </section>
 
