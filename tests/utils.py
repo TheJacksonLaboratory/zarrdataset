@@ -427,14 +427,19 @@ IMAGE_SPECS = [
     },
     {
         "dst_dir": None,
-        "source": ("https://live.staticflickr.com/4908/"
-                   "31072787307_59f7943caa_o.jpg"),
-        "credit": "Photo: Guilhem Vellut / CC BY 2.0",
+        "source": ("https://cellpainting-gallery.s3.amazonaws.com/"
+                   "cpg0000-jump-pilot/source_4/images/2020_11_04_CPJUMP1/"
+                   "images/BR00116991__2020-11-05T19_51_35-Measurement1/"
+                   "Images/r01c01f01p01-ch1sk1fk1fl1.tiff"),
+        "credit": ("From the dataset cpg0000 (Chandrasekaran et al., 2022), "
+                   "available from the Cell Painting Gallery (Weisbart et al.,"
+                   " 2024) on the Registry of Open Data on AWS "
+                   "(https://registry.opendata.aws/cellpainting-gallery/)"),
         "specs": {
             "data_group": None,
-            "shape": [3648, 5472, 3],
-            "chunks": [3648, 5472, 3],
-            "source_axes": "YXC",
+            "shape": [1080, 1080],
+            "chunks": [1080, 1080],
+            "source_axes": "YX",
             "dtype": np.uint8
         }
     },
