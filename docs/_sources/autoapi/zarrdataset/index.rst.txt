@@ -1,28 +1,25 @@
-:py:mod:`zarrdataset`
-=====================
+zarrdataset
+===========
 
 .. py:module:: zarrdataset
 
 
 Submodules
 ----------
+
 .. toctree::
-   :titlesonly:
    :maxdepth: 1
 
-   _augs/index.rst
-   _imageloaders/index.rst
-   _maskfuncs/index.rst
-   _samplers/index.rst
-   _utils/index.rst
-   _zarrdataset/index.rst
+   /autoapi/zarrdataset/_augs/index
+   /autoapi/zarrdataset/_imageloaders/index
+   /autoapi/zarrdataset/_maskfuncs/index
+   /autoapi/zarrdataset/_samplers/index
+   /autoapi/zarrdataset/_utils/index
+   /autoapi/zarrdataset/_zarrdataset/index
 
-
-Package Contents
-----------------
 
 Classes
-~~~~~~~
+-------
 
 .. autoapisummary::
 
@@ -41,9 +38,8 @@ Classes
    zarrdataset.ZarrDataset
 
 
-
 Functions
-~~~~~~~~~
+---------
 
 .. autoapisummary::
 
@@ -60,11 +56,13 @@ Functions
    zarrdataset.chained_zarrdataset_worker_init_fn
 
 
+Package Contents
+----------------
 
 .. py:class:: PatchSampler(patch_size: Union[int, Iterable[int], dict], stride: Union[int, Iterable[int], dict, None] = None, pad: Union[int, Iterable[int], dict, None] = None, min_area: Union[int, float] = 1, spatial_axes: str = 'ZYX', allow_incomplete_patches: bool = False)
 
-
    Bases: :py:obj:`object`
+
 
    Patch sampling algorithm to retrieve image patches/windows from images.
 
@@ -101,16 +99,38 @@ Functions
                                     than the specified patch size.
    :type allow_incomplete_patches: bool
 
+
+   .. py:attribute:: _max_chunk_size
+
+
+   .. py:attribute:: spatial_axes
+
+
+   .. py:attribute:: _patch_size
+
+
+   .. py:attribute:: _stride
+
+
+   .. py:attribute:: _pad
+
+
+   .. py:attribute:: _min_area
+
+
+   .. py:attribute:: _allow_incomplete_patches
+
+
    .. py:method:: _compute_corners(coordinates: numpy.ndarray, scale: numpy.ndarray) -> numpy.ndarray
 
 
-   .. py:method:: _compute_reference_indices(reference_coordinates: numpy.ndarray) -> Tuple[List[numpy.ndarray], List[Tuple[int]]]
+   .. py:method:: _compute_reference_indices(reference_coordinates: numpy.ndarray, reference_axes_sizes: numpy.ndarray) -> Tuple[List[numpy.ndarray], List[Tuple[int]]]
 
 
    .. py:method:: _compute_overlap(corners_coordinates: numpy.ndarray, reference_per_axis: numpy.ndarray) -> Tuple[numpy.ndarray, numpy.ndarray]
 
 
-   .. py:method:: _compute_grid(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, image_size: dict, allow_incomplete_patches: bool = False)
+   .. py:method:: _compute_grid(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, image_size: dict, min_area: float, allow_incomplete_patches: bool = False)
 
 
    .. py:method:: _compute_valid_toplefts(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, **kwargs)
@@ -136,6 +156,7 @@ Functions
       :rtype: list of tuples of slices
 
 
+
    .. py:method:: compute_patches(image_collection: zarrdataset._imageloaders.ImageCollection, chunk_tlbr: dict) -> Iterable[dict]
 
 
@@ -148,8 +169,8 @@ Functions
 
 .. py:class:: BlueNoisePatchSampler(patch_size: Union[int, Iterable[int], dict], resample_positions=False, allow_overlap=False, **kwargs)
 
-
    Bases: :py:obj:`PatchSampler`
+
 
    Patch sampler that retrieves patches from coordinates sampled using the
    Bridson sampling algorithm, also known as Blue-noise sampling algorithm.
@@ -162,6 +183,18 @@ Functions
    :param allow_overlap: Whether overlapping of patches is allowed or not.
    :type allow_overlap: bool
 
+
+   .. py:attribute:: _base_chunk_tls
+      :value: None
+
+
+
+   .. py:attribute:: _resample_positions
+
+
+   .. py:attribute:: _allow_overlap
+
+
    .. py:method:: compute_sampling_positions(force=False) -> None
 
       Compute the sampling positions using blue-noise sampling.
@@ -170,30 +203,34 @@ Functions
       :type force: bool
 
 
-   .. py:method:: _compute_valid_toplefts(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, **kwargs)
 
+   .. py:method:: _compute_valid_toplefts(chunk_tlbr: dict, mask: zarrdataset._imageloaders.ImageBase, patch_size: dict, **kwargs)
 
 
 .. py:class:: MaskGenerator(axes)
 
-
    Bases: :py:obj:`object`
 
+
    Base class to define transformation functions on ImageBase objects.
+
+
+
+   .. py:attribute:: axes
 
 
    .. py:method:: _compute_transform(image: numpy.ndarray) -> numpy.ndarray
       :abstractmethod:
 
 
-   .. py:method:: __call__(image: numpy.ndarray) -> numpy.ndarray
 
+   .. py:method:: __call__(image: numpy.ndarray) -> numpy.ndarray
 
 
 .. py:class:: WSITissueMaskGenerator(mask_scale: float = 1 / 16, min_size: int = 16, area_threshold: int = 128, thresh: Union[float, None] = None, axes: str = 'YX')
 
-
    Bases: :py:obj:`MaskGenerator`
+
 
    Mask generator for tissue objects in Whole Slide Images (WSI).
 
@@ -211,8 +248,20 @@ Functions
    :param axes:
    :type axes: str
 
-   .. py:method:: _compute_transform(image: numpy.ndarray) -> numpy.ndarray
 
+   .. py:attribute:: _mask_scale
+
+
+   .. py:attribute:: _min_size
+
+
+   .. py:attribute:: _area_threshold_2
+
+
+   .. py:attribute:: _thresh
+
+
+   .. py:method:: _compute_transform(image: numpy.ndarray) -> numpy.ndarray
 
 
 .. py:function:: image2array(arr_src: Union[str, zarr.Group, zarr.Array, numpy.ndarray], data_group: Union[str, int, None] = None, zarr_store: Union[zarr.storage.Store, None] = None)
@@ -237,88 +286,91 @@ Functions
 
 .. py:class:: ImageBase(shape: Iterable[int], chunk_size: Union[Iterable[int], None] = None, source_axes: str = '', mode: str = '')
 
-
    Bases: :py:obj:`object`
-
-   .. py:property:: shape
-      :type: Iterable[int]
-
-
-   .. py:property:: chunk_size
-      :type: Iterable[int]
-
-
-   .. py:property:: scale
-      :type: dict
 
 
    .. py:attribute:: arr
+      :value: None
 
-      
+
 
    .. py:attribute:: spatial_axes
       :value: 'ZYX'
 
-      
+
 
    .. py:attribute:: source_axes
+      :value: None
 
-      
+
 
    .. py:attribute:: axes
+      :value: None
 
-      
+
 
    .. py:attribute:: mode
       :value: ''
 
-      
+
 
    .. py:attribute:: permute_order
+      :value: None
 
-      
+
 
    .. py:attribute:: _store
+      :value: None
 
-      
+
 
    .. py:attribute:: _new_axes
       :value: ''
 
-      
+
 
    .. py:attribute:: _drop_axes
       :value: ''
 
-      
+
 
    .. py:attribute:: _scale
+      :value: None
 
-      
+
 
    .. py:attribute:: _shape
+      :value: None
 
-      
+
 
    .. py:attribute:: _spatial_reference_shape
+      :value: None
 
-      
+
 
    .. py:attribute:: _spatial_reference_axes
+      :value: None
 
-      
+
 
    .. py:attribute:: _chunk_size
+      :value: None
 
-      
+
 
    .. py:attribute:: _cached_coords
+      :value: None
 
-      
+
 
    .. py:attribute:: _image_func
+      :value: None
 
-      
+
+
+   .. py:attribute:: roi
+
 
    .. py:method:: _iscached(coords)
 
@@ -344,10 +396,25 @@ Functions
 
 
 
+   .. py:property:: shape
+      :type: Iterable[int]
+
+
+
+   .. py:property:: chunk_size
+      :type: Iterable[int]
+
+
+
+   .. py:property:: scale
+      :type: dict
+
+
+
 .. py:class:: ImageLoader(filename: str, source_axes: str, data_group: Union[str, None] = None, axes: Union[str, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, spatial_axes: str = 'ZYX', mode: str = '')
 
-
    Bases: :py:obj:`ImageBase`
+
 
    Image lazy loader class.
 
@@ -373,14 +440,35 @@ Functions
    :param mode:
    :type mode: str
 
-   .. py:method:: __del__()
 
+   .. py:attribute:: mode
+
+
+   .. py:attribute:: spatial_axes
+
+
+   .. py:attribute:: roi_slices
+
+
+   .. py:attribute:: roi
+
+
+   .. py:attribute:: source_axes
+
+
+   .. py:attribute:: axes
+
+
+   .. py:attribute:: _image_func
+
+
+   .. py:method:: __del__()
 
 
 .. py:class:: ImageCollection(collection_args: dict, spatial_axes: str = 'ZYX')
 
-
    Bases: :py:obj:`object`
+
 
    A class to contain a collection of inputs from different modalities.
 
@@ -393,6 +481,16 @@ Functions
                         modalities using as reference these axes from the `images` collection.
    :type spatial_axes: str
 
+
+   .. py:attribute:: reference_mode
+
+
+   .. py:attribute:: spatial_axes
+
+
+   .. py:attribute:: collection
+
+
    .. py:method:: _generate_mask()
 
 
@@ -402,8 +500,8 @@ Functions
       collection shape on the `spatial_axes` only.
 
 
-   .. py:method:: __getitem__(index)
 
+   .. py:method:: __getitem__(index)
 
 
 .. py:function:: parse_rois(rois_str: Iterable[str]) -> List[slice]
@@ -592,16 +690,19 @@ Functions
 
 .. py:function:: translate2roi(index: dict, roi: tuple, source_axes: str, axes: str)
 
-
 .. py:class:: ToDtype(dtype: numpy.dtype)
 
-
    Bases: :py:obj:`object`
+
 
    Converted a numpy NDArray to the specified data type.
 
    :param dtype: The data type to cast the input array.
    :type dtype: numpy.dtype
+
+
+   .. py:attribute:: _dtype
+
 
    .. py:method:: __call__(image: numpy.ndarray) -> numpy.ndarray
 
@@ -614,6 +715,7 @@ Functions
       :rtype: numpy.ndarray
 
 
+
    .. py:method:: __repr__() -> str
 
       Return repr(self).
@@ -622,8 +724,8 @@ Functions
 
 .. py:class:: DatasetSpecs(modality: str, filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, add_to_output: bool = True)
 
-
    Bases: :py:obj:`dict`
+
 
    Data specification guidelines to add image modalities to a ZarrDataset.
 
@@ -667,8 +769,8 @@ Functions
 
 .. py:class:: ImagesDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, modality: str = 'images')
 
-
    Bases: :py:obj:`DatasetSpecs`
+
 
    Specification to add `image` data to a ZarrDataset.
 
@@ -708,8 +810,8 @@ Functions
 
 .. py:class:: LabelsDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, input_label_transform: Union[Callable, None] = None, input_mode: str = 'images', modality: str = 'labels')
 
-
    Bases: :py:obj:`DatasetSpecs`
+
 
    Specification to add `labels` to a ZarrDataset.
 
@@ -752,8 +854,8 @@ Functions
 
 .. py:class:: MasksDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, modality: str = 'masks')
 
-
    Bases: :py:obj:`DatasetSpecs`
+
 
    Specification to add `masks` to a ZarrDataset.
 
@@ -790,8 +892,8 @@ Functions
 
 .. py:class:: ZarrDataset(dataset_specs: Union[Iterable[dict], None] = None, patch_sampler: Union[zarrdataset._samplers.PatchSampler, None] = None, shuffle: bool = False, progress_bar: bool = False, return_positions: bool = False, return_worker_id: bool = False, draw_same_chunk: bool = False)
 
-
    Bases: :py:obj:`torch.utils.data.IterableDataset`
+
 
    A Zarr-based dataset class capable of handling large volumes of image
    data stored in OME-NGFF Zarr format. This class can match the coordinates
@@ -822,6 +924,75 @@ Functions
                            whithin the input image.
    :type draw_same_chunk: bool
 
+
+   .. py:attribute:: _worker_sel
+
+
+   .. py:attribute:: _worker_id
+      :value: 0
+
+
+
+   .. py:attribute:: _num_workers
+      :value: 1
+
+
+
+   .. py:attribute:: _shuffle
+
+
+   .. py:attribute:: _progress_bar
+
+
+   .. py:attribute:: _return_positions
+
+
+   .. py:attribute:: _return_worker_id
+
+
+   .. py:attribute:: _draw_same_chunk
+
+
+   .. py:attribute:: _patch_sampler
+
+
+   .. py:attribute:: _transforms
+
+
+   .. py:attribute:: _output_order
+      :value: []
+
+
+
+   .. py:attribute:: _collections
+
+
+   .. py:attribute:: _zarr_store
+
+
+   .. py:attribute:: _image_loader_func
+
+
+   .. py:attribute:: _arr_lists
+      :value: []
+
+
+
+   .. py:attribute:: _toplefts
+      :value: []
+
+
+
+   .. py:attribute:: _ref_mod
+      :value: None
+
+
+
+   .. py:attribute:: _initialized
+      :value: False
+
+
+
    .. py:method:: _initialize(force=False)
 
 
@@ -844,6 +1015,7 @@ Functions
       :param transform: A function that receives the same number of inputs as specified in
                         `modalities`, and returns that same number of outputs.
       :type transform: Callable
+
 
 
    .. py:method:: add_modality(modality: str, filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transforms: Union[collections.OrderedDict, None] = None, add_to_output: bool = True)
@@ -892,6 +1064,7 @@ Functions
                             example, labels would be added to the output along with the input
                             image array, while masks might not be needed.
       :type add_to_output: bool
+
 
 
    .. py:method:: __repr__() -> str

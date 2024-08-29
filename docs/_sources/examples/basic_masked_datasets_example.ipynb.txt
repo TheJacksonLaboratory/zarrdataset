@@ -2,7 +2,7 @@
  "cells": [
   {
    "cell_type": "markdown",
-   "id": "934e89f4",
+   "id": "96bfc62e",
    "metadata": {},
    "source": [
     "# Loading patches/windows from masked regions of images with ZarrDataset"
@@ -10,7 +10,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "69858d35",
+   "id": "bf1a1211",
    "metadata": {},
    "source": [
     "Import the \"zarrdataset\" package"
@@ -19,7 +19,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "8e660935",
+   "id": "99af62f5",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -29,7 +29,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "f7731925",
+   "id": "0db1dc86",
    "metadata": {},
    "source": [
     "Load data stored on S3 storage"
@@ -38,7 +38,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "fd2458f1",
+   "id": "87f76520",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -54,7 +54,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "c87346a4",
+   "id": "3eb2893d",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -69,7 +69,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "256c8816",
+   "id": "93d60e69",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -80,7 +80,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "54526509",
+   "id": "56995806",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -91,7 +91,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "5fc716e1",
+   "id": "ed0ec99c",
    "metadata": {},
    "source": [
     "## Define a mask from where patches will be extracted"
@@ -100,22 +100,20 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "c6da3ae5",
+   "id": "cf6f24d0",
    "metadata": {},
    "outputs": [],
    "source": [
     "mask = np.array([\n",
-    "    [0, 0, 0, 0, 0],\n",
-    "    [0, 0, 1, 0, 0],\n",
-    "    [0, 1, 0, 0, 0],\n",
-    "    [0, 0, 0, 0, 0],\n",
-    "    [0, 0, 0, 0, 1],\n",
+    "    [0, 0, 0, 0],\n",
+    "    [0, 0, 1, 0],\n",
+    "    [0, 1, 0, 0],\n",
     "], dtype=bool)"
    ]
   },
   {
    "cell_type": "markdown",
-   "id": "c4471754",
+   "id": "a4d9c652",
    "metadata": {},
    "source": [
     "ZarrDataset will match the size of the mask t the size of the image that is being sampled.\n",
@@ -126,7 +124,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "4368407e",
+   "id": "04f1abea",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -157,7 +155,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "c2a65f6f",
+   "id": "4f545269",
    "metadata": {},
    "source": [
     "## Extract patches of size 512x512 pixels from masked regiosn of a Whole Slide Image (WSI)"
@@ -165,7 +163,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "baa49bb8",
+   "id": "fa72eceb",
    "metadata": {},
    "source": [
     "Sample the image uniformly in a squared grid pattern using a `PatchSampler`"
@@ -174,7 +172,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "3cb2bad2",
+   "id": "1bd5a11f",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -184,7 +182,7 @@
   },
   {
    "cell_type": "markdown",
-   "id": "03cd1ed3",
+   "id": "37f87569",
    "metadata": {},
    "source": [
     "Use the ZarrDataset class to enable extraction of samples from masked regions by specifying two modalities: images, and masks.\n",
@@ -195,7 +193,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "7f0310ec",
+   "id": "3674fdb6",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -221,7 +219,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "7ed2df7b",
+   "id": "c85d3f9d",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -231,7 +229,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "61894af6",
+   "id": "917d95bb",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -242,7 +240,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "c673a768",
+   "id": "4b555dda",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -253,7 +251,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "f229ea2b",
+   "id": "2d57d73c",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -271,7 +269,7 @@
   {
    "cell_type": "code",
    "execution_count": null,
-   "id": "af72b34f",
+   "id": "99157b0d",
    "metadata": {},
    "outputs": [],
    "source": [
@@ -281,6 +279,9 @@
   }
  ],
  "metadata": {
+  "execution": {
+   "timeout": 600
+  },
   "kernelspec": {
    "display_name": "Python 3 (ipykernel)",
    "language": "python",

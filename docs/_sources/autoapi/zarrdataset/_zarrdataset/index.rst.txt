@@ -1,14 +1,20 @@
-:py:mod:`zarrdataset._zarrdataset`
-==================================
+zarrdataset._zarrdataset
+========================
 
 .. py:module:: zarrdataset._zarrdataset
 
 
-Module Contents
----------------
+Attributes
+----------
+
+.. autoapisummary::
+
+   zarrdataset._zarrdataset.TQDM_SUPPORT
+   zarrdataset._zarrdataset.PYTORCH_SUPPORT
+
 
 Classes
-~~~~~~~
+-------
 
 .. autoapisummary::
 
@@ -20,9 +26,8 @@ Classes
    zarrdataset._zarrdataset.ZarrDataset
 
 
-
 Functions
-~~~~~~~~~
+---------
 
 .. autoapisummary::
 
@@ -30,25 +35,16 @@ Functions
    zarrdataset._zarrdataset.chained_zarrdataset_worker_init_fn
 
 
-
-Attributes
-~~~~~~~~~~
-
-.. autoapisummary::
-
-   zarrdataset._zarrdataset.TQDM_SUPPORT
-   zarrdataset._zarrdataset.PYTORCH_SUPPORT
-
+Module Contents
+---------------
 
 .. py:data:: TQDM_SUPPORT
    :value: True
 
-   
 
 .. py:data:: PYTORCH_SUPPORT
    :value: True
 
-   
 
 .. py:function:: zarrdataset_worker_init_fn(worker_id)
 
@@ -64,23 +60,34 @@ Attributes
 
 .. py:class:: ImageSample(im_id: int, chk_id: int, shuffle: bool = False)
 
-
    .. py:attribute:: _current_patch_idx
       :value: 0
 
-      
+
 
    .. py:attribute:: _ordering
+      :value: None
 
-      
+
 
    .. py:attribute:: _rng_seed
+      :value: None
 
-      
+
 
    .. py:attribute:: num_patches
+      :value: None
 
-      
+
+
+   .. py:attribute:: im_id
+
+
+   .. py:attribute:: chk_id
+
+
+   .. py:attribute:: _shuffle
+
 
    .. py:method:: free_sampler()
 
@@ -88,11 +95,10 @@ Attributes
    .. py:method:: next_patch()
 
 
-
 .. py:class:: DatasetSpecs(modality: str, filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, add_to_output: bool = True)
 
-
    Bases: :py:obj:`dict`
+
 
    Data specification guidelines to add image modalities to a ZarrDataset.
 
@@ -136,8 +142,8 @@ Attributes
 
 .. py:class:: ImagesDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, modality: str = 'images')
 
-
    Bases: :py:obj:`DatasetSpecs`
+
 
    Specification to add `image` data to a ZarrDataset.
 
@@ -177,8 +183,8 @@ Attributes
 
 .. py:class:: LabelsDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transform: Union[Callable, None] = None, input_label_transform: Union[Callable, None] = None, input_mode: str = 'images', modality: str = 'labels')
 
-
    Bases: :py:obj:`DatasetSpecs`
+
 
    Specification to add `labels` to a ZarrDataset.
 
@@ -221,8 +227,8 @@ Attributes
 
 .. py:class:: MasksDatasetSpecs(filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, modality: str = 'masks')
 
-
    Bases: :py:obj:`DatasetSpecs`
+
 
    Specification to add `masks` to a ZarrDataset.
 
@@ -259,8 +265,8 @@ Attributes
 
 .. py:class:: ZarrDataset(dataset_specs: Union[Iterable[dict], None] = None, patch_sampler: Union[zarrdataset._samplers.PatchSampler, None] = None, shuffle: bool = False, progress_bar: bool = False, return_positions: bool = False, return_worker_id: bool = False, draw_same_chunk: bool = False)
 
-
    Bases: :py:obj:`torch.utils.data.IterableDataset`
+
 
    A Zarr-based dataset class capable of handling large volumes of image
    data stored in OME-NGFF Zarr format. This class can match the coordinates
@@ -291,6 +297,75 @@ Attributes
                            whithin the input image.
    :type draw_same_chunk: bool
 
+
+   .. py:attribute:: _worker_sel
+
+
+   .. py:attribute:: _worker_id
+      :value: 0
+
+
+
+   .. py:attribute:: _num_workers
+      :value: 1
+
+
+
+   .. py:attribute:: _shuffle
+
+
+   .. py:attribute:: _progress_bar
+
+
+   .. py:attribute:: _return_positions
+
+
+   .. py:attribute:: _return_worker_id
+
+
+   .. py:attribute:: _draw_same_chunk
+
+
+   .. py:attribute:: _patch_sampler
+
+
+   .. py:attribute:: _transforms
+
+
+   .. py:attribute:: _output_order
+      :value: []
+
+
+
+   .. py:attribute:: _collections
+
+
+   .. py:attribute:: _zarr_store
+
+
+   .. py:attribute:: _image_loader_func
+
+
+   .. py:attribute:: _arr_lists
+      :value: []
+
+
+
+   .. py:attribute:: _toplefts
+      :value: []
+
+
+
+   .. py:attribute:: _ref_mod
+      :value: None
+
+
+
+   .. py:attribute:: _initialized
+      :value: False
+
+
+
    .. py:method:: _initialize(force=False)
 
 
@@ -313,6 +388,7 @@ Attributes
       :param transform: A function that receives the same number of inputs as specified in
                         `modalities`, and returns that same number of outputs.
       :type transform: Callable
+
 
 
    .. py:method:: add_modality(modality: str, filenames: Union[str, Iterable[str], zarr.Group, Iterable[zarr.Group], zarr.Array, Iterable[zarr.Array], numpy.ndarray, Iterable[numpy.ndarray]], source_axes: str, axes: Union[str, None] = None, data_group: Union[str, int, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_loader_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, transforms: Union[collections.OrderedDict, None] = None, add_to_output: bool = True)
@@ -361,6 +437,7 @@ Attributes
                             example, labels would be added to the output along with the input
                             image array, while masks might not be needed.
       :type add_to_output: bool
+
 
 
    .. py:method:: __repr__() -> str

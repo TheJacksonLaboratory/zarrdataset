@@ -1,14 +1,19 @@
-:py:mod:`zarrdataset._imageloaders`
-===================================
+zarrdataset._imageloaders
+=========================
 
 .. py:module:: zarrdataset._imageloaders
 
 
-Module Contents
----------------
+Attributes
+----------
+
+.. autoapisummary::
+
+   zarrdataset._imageloaders.TIFFFILE_SUPPORT
+
 
 Classes
-~~~~~~~
+-------
 
 .. autoapisummary::
 
@@ -17,28 +22,20 @@ Classes
    zarrdataset._imageloaders.ImageCollection
 
 
-
 Functions
-~~~~~~~~~
+---------
 
 .. autoapisummary::
 
    zarrdataset._imageloaders.image2array
 
 
-
-Attributes
-~~~~~~~~~~
-
-.. autoapisummary::
-
-   zarrdataset._imageloaders.TIFFFILE_SUPPORT
-
+Module Contents
+---------------
 
 .. py:data:: TIFFFILE_SUPPORT
    :value: True
 
-   
 
 .. py:function:: image2array(arr_src: Union[str, zarr.Group, zarr.Array, numpy.ndarray], data_group: Union[str, int, None] = None, zarr_store: Union[zarr.storage.Store, None] = None)
 
@@ -62,88 +59,91 @@ Attributes
 
 .. py:class:: ImageBase(shape: Iterable[int], chunk_size: Union[Iterable[int], None] = None, source_axes: str = '', mode: str = '')
 
-
    Bases: :py:obj:`object`
-
-   .. py:property:: shape
-      :type: Iterable[int]
-
-
-   .. py:property:: chunk_size
-      :type: Iterable[int]
-
-
-   .. py:property:: scale
-      :type: dict
 
 
    .. py:attribute:: arr
+      :value: None
 
-      
+
 
    .. py:attribute:: spatial_axes
       :value: 'ZYX'
 
-      
+
 
    .. py:attribute:: source_axes
+      :value: None
 
-      
+
 
    .. py:attribute:: axes
+      :value: None
 
-      
+
 
    .. py:attribute:: mode
       :value: ''
 
-      
+
 
    .. py:attribute:: permute_order
+      :value: None
 
-      
+
 
    .. py:attribute:: _store
+      :value: None
 
-      
+
 
    .. py:attribute:: _new_axes
       :value: ''
 
-      
+
 
    .. py:attribute:: _drop_axes
       :value: ''
 
-      
+
 
    .. py:attribute:: _scale
+      :value: None
 
-      
+
 
    .. py:attribute:: _shape
+      :value: None
 
-      
+
 
    .. py:attribute:: _spatial_reference_shape
+      :value: None
 
-      
+
 
    .. py:attribute:: _spatial_reference_axes
+      :value: None
 
-      
+
 
    .. py:attribute:: _chunk_size
+      :value: None
 
-      
+
 
    .. py:attribute:: _cached_coords
+      :value: None
 
-      
+
 
    .. py:attribute:: _image_func
+      :value: None
 
-      
+
+
+   .. py:attribute:: roi
+
 
    .. py:method:: _iscached(coords)
 
@@ -169,10 +169,25 @@ Attributes
 
 
 
+   .. py:property:: shape
+      :type: Iterable[int]
+
+
+
+   .. py:property:: chunk_size
+      :type: Iterable[int]
+
+
+
+   .. py:property:: scale
+      :type: dict
+
+
+
 .. py:class:: ImageLoader(filename: str, source_axes: str, data_group: Union[str, None] = None, axes: Union[str, None] = None, roi: Union[str, slice, Iterable[slice], None] = None, image_func: Union[Callable, None] = None, zarr_store: Union[zarr.storage.Store, None] = None, spatial_axes: str = 'ZYX', mode: str = '')
 
-
    Bases: :py:obj:`ImageBase`
+
 
    Image lazy loader class.
 
@@ -198,14 +213,35 @@ Attributes
    :param mode:
    :type mode: str
 
-   .. py:method:: __del__()
 
+   .. py:attribute:: mode
+
+
+   .. py:attribute:: spatial_axes
+
+
+   .. py:attribute:: roi_slices
+
+
+   .. py:attribute:: roi
+
+
+   .. py:attribute:: source_axes
+
+
+   .. py:attribute:: axes
+
+
+   .. py:attribute:: _image_func
+
+
+   .. py:method:: __del__()
 
 
 .. py:class:: ImageCollection(collection_args: dict, spatial_axes: str = 'ZYX')
 
-
    Bases: :py:obj:`object`
+
 
    A class to contain a collection of inputs from different modalities.
 
@@ -218,6 +254,16 @@ Attributes
                         modalities using as reference these axes from the `images` collection.
    :type spatial_axes: str
 
+
+   .. py:attribute:: reference_mode
+
+
+   .. py:attribute:: spatial_axes
+
+
+   .. py:attribute:: collection
+
+
    .. py:method:: _generate_mask()
 
 
@@ -227,7 +273,7 @@ Attributes
       collection shape on the `spatial_axes` only.
 
 
-   .. py:method:: __getitem__(index)
 
+   .. py:method:: __getitem__(index)
 
 

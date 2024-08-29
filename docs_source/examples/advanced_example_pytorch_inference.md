@@ -10,7 +10,7 @@ kernelspec:
   language: python
   name: python3
 execution:
-  timeout: 120
+  timeout: 600
 ---
 
 # Integration of ZarrDataset with PyTorch's DataLoader for inference (Advanced)
