@@ -1,5 +1,6 @@
 from collections import OrderedDict
-from typing import Iterable, Union, Callable
+from collections.abc import Iterable
+from typing import Union, Callable
 from functools import reduce, partial
 import operator
 import random
@@ -564,9 +565,12 @@ class ZarrDataset(IterableDataset):
         patches = self._curr_collection[coords]
 
         for inputs, transform in self._transforms.items():
-            res = transform(*tuple(patches[mode] for mode in inputs))
+            inputs_args = (patches[mode] for mode in inputs)
+            res = transform(*inputs_args)
 
-            if not isinstance(res, tuple):
+            # At this point, any zarr or dask array should have been converted
+            # to numpy array, either by computation or slicing.
+            if isinstance(res, np.ndarray):
                 res = (res, )
 
             for mode, mode_res in zip(inputs, res):
