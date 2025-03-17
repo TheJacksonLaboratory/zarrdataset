@@ -286,9 +286,9 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
             (f"Sample data type should be numpy.float64, got "
              f"{sample_array.dtype} instead.")
 
-        assert sample_array.shape == tuple(specs["shape"]), \
+        assert tuple(sample_array.shape) == tuple(specs["shape"]), \
             (f"Sample expected to have shape {tuple(specs['shape'])}, got "
-            f"{sample_array.shape} instead")
+            f"{sample_array.shape} ({sample_array.dtype}) instead")
 
         if "labels" in dataset_specs:
             expected_labels_shape = tuple(
@@ -298,9 +298,9 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
 
             labels_array = sample[label_idx]
 
-            assert labels_array.shape == expected_labels_shape, \
+            assert tuple(labels_array.shape) == expected_labels_shape, \
                 (f"Labels expected to have shape {expected_labels_shape}, got "
-                f"{labels_array.shape} instead")
+                f"{labels_array.shape} ({labels_array.dtype}) instead")
 
     assert n_samples > 0, ("Expected more than zero samples extracted from "
                            "this experiment.")
@@ -359,11 +359,11 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
             for ax in "YX"
         )
 
-        assert sample_array.shape == expected_shape, \
+        assert tuple(sample_array.shape) == expected_shape, \
             (f"Sample expected to have shape {expected_shape}, got "
              f"{sample_array.shape} instead")
 
-        assert labels_array.shape == expected_labels_shape, \
+        assert tuple(labels_array.shape) == expected_labels_shape, \
             (f"Labels expected to have shape {expected_labels_shape}, got "
              f"{labels_array.shape} instead")
 
@@ -399,11 +399,11 @@ def test_patched_ZarrDataset(image_dataset_specs, patch_sampler_specs,
             for ax in "YX"
         )
 
-        assert sample_array.shape == expected_shape, \
+        assert tuple(sample_array.shape) == expected_shape, \
             (f"Sample expected to have shape {expected_shape}, got "
              f"{sample_array.shape} instead")
 
-        assert labels_array.shape == expected_labels_shape, \
+        assert tuple(labels_array.shape) == expected_labels_shape, \
             (f"Labels expected to have shape {expected_labels_shape}, got "
              f"{labels_array.shape} instead")
 
@@ -590,7 +590,7 @@ def test_multithread_chained_ZarrDataset(image_dataset_specs,
         ]
 
         assert all(map(operator.eq,
-                       sample_array.shape,
+                       list(sample_array.shape),
                        expected_shape)), \
             (f"Sample expected to have shape {expected_shape}, got "
              f"{sample_array.shape} instead")
