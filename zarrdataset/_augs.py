@@ -12,7 +12,7 @@ class ToDtype(object):
     def __init__(self, dtype: np.dtype) -> None:
         self._dtype = dtype
 
-    def __call__(self, image:np.ndarray) -> np.ndarray:
+    def __call__(self, image: np.ndarray) -> np.ndarray:
         """Casts the type of `image` to the data type specified with `dtype`.
 
         Parameters
