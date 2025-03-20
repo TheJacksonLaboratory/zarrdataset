@@ -514,6 +514,8 @@ class ZarrDataset(IterableDataset):
             for mode in collection.keys():
                 collection[mode]["zarr_store"] = self._zarr_store[mode]
                 collection[mode]["image_func"] = self._image_loader_func[mode]
+                for k, v in self._image_loader_kwargs.items():
+                    collection[mode][k] = v
 
             if self._progress_bar:
                 q.set_description(f"Preloading image "
@@ -564,14 +566,16 @@ class ZarrDataset(IterableDataset):
         coords = tlbr if tlbr is not None else slice(None)
         patches = self._curr_collection[coords]
 
-        for inputs, transform in self._transforms.items():
-            inputs_args = (patches[mode] for mode in inputs)
-            res = transform(*inputs_args)
+        for inputs, transforms_list in self._transforms.items():
+            res = (patches[mode] for mode in inputs)
 
-            # At this point, any zarr or dask array should have been converted
-            # to numpy array, either by computation or slicing.
-            if isinstance(res, np.ndarray):
-                res = (res, )
+            for transform in transforms_list:
+                res = transform(*res)
+
+                # At this point, any zarr or dask array should have been
+                # converted to numpy array, either by computation or slicing.
+                if isinstance(res, np.ndarray):
+                    res = (res, )
 
             for mode, mode_res in zip(inputs, res):
                 patches[mode] = mode_res
@@ -644,8 +648,6 @@ class ZarrDataset(IterableDataset):
 
             # # Initialize the count of top-left positions for patches inside
             # # this chunk.
-            # if samples[curr_chk].num_patches is None:
-
             curr_patch, is_empty = samples[curr_chk].next_patch()
 
             # When all possible patches have been extracted from the current
@@ -663,7 +665,7 @@ class ZarrDataset(IterableDataset):
                      if patch_tlbr[ax].start is not None else 0,
                      patch_tlbr[ax].stop
                      if patch_tlbr[ax].stop is not None else -1
-                    ] if ax in patch_tlbr else [0, -1]
+                     ] if ax in patch_tlbr else [0, -1]
                     for ax in self._collections[self._ref_mod][0]["axes"]
                 ]
                 patches = [np.array(pos, dtype=np.int64)] + patches
@@ -680,7 +682,8 @@ class ZarrDataset(IterableDataset):
             yield patches
 
     def add_transform(self, modalities: Union[str, Iterable[str]],
-                      transform: Callable):
+                      transform: Callable,
+                      append: bool = False):
         """Add a pre-processing transform pipeline to the dataset, applied to
         the arrays from modalities specified with `modes`. This will be
         performed after any other pre-processing transforms already registered.
@@ -694,20 +697,27 @@ class ZarrDataset(IterableDataset):
         transform: Callable
             A function that receives the same number of inputs as specified in
             `modalities`, and returns that same number of outputs.
+        append: bool
+            Append the transform to the end of the transform pipeline.
+            If False, the new transform will replace any existing transform
+            applied to the listed modalities.
         """
         if isinstance(modalities, str):
             modalities = (modalities, )
 
-        self._transforms[modalities] = transform
+        if append and modalities in self._transforms:
+            self._transforms[modalities].append(transform)
+        else:
+            self._transforms[modalities] = [transform]
 
     def add_modality(self,
                      modality: str,
                      filenames: Union[str, Iterable[str], zarr.Group,
-                                  Iterable[zarr.Group],
-                                  zarr.Array,
-                                  Iterable[zarr.Array],
-                                  np.ndarray,
-                                  Iterable[np.ndarray]],
+                                      Iterable[zarr.Group],
+                                      zarr.Array,
+                                      Iterable[zarr.Array],
+                                      np.ndarray,
+                                      Iterable[np.ndarray]],
                      source_axes: str,
                      axes: Union[str, None] = None,
                      data_group: Union[str, int, None] = None,
@@ -715,7 +725,8 @@ class ZarrDataset(IterableDataset):
                      image_loader_func: Union[Callable, None] = None,
                      zarr_store: Union[zarr.storage.Store, None] = None,
                      transforms: Union[OrderedDict, None] = None,
-                     add_to_output: bool = True):
+                     add_to_output: bool = True,
+                     **kwargs):
         """Add a new modality to the dataset.
 
         Parameters
@@ -762,6 +773,8 @@ class ZarrDataset(IterableDataset):
             Whether add this modality to the output after sampling or not. For
             example, labels would be added to the output along with the input
             image array, while masks might not be needed.
+        **kwargs : dict
+            Extra named arguments passed to the image loader function.
         """
         if self._ref_mod is None:
             self._ref_mod = modality
@@ -787,6 +800,8 @@ class ZarrDataset(IterableDataset):
         self._zarr_store[modality] = zarr_store
 
         self._image_loader_func[modality] = image_loader_func
+
+        self._image_loader_kwargs = kwargs
 
     def __repr__(self) -> str:
         """ZarrDataset string representation.
