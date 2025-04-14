@@ -191,7 +191,7 @@ def generate_tiffs(dst_dir, image_specs):
                 metadata={"axes": "YX"},
                 tile=(128, 128),
             )
-    
+
         if "labels_group" in image_specs:
             tif.write(
                 z_groups[image_specs["labels_group"]][:],

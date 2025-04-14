@@ -39,14 +39,14 @@ except ModuleNotFoundError:
 try:
     import torch
     from torch.utils.data import IterableDataset
-    PYTORCH_SUPPORT=True
+    PYTORCH_SUPPORT = True
 
 except ModuleNotFoundError:
     import logging
     logging.warning('PyTorch is not installed, the BaseZarrDataset class will '
                     'still work as a python iterator')
     IterableDataset = object
-    PYTORCH_SUPPORT=False
+    PYTORCH_SUPPORT = False
 
 
 def zarrdataset_worker_init_fn(worker_id):
@@ -68,6 +68,7 @@ def zarrdataset_worker_init_fn(worker_id):
     dataset_obj._worker_sel = w_sel
     dataset_obj._worker_id = worker_id
     dataset_obj._num_workers = worker_info.num_workers
+
 
 def chained_zarrdataset_worker_init_fn(worker_id):
     """ZarrDataset multithread workers initialization function for PyTorch's
@@ -164,9 +165,10 @@ class DatasetSpecs(dict):
         `transform` instead.
     zarr_store: Union[zarr.storage.Store, None]
         A specific zarr.storage.Store class to be used to load zarr files.
-    transform: Union[Callable, None]
-        A transform applied to the array before returning it after sampling.
-        This can be used to specify data augmentation transforms.
+    transform: Union[Callable, Iterable[Callable], None]
+        A transform, or list of sequential transforms, to be applied to the
+        array before returning it after sampling. This can be used to specify
+        data augmentation transforms.
     add_to_output: bool
         Whether add this modality to the output after sampling or not. For
         example, labels would be added to the output along with the input
@@ -185,7 +187,7 @@ class DatasetSpecs(dict):
                  roi: Union[str, slice, Iterable[slice], None] = None,
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
-                 transform: Union[Callable, None] = None,
+                 transform: Union[Callable, Iterable[Callable], None] = None,
                  add_to_output: bool = True):
 
         super().__init__()
@@ -197,12 +199,15 @@ class DatasetSpecs(dict):
         self["data_group"] = data_group
         self["roi"] = roi
         self["image_loader_func"] = image_loader_func
-        self["transforms"] = OrderedDict()
+        self["transforms"] = []
         self["zarr_store"] = zarr_store
         self["add_to_output"] = add_to_output
 
         if transform is not None:
-            self["transforms"][(modality, )] = transform
+            if not isinstance(transform, Iterable):
+                transform = [transform]
+
+            self["transforms"].append(((modality, ), transform))
 
 
 class ImagesDatasetSpecs(DatasetSpecs):
@@ -237,9 +242,10 @@ class ImagesDatasetSpecs(DatasetSpecs):
         `transform` instead.
     zarr_store: Union[zarr.storage.Store, None]
         A specific zarr.storage.Store class to be used to load zarr files.
-    transform: Union[Callable, None]
-        A transform applied to the array before returning it after sampling.
-        This can be used to specify data augmentation transforms.
+    transform: Union[Callable, Iterable[Callable], None]
+        A transform, or list of sequential transforms, to be applied to the
+        array before returning it after sampling. This can be used to specify
+        data augmentation transforms.
     modality: str
         Specifies the use of this dataset (default is `images` for image data).
     """
@@ -256,7 +262,7 @@ class ImagesDatasetSpecs(DatasetSpecs):
                  roi: Union[str, slice, Iterable[slice], None] = None,
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
-                 transform: Union[Callable, None] = None,
+                 transform: Union[Callable, Iterable[Callable], None] = None,
                  modality: str ="images"):
 
         super().__init__(
@@ -305,32 +311,34 @@ class LabelsDatasetSpecs(DatasetSpecs):
         `transform` instead.
     zarr_store: Union[zarr.storage.Store, None]
         A specific zarr.storage.Store class to be used to load zarr files.
-    transform: Union[Callable, None]
-        A transform applied to the array before returning it after sampling.
-        This can be used to specify data augmentation transforms.
+    transform: Union[Callable, Iterable[Callable], None]
+        A transform, or list of sequential transforms, to be applied to the
+        array before returning it after sampling. This can be used to specify
+        data augmentation transforms.
     input_label_transform: Union[Callable, None]
         A transform applied to the array before returning it after sampling.
         This can be used to specify data augmentation transforms.
     modality: str
         Specifies the use of this dataset (default is `labels`).
     """
-    def __init__(self,
-                 filenames: Union[str, Iterable[str], zarr.Group,
-                                  Iterable[zarr.Group],
-                                  zarr.Array,
-                                  Iterable[zarr.Array],
-                                  np.ndarray,
-                                  Iterable[np.ndarray]],
-                 source_axes: str,
-                 axes: Union[str, None] = None,
-                 data_group: Union[str, int, None] = None,
-                 roi: Union[str, slice, Iterable[slice], None] = None,
-                 image_loader_func: Union[Callable, None] = None,
-                 zarr_store: Union[zarr.storage.Store, None] = None,
-                 transform: Union[Callable, None] = None,
-                 input_label_transform: Union[Callable, None] = None,
-                 input_mode: str = "images",
-                 modality: str = "labels"):
+    def __init__(
+      self,
+      filenames: Union[str, Iterable[str], zarr.Group,
+                       Iterable[zarr.Group],
+                       zarr.Array,
+                       Iterable[zarr.Array],
+                       np.ndarray,
+                       Iterable[np.ndarray]],
+      source_axes: str,
+      axes: Union[str, None] = None,
+      data_group: Union[str, int, None] = None,
+      roi: Union[str, slice, Iterable[slice], None] = None,
+      image_loader_func: Union[Callable, None] = None,
+      zarr_store: Union[zarr.storage.Store, None] = None,
+      transform: Union[Callable, Iterable[Callable], None] = None,
+      input_label_transform: Union[Callable, Iterable[Callable], None] = None,
+      input_mode: str = "images",
+      modality: str = "labels"):
 
         super().__init__(
             modality,
@@ -346,9 +354,13 @@ class LabelsDatasetSpecs(DatasetSpecs):
         )
 
         if input_label_transform is not None:
-            self["transforms"][("labels", )] = transform
-            self["transforms"][(input_mode, "labels")] =\
-                input_label_transform
+            self["transforms"].append((("labels", ), transform))
+            if not isinstance(input_label_transform, Iterable):
+                input_label_transform = [input_label_transform]
+
+            self["transforms"].append(
+                ((input_mode, "labels"), input_label_transform)
+            )
 
 
 class MasksDatasetSpecs(DatasetSpecs):
@@ -467,7 +479,7 @@ class ZarrDataset(IterableDataset):
 
         self._patch_sampler = patch_sampler
 
-        self._transforms = OrderedDict()
+        self._transforms = []
         self._output_order = []
 
         self._collections = {}
@@ -564,14 +576,16 @@ class ZarrDataset(IterableDataset):
         coords = tlbr if tlbr is not None else slice(None)
         patches = self._curr_collection[coords]
 
-        for inputs, transform in self._transforms.items():
-            inputs_args = (patches[mode] for mode in inputs)
-            res = transform(*inputs_args)
+        for inputs, transforms_list in self._transforms:
+            res = (patches[mode] for mode in inputs)
 
-            # At this point, any zarr or dask array should have been converted
-            # to numpy array, either by computation or slicing.
-            if isinstance(res, np.ndarray):
-                res = (res, )
+            for transform in transforms_list:
+                res = transform(*res)
+
+                # In case that the transform returns a single value, wrap it
+                # in a tuple to keep the same number of outputs as inputs.
+                if not isinstance(res, (tuple, list)):
+                    res = (res, )
 
             for mode, mode_res in zip(inputs, res):
                 patches[mode] = mode_res
@@ -663,7 +677,7 @@ class ZarrDataset(IterableDataset):
                      if patch_tlbr[ax].start is not None else 0,
                      patch_tlbr[ax].stop
                      if patch_tlbr[ax].stop is not None else -1
-                    ] if ax in patch_tlbr else [0, -1]
+                     ] if ax in patch_tlbr else [0, -1]
                     for ax in self._collections[self._ref_mod][0]["axes"]
                 ]
                 patches = [np.array(pos, dtype=np.int64)] + patches
@@ -680,7 +694,7 @@ class ZarrDataset(IterableDataset):
             yield patches
 
     def add_transform(self, modalities: Union[str, Iterable[str]],
-                      transform: Callable):
+                      transform: Union[Callable, Iterable[Callable]]):
         """Add a pre-processing transform pipeline to the dataset, applied to
         the arrays from modalities specified with `modes`. This will be
         performed after any other pre-processing transforms already registered.
@@ -691,30 +705,34 @@ class ZarrDataset(IterableDataset):
             The modalities on which this transform is applied (e.g., ``images``
             to apply only on image arrays, or (``images``, ``labels``) to apply
             it to both, images and labels arrays)
-        transform: Callable
-            A function that receives the same number of inputs as specified in
-            `modalities`, and returns that same number of outputs.
+        transform: Union[Callable, Iterable[Callable]]
+            A function, or sequence of functions, that receives the same number
+            of inputs as specified in `modalities`, and returns that same
+            number of outputs.
         """
         if isinstance(modalities, str):
             modalities = (modalities, )
 
-        self._transforms[modalities] = transform
+        if not isinstance(transform, Iterable):
+            transform = [transform]
+
+        self._transforms.append((modalities, transform))
 
     def add_modality(self,
                      modality: str,
                      filenames: Union[str, Iterable[str], zarr.Group,
-                                  Iterable[zarr.Group],
-                                  zarr.Array,
-                                  Iterable[zarr.Array],
-                                  np.ndarray,
-                                  Iterable[np.ndarray]],
+                                      Iterable[zarr.Group],
+                                      zarr.Array,
+                                      Iterable[zarr.Array],
+                                      np.ndarray,
+                                      Iterable[np.ndarray]],
                      source_axes: str,
                      axes: Union[str, None] = None,
                      data_group: Union[str, int, None] = None,
                      roi: Union[str, slice, Iterable[slice], None] = None,
                      image_loader_func: Union[Callable, None] = None,
                      zarr_store: Union[zarr.storage.Store, None] = None,
-                     transforms: Union[OrderedDict, None] = None,
+                     transforms: Union[Iterable[tuple], None] = None,
                      add_to_output: bool = True):
         """Add a new modality to the dataset.
 
@@ -750,7 +768,7 @@ class ZarrDataset(IterableDataset):
             `transform` instead.
         zarr_store: Union[zarr.storage.Store, None]
             A specific zarr.storage.Store class to be used to load zarr files.
-        transform: Union[OrderedDict, None]
+        transform: Union[Iterable[tuple], None]
             A list of transforms applied to arrays before yielding them. This
             can be used to specify data augmentation transforms, and can be
             applied to this and other existing modalities in this dataset.
@@ -778,7 +796,7 @@ class ZarrDataset(IterableDataset):
         )
 
         if transforms is not None:
-            for t_ord, t in transforms.items():
+            for t_ord, t in transforms:
                 self.add_transform(modalities=t_ord, transform=t)
 
         if add_to_output:
@@ -791,12 +809,17 @@ class ZarrDataset(IterableDataset):
     def __repr__(self) -> str:
         """ZarrDataset string representation.
         """
+        transforms_repr_str = "\n"
+        for inputs, transforms in self._transforms:
+            for t in transforms:
+                transforms_repr_str += f"\t{inputs}: {t}\n"
+
         repr_str = (f"ZarrDataset (PyTorch support:{PYTORCH_SUPPORT}, tqdm "
                     f"support :{TQDM_SUPPORT})"
                     + "\n"
                     + f"Modalities: {','.join(self._collections.keys())}"
                     + "\n"
-                    + f"Transforms order: {list(self._transforms.keys())}"
+                    + f"Transforms order: {transforms_repr_str}"
                     + "\n"
                     + f"Using {self._ref_mod} modality as reference.")
 
