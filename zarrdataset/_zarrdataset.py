@@ -6,6 +6,7 @@ import operator
 import random
 import zarr
 import numpy as np
+import torch.distributed as dist
 
 from ._utils import parse_metadata
 from ._imageloaders import ImageCollection
@@ -48,6 +49,13 @@ except ModuleNotFoundError:
     IterableDataset = object
     PYTORCH_SUPPORT = False
 
+
+def get_ddp_info():
+    if dist.is_available() and dist.is_initialized():
+        return dist.get_rank(), dist.get_world_size()
+    else:
+        return 0, 1
+    
 
 def zarrdataset_worker_init_fn(worker_id):
     """ZarrDataset multithread workers initialization function.
@@ -619,6 +627,10 @@ class ZarrDataset(IterableDataset):
             for im_id in range(len(self._arr_lists))
             for chk_id in range(len(self._toplefts[im_id]))
         ]
+
+        # Add sharding here
+        rank, world_size = get_ddp_info()
+        samples = [s for i, s in enumerate(samples) if i % world_size == rank]
 
         # Shuffle chunks here if samples will come from the same chunk until
         # they are depleted.
