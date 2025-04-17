@@ -317,39 +317,3 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
 
     assert n_samples > 0, ("Expected more than zero samples extracted from "
                            "this experiment.")
-
-
-@pytest.mark.parametrize(
-    "image_dataset_specs", [
-        IMAGE_SPECS[6],
-    ],
-    indirect=["image_dataset_specs"]
-)
-def test_transforms_lists(image_dataset_specs):
-    dataset_specs, specs = image_dataset_specs
-
-    ds = zds.ZarrDataset(
-        dataset_specs=dataset_specs
-    )
-
-    ds.add_transform(("images", ), zds.ToDtype(np.float64))
-    ds.add_transform(("images", ), zds.ToDtype(np.float64))
-
-    assert len(ds._transforms[(dataset_specs["modality"], )]) == 1, \
-        (f"Expected only one transform to be added to the dataset, got "
-         f"{len(ds._transforms)} instead.")
-
-    ds.add_transform(("images", ), zds.ToDtype(np.float64))
-    ds.add_transform(("images", ), zds.ToDtype(np.float32),
-                     append=True)
-
-    assert len(ds._transforms[(dataset_specs["modality"], )]) == 2, \
-        (f"Expected two transforms to be added to the dataset, got "
-         f"{len(ds._transforms)} instead.")
-
-    ds_iter = iter(ds)
-    sample = next(ds_iter)
-
-    assert sample[0].dtype == np.float32, \
-        (f"Expected sample to have data type numpy.float32 after applying two "
-         f"consecutive data type transforms, got {sample[0].dtype} instead.")

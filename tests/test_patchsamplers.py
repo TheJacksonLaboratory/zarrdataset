@@ -81,7 +81,9 @@ def image_dataset_specs(request):
         )
 
     if labels_filenames:
-        dataset_specs[0]["transforms"][("images", )] = zds.ToDtype(np.float32)
+        dataset_specs[0]["transforms"].append(
+            (("images", ), zds.ToDtype(np.float32))
+        )
 
         dataset_specs.append(
             zds.LabelsDatasetSpecs(

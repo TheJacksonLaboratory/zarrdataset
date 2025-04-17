@@ -190,7 +190,8 @@ class DatasetSpecs(dict):
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
                  transform: Union[Callable, Iterable[Callable], None] = None,
-                 add_to_output: bool = True):
+                 add_to_output: bool = True,
+                 **kwargs):
 
         super().__init__()
 
@@ -268,7 +269,8 @@ class ImagesDatasetSpecs(DatasetSpecs):
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
                  transform: Union[Callable, Iterable[Callable], None] = None,
-                 modality: str ="images"):
+                 modality: str ="images",
+                 **kwargs):
 
         super().__init__(
             modality,
@@ -346,7 +348,8 @@ class LabelsDatasetSpecs(DatasetSpecs):
       transform: Union[Callable, Iterable[Callable], None] = None,
       input_label_transform: Union[Callable, Iterable[Callable], None] = None,
       input_mode: str = "images",
-      modality: str = "labels"):
+      modality: str = "labels",
+      **kwargs):
 
         super().__init__(
             modality,
@@ -744,7 +747,8 @@ class ZarrDataset(IterableDataset):
                      image_loader_func: Union[Callable, None] = None,
                      zarr_store: Union[zarr.storage.Store, None] = None,
                      transforms: Union[Iterable[tuple], None] = None,
-                     add_to_output: bool = True):
+                     add_to_output: bool = True,
+                     **kwargs):
         """Add a new modality to the dataset.
 
         Parameters
