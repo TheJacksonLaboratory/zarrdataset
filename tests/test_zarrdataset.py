@@ -2,7 +2,6 @@ import pytest
 import os
 import shutil
 from pathlib import Path
-from collections import OrderedDict
 from _collections_abc import dict_items
 
 import zarrdataset as zds
@@ -84,7 +83,9 @@ def image_dataset_specs(request):
         )
 
     if labels_filenames:
-        dataset_specs[0]["transforms"][("images", )] = zds.ToDtype(np.float32)
+        dataset_specs[0]["transforms"].append(
+            (("images", ), zds.ToDtype(np.float32))
+        )
 
         dataset_specs.append(
             zds.LabelsDatasetSpecs(
@@ -129,21 +130,21 @@ def test_DataSpecs(dataset_spec_class):
         source_axes=""
     )
 
-    assert generic_specs["modality"] == "generic",\
+    assert generic_specs["modality"] == "generic", \
         (f"Expected mode to be `generic`, as assigned during initialization of"
          f" the dataset specification, got {generic_specs['modality']} "
          f"instead.")
 
-    assert generic_specs["filenames"] == "",\
+    assert generic_specs["filenames"] == "", \
         (f"Expected filenames to be ````, as assigned during initialization of"
          f" the dataset specification, got {generic_specs['filenames']} "
          f"instead.")
 
-    assert isinstance(generic_specs["transforms"], OrderedDict),\
+    assert isinstance(generic_specs["transforms"], list), \
         (f"Expected transforms to be an ordered dicionary, got "
          f"{type(generic_specs['transforms'])} instead.")
 
-    assert isinstance(generic_specs.items(), dict_items),\
+    assert isinstance(generic_specs.items(), dict_items), \
         (f"Expected DatasetSpecs to return `dict_items` when called `.items()`"
          f", got {type(generic_specs.items())} instead.")
 
@@ -183,6 +184,58 @@ def test_string_ZarrDataset(image_dataset_specs):
         (f"Spected string representation start with `ZarrDataset`, list all "
          f"modalities, and state what modality is being used as reference. "
          f"Got `{ds_str_repr}` instead.")
+
+
+@pytest.mark.parametrize(
+    "image_dataset_specs, transforms", [
+        (IMAGE_SPECS[6], (("images", ), zds.ToDtype(np.float64))),
+        (IMAGE_SPECS[6], [(("images", ), zds.ToDtype(np.float32)),
+                          (("images", ), zds.ToDtype(np.float64))]),
+        (IMAGE_SPECS[6], [(("images", ), [zds.ToDtype(np.float32),
+                                          zds.ToDtype(np.float64)])]),
+    ],
+    indirect=["image_dataset_specs"]
+)
+def test_ZarrDataset_transforms(image_dataset_specs, transforms):
+    dataset_specs, _ = image_dataset_specs
+
+    ds = zds.ZarrDataset(dataset_specs=dataset_specs)
+
+    if not isinstance(dataset_specs, list):
+        dataset_specs = [dataset_specs]
+
+    if not isinstance(transforms, list):
+        transforms = [transforms]
+
+    expected_transforms_per_mode = {}
+    for mode, mode_transform in transforms:
+        expected_transforms_per_mode[mode] =\
+            expected_transforms_per_mode.get(mode, 0) + 1
+
+        ds.add_transform(mode, mode_transform)
+
+    transforms_per_mode = {}
+    for mode, mode_transform in ds._transforms:
+        transforms_per_mode[mode] = transforms_per_mode.get(mode, 0) + 1
+
+    assert all(map(lambda mode_n_transforms:
+                   transforms_per_mode.get(mode_n_transforms[0], 0)
+                   == mode_n_transforms[1],
+                   expected_transforms_per_mode.items())), \
+           (f"Expected number of transforms to be "
+            f"{expected_transforms_per_mode}, got "
+            f"{transforms_per_mode} instead.")
+
+    for sample in ds:
+        if any(["labels" in mode["modality"] for mode in dataset_specs]):
+            sample_array = sample[0]
+
+        else:
+            sample_array = sample
+
+        assert sample_array.dtype == np.float64, \
+            (f"Sample data type should be numpy.float64, got "
+             f"{sample_array.dtype} instead.")
 
 
 @pytest.mark.parametrize(
