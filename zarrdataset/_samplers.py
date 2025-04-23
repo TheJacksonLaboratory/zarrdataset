@@ -325,7 +325,9 @@ class PatchSampler(object):
 
             patches_coverage = np.sum(covered_indices * coverage, axis=0)
 
-        minimum_covered_tls = image_coordinates[patches_coverage > min_area]
+        patches_coverage = np.round(patches_coverage)
+
+        minimum_covered_tls = image_coordinates[patches_coverage >= min_area]
         minimum_covered_tls = minimum_covered_tls.astype(np.int64)
 
         return minimum_covered_tls

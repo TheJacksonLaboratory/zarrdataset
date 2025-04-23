@@ -59,7 +59,8 @@ def parse_metadata(filename: str, default_source_axes: str,
                    default_data_group: Union[str, int, None]=None,
                    default_axes: Union[str, None]=None,
                    default_rois: Union[Iterable[slice], None]=None,
-                   override_meta: bool=False) -> List[dict]:
+                   override_meta: bool=False,
+                   **kwargs) -> List[dict]:
     """Parse the filename, data groups, axes ordering, ROIs from `filename`.
 
     The different fields must be separated by a semicolon (;).
@@ -84,6 +85,8 @@ def parse_metadata(filename: str, default_source_axes: str,
     override_meta : bool
         Whether to override the values parsed from the filename with the
         defaults or not.
+    **kwargs : dict
+        Additional named arguments passed to the ImageLoader constructor.
 
     Returns
     -------
@@ -200,7 +203,8 @@ def parse_metadata(filename: str, default_source_axes: str,
          "data_group": data_group,
          "source_axes": source_axes,
          "axes": target_axes,
-         "roi": roi}
+         "roi": roi,
+         **kwargs}
         for roi in rois
     ]
 

@@ -173,6 +173,8 @@ class DatasetSpecs(dict):
         Whether add this modality to the output after sampling or not. For
         example, labels would be added to the output along with the input
         image array, while masks might not be needed.
+    **kwargs : dict
+        Extra named arguments passed to the image loader function.
     """
     def __init__(self, modality: str,
                  filenames: Union[str, Iterable[str], zarr.Group,
@@ -188,7 +190,8 @@ class DatasetSpecs(dict):
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
                  transform: Union[Callable, Iterable[Callable], None] = None,
-                 add_to_output: bool = True):
+                 add_to_output: bool = True,
+                 **kwargs):
 
         super().__init__()
 
@@ -202,6 +205,7 @@ class DatasetSpecs(dict):
         self["transforms"] = []
         self["zarr_store"] = zarr_store
         self["add_to_output"] = add_to_output
+        self.update(**kwargs)
 
         if transform is not None:
             if not isinstance(transform, Iterable):
@@ -248,6 +252,8 @@ class ImagesDatasetSpecs(DatasetSpecs):
         data augmentation transforms.
     modality: str
         Specifies the use of this dataset (default is `images` for image data).
+    **kwargs : dict
+        Extra named arguments passed to the image loader function.
     """
     def __init__(self,
                  filenames: Union[str, Iterable[str], zarr.Group,
@@ -263,7 +269,8 @@ class ImagesDatasetSpecs(DatasetSpecs):
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
                  transform: Union[Callable, Iterable[Callable], None] = None,
-                 modality: str ="images"):
+                 modality: str ="images",
+                 **kwargs):
 
         super().__init__(
             modality,
@@ -275,7 +282,8 @@ class ImagesDatasetSpecs(DatasetSpecs):
             image_loader_func,
             zarr_store,
             transform,
-            add_to_output=True
+            add_to_output=True,
+            **kwargs
         )
 
 
@@ -320,6 +328,8 @@ class LabelsDatasetSpecs(DatasetSpecs):
         This can be used to specify data augmentation transforms.
     modality: str
         Specifies the use of this dataset (default is `labels`).
+    **kwargs : dict
+        Extra named arguments passed to the image loader function.
     """
     def __init__(
       self,
@@ -338,7 +348,8 @@ class LabelsDatasetSpecs(DatasetSpecs):
       transform: Union[Callable, Iterable[Callable], None] = None,
       input_label_transform: Union[Callable, Iterable[Callable], None] = None,
       input_mode: str = "images",
-      modality: str = "labels"):
+      modality: str = "labels",
+      **kwargs):
 
         super().__init__(
             modality,
@@ -350,7 +361,8 @@ class LabelsDatasetSpecs(DatasetSpecs):
             image_loader_func,
             zarr_store,
             transform,
-            add_to_output=True
+            add_to_output=True,
+            **kwargs
         )
 
         if input_label_transform is not None:
@@ -397,6 +409,8 @@ class MasksDatasetSpecs(DatasetSpecs):
         A specific zarr.storage.Store class to be used to load zarr files.
     modality: str
         Specifies the use of this dataset (default is `masks`).
+    **kwargs : dict
+        Extra named arguments passed to the image loader function.
     """
     def __init__(self,
                  filenames: Union[str, Iterable[str], zarr.Group,
@@ -411,7 +425,8 @@ class MasksDatasetSpecs(DatasetSpecs):
                  roi: Union[str, slice, Iterable[slice], None] = None,
                  image_loader_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
-                 modality: str = "masks"):
+                 modality: str = "masks",
+                 **kwargs):
 
         super().__init__(
             modality,
@@ -423,7 +438,8 @@ class MasksDatasetSpecs(DatasetSpecs):
             image_loader_func,
             zarr_store,
             None,
-            add_to_output=False
+            add_to_output=False,
+            **kwargs
         )
 
 
@@ -658,8 +674,6 @@ class ZarrDataset(IterableDataset):
 
             # # Initialize the count of top-left positions for patches inside
             # # this chunk.
-            # if samples[curr_chk].num_patches is None:
-
             curr_patch, is_empty = samples[curr_chk].next_patch()
 
             # When all possible patches have been extracted from the current
@@ -733,7 +747,8 @@ class ZarrDataset(IterableDataset):
                      image_loader_func: Union[Callable, None] = None,
                      zarr_store: Union[zarr.storage.Store, None] = None,
                      transforms: Union[Iterable[tuple], None] = None,
-                     add_to_output: bool = True):
+                     add_to_output: bool = True,
+                     **kwargs):
         """Add a new modality to the dataset.
 
         Parameters
@@ -780,6 +795,8 @@ class ZarrDataset(IterableDataset):
             Whether add this modality to the output after sampling or not. For
             example, labels would be added to the output along with the input
             image array, while masks might not be needed.
+        **kwargs : dict
+            Extra named arguments passed to the image loader function.
         """
         if self._ref_mod is None:
             self._ref_mod = modality
@@ -790,7 +807,8 @@ class ZarrDataset(IterableDataset):
                         default_source_axes=source_axes,
                         default_data_group=data_group,
                         default_axes=axes,
-                        default_rois=roi),
+                        default_rois=roi,
+                        **kwargs),
                 filenames if isinstance(filenames, list) else [filenames]),
             []
         )

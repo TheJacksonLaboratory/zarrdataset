@@ -180,6 +180,7 @@ class ImageBase(object):
     axes = None
     mode = ""
     permute_order = None
+    _padding_mode = "constant"
     _store = None
     _new_axes = ""
     _drop_axes = ""
@@ -194,7 +195,8 @@ class ImageBase(object):
     def __init__(self, shape: Iterable[int],
                  chunk_size: Union[Iterable[int], None] = None,
                  source_axes: str = "",
-                 mode: str = ""):
+                 mode: str = "",
+                 padding_mode: str = "constant"):
         if chunk_size is None:
             chunk_size = shape
 
@@ -205,6 +207,7 @@ class ImageBase(object):
         self.roi = tuple([slice(None)] * len(source_axes))
         self.mode = mode
 
+        self._padding_mode = padding_mode
         self._chunk_size = chunk_size
 
     def _iscached(self, coords):
@@ -235,7 +238,8 @@ class ImageBase(object):
             )
 
             padding = tuple(
-                (cc.start - i.start if i.start is not None and i.start < 0 else 0,
+                (cc.start - i.start
+                 if i.start is not None and i.start < 0 else 0,
                  i.stop - cc.stop if i.stop is not None and i.stop > s else 0)
                 for cc, i, s in zip(self._cached_coords, index, self.arr.shape)
             )
@@ -243,10 +247,12 @@ class ImageBase(object):
             self._cache = self.arr[self._cached_coords]
 
             if any([any(pad) for pad in padding]):
-                self._cache = np.pad(self._cache, padding)
+                self._cache = np.pad(self._cache, padding,
+                                     mode=self._padding_mode)
                 self._cached_coords = tuple(
                     slice(cc.start - p_low, cc.stop + p_high)
-                    for (p_low, p_high), cc in zip(padding, self._cached_coords)
+                    for (p_low, p_high), cc in zip(padding,
+                                                   self._cached_coords)
                 )
 
         cached_index = tuple(
@@ -410,6 +416,7 @@ class ImageLoader(ImageBase):
     zarr_store: Union[zarr.storage.Store, None]
     spatial_axes: str
     mode: str
+    padding_mode: str
     """
     def __init__(self, filename: str, source_axes: str,
                  data_group: Union[str, None] = None,
@@ -418,9 +425,11 @@ class ImageLoader(ImageBase):
                  image_func: Union[Callable, None] = None,
                  zarr_store: Union[zarr.storage.Store, None] = None,
                  spatial_axes: str = "ZYX",
-                 mode: str = ""):
+                 mode: str = "",
+                 padding_mode: str = "constant"):
         self.mode = mode
         self.spatial_axes = spatial_axes
+        self._padding_mode = padding_mode
 
         if roi is None:
             parsed_roi = [slice(None)] * len(source_axes)
