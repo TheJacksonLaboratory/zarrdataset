@@ -6,7 +6,6 @@ import operator
 import random
 import zarr
 import numpy as np
-import torch.distributed as dist
 
 from ._utils import parse_metadata
 from ._imageloaders import ImageCollection
@@ -39,6 +38,7 @@ except ModuleNotFoundError:
 
 try:
     import torch
+    import torch.distributed as dist
     from torch.utils.data import IterableDataset
     PYTORCH_SUPPORT = True
 
@@ -51,10 +51,12 @@ except ModuleNotFoundError:
 
 
 def get_ddp_info():
-    if dist.is_available() and dist.is_initialized():
-        return dist.get_rank(), dist.get_world_size()
-    else:
-        return 0, 1
+    """Returns local rank and work size if available, else defaults to 0,1
+    """
+    if PYTORCH_SUPPORT:
+        if dist.is_available() and dist.is_initialized():
+            return dist.get_rank(), dist.get_world_size()
+    return 0, 1
     
 
 def zarrdataset_worker_init_fn(worker_id):
