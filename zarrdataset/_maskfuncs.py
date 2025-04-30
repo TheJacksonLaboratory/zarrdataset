@@ -6,8 +6,12 @@ from skimage import morphology, color, filters, transform
 class MaskGenerator(object):
     """Base class to define transformation functions on ImageBase objects.
     """
-    def __init__(self, axes):
+    def __init__(self, axes, axes_scale=None):
         self.axes = axes
+        if axes_scale is None and axes is not None:
+            axes_scale = {ax: 1 for ax in axes}
+
+        self.axes_scale = axes_scale
 
     def _compute_transform(self, image: np.ndarray) -> np.ndarray:
         raise NotImplementedError("This is a virtual method and has to be "
@@ -36,7 +40,9 @@ class WSITissueMaskGenerator(MaskGenerator):
                  area_threshold : int = 128,
                  thresh : Union[float, None] = None,
                  axes : str = "YX"):
-        super(WSITissueMaskGenerator, self).__init__(axes=axes)
+        axes_scale = {ax: mask_scale for ax in axes}
+        super(WSITissueMaskGenerator, self).__init__(axes=axes,
+                                                     axes_scale=axes_scale)
 
         self._mask_scale = mask_scale
         self._min_size = min_size
