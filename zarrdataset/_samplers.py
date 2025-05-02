@@ -206,10 +206,6 @@ class PatchSampler(object):
                       image_size: dict,
                       min_area: float,
                       allow_incomplete_patches: bool = False):
-        image_scale = np.array([image_size.get(ax, 1) / patch_size.get(ax, 1)
-                                for ax in self.spatial_axes],
-                               dtype=np.float32)
-
         round_fn = math.ceil if allow_incomplete_patches else math.floor
 
         image_blocks = [
@@ -255,6 +251,10 @@ class PatchSampler(object):
         }
         org_mask_coordinates = np.nonzero(mask[mask_chunk_tlbr])
 
+        if any(map(lambda axis_coords: axis_coords.size == 0,
+                   org_mask_coordinates)):
+            return []
+
         mask_coordinates = list(
             org_mask_coordinates[mask.axes.index(ax)]
             if ax in mask.axes
@@ -265,7 +265,8 @@ class PatchSampler(object):
         mask_coordinates = np.stack(mask_coordinates, dtype=np.float32).T
         mask_coordinates *= mask_scale[None, ...]
 
-        # Filter out mask coordinates outside the current selected chunk
+        # Compute an offset for the mask coordinates with chunk_tlbr as
+        # reference.
         mask_tl_coordinates = np.array(
             [(mask_chunk_tlbr.get(ax, slice(None)).start
               if mask_chunk_tlbr.get(ax, slice(None)).start is not None else 0)
@@ -275,9 +276,9 @@ class PatchSampler(object):
             dtype=np.float32
         )
 
-        # Translate the mask coordinates to the origin for comparison with
-        # image coordinates.
-        mask_coordinates -= mask_tl_coordinates
+        # Translate the mask coordinates using an offset computed from the
+        # difference between the mask_chunk_tlbr and chunk_tlbr coordinates.
+        mask_coordinates += mask_tl_coordinates
 
         if all(map(operator.ge, image_scale, mask_scale)):
             mask_corners = self._compute_corners(mask_coordinates, mask_scale)
@@ -288,7 +289,7 @@ class PatchSampler(object):
 
             (coverage,
              corners_idx) = self._compute_overlap(mask_corners,
-                                                  reference_per_axis)
+             reference_per_axis)
 
             covered_indices = [
                 reference_idx.index(tuple(idx))
@@ -379,6 +380,13 @@ class PatchSampler(object):
         image = image_collection.collection[image_collection.reference_mode]
         mask = image_collection.collection[image_collection.mask_mode]
 
+        # Create a dummy mask image from the shape and scale of the original
+        # mask to compute the samplable chunks of the image.
+        chunk_mask = ImageBase(mask.shape, mask.chunk_size, mask.axes,
+                               mode="masks")
+        chunk_mask.rescale(spatial_reference_shape=image.shape,
+                           spatial_reference_axes=image.axes)
+
         # This computes a chunk size in terms of the patch size instead of the
         # original array chunk size.
         spatial_chunk_sizes = {
@@ -402,7 +410,7 @@ class PatchSampler(object):
 
         valid_mask_toplefts = self._compute_grid(
             chunk_tlbr,
-            mask,
+            chunk_mask,
             self._max_chunk_size,
             image_size,
             min_area=1,
