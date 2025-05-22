@@ -2,7 +2,18 @@ import pytest
 
 import zarrdataset as zds
 
+import operator
 import numpy as np
+import math
+
+
+class TestMaskGenerator(zds.MaskGenerator):
+    def __init__(self):
+        super().__init__(axes="YX")
+
+    def _compute_transform(self, image: np.ndarray) -> np.ndarray:
+        h, w, _ = image.shape
+        return np.ones((h, w), dtype=bool)
 
 
 @pytest.fixture(scope="function")
@@ -26,6 +37,23 @@ def test_MaskGenerator(input_image):
 
     with pytest.raises(NotImplementedError):
         _ = mask_generator(img)
+
+
+def test_scaled_MaskGenerator(input_image):
+    mask_generator = TestMaskGenerator()
+
+    img, img_shape, axes = input_image
+
+    mask = mask_generator(img)
+
+    expected_shape = [
+        img_shape[ax]
+        for ax in axes
+        if ax in mask_generator.axes
+    ]
+
+    assert all(map(operator.eq, mask.shape, expected_shape)), \
+        (f"Expected mask has shape {expected_shape}, got {mask.shape}")
 
 
 @pytest.mark.parametrize("mask_scale, min_size, area_threshold, thresh, axes",

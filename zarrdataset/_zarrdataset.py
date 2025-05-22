@@ -57,7 +57,7 @@ def get_ddp_info():
         if dist.is_available() and dist.is_initialized():
             return dist.get_rank(), dist.get_world_size()
     return 0, 1
-    
+
 
 def zarrdataset_worker_init_fn(worker_id):
     """ZarrDataset multithread workers initialization function.
