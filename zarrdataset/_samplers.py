@@ -171,7 +171,15 @@ class PatchSampler(object):
             for tls_coord in reference_idx.reshape(-1, len(reference_per_axis))
         ]
 
-        return reference_per_axis, reference_idx
+        reference_arr = np.zeros(np.array(reference_idx[-1]) + 1,
+                                 dtype=np.int64)
+
+        reference_coords = tuple(np.hsplit(np.array(reference_idx),
+                                 len(self.spatial_axes)))
+        reference_arr[reference_coords] =\
+            np.arange(len(reference_idx), dtype=np.int64)[..., None]
+
+        return reference_per_axis, reference_arr
 
     def _compute_overlap(self, corners_coordinates: np.ndarray,
                          reference_per_axis: np.ndarray) -> Tuple[np.ndarray,
@@ -198,6 +206,8 @@ class PatchSampler(object):
 
         dist2cut = np.fabs(corners_coordinates - corners_cut[None])
         coverage = np.prod(dist2cut, axis=-1)
+
+        tls_idx = tls_idx.reshape(-1, len(self.spatial_axes))
 
         return coverage, tls_idx
 
@@ -284,22 +294,30 @@ class PatchSampler(object):
             mask_corners = self._compute_corners(mask_coordinates, mask_scale)
 
             (reference_per_axis,
-             reference_idx) =\
+             reference_arr) =\
                 self._compute_reference_indices(image_coordinates, image_scale)
 
             (coverage,
              corners_idx) = self._compute_overlap(mask_corners,
-             reference_per_axis)
+                                                  reference_per_axis)
 
-            covered_indices = [
-                reference_idx.index(tuple(idx))
-                if tuple(idx) in reference_idx else len(reference_idx)
-                for idx in corners_idx.reshape(-1, len(self.spatial_axes))
-            ]
+            valid_corners_idx = np.all(
+                np.less(corners_idx, reference_arr.shape),
+                axis=1
+            )
 
-            patches_coverage = np.bincount(covered_indices,
-                                           weights=coverage.flatten(),
-                                           minlength=len(reference_idx) + 1)
+            corners_idx = corners_idx[valid_corners_idx]
+            coverage = coverage.flatten()[valid_corners_idx]
+
+            covered_indices = reference_arr[tuple(
+                np.hsplit(corners_idx, len(self.spatial_axes))
+            )].squeeze()
+
+            patches_coverage = np.bincount(
+                covered_indices,
+                weights=coverage,
+                minlength=np.prod(np.array(reference_arr.shape) - 1) + 1
+            )
             patches_coverage = patches_coverage[:-1]
 
         else:
@@ -307,19 +325,25 @@ class PatchSampler(object):
                                                   image_scale)
 
             (reference_per_axis,
-             reference_idx) = self._compute_reference_indices(mask_coordinates,
+             reference_arr) = self._compute_reference_indices(mask_coordinates,
                                                               mask_scale)
 
             (coverage,
              corners_idx) = self._compute_overlap(image_corners,
                                                   reference_per_axis)
+            valid_corners_idx = np.all(
+                np.less(corners_idx, reference_arr.shape),
+                axis=1
+            )
 
-            covered_indices = np.array([
-                tuple(idx) in reference_idx
-                for idx in corners_idx.reshape(-1, len(self.spatial_axes))
-            ]).reshape(coverage.shape)
+            covered_indices = np.zeros(corners_idx.shape[0])
+            covered_indices[valid_corners_idx] = reference_arr[tuple(
+                np.hsplit(corners_idx[valid_corners_idx],
+                          len(self.spatial_axes))
+            )].squeeze() > 0
 
-            patches_coverage = np.sum(covered_indices * coverage, axis=0)
+            patches_coverage = np.sum(covered_indices.reshape(coverage.shape)
+                                      * coverage, axis=0)
 
         patches_coverage = np.round(patches_coverage)
 
@@ -380,13 +404,6 @@ class PatchSampler(object):
         image = image_collection.collection[image_collection.reference_mode]
         mask = image_collection.collection[image_collection.mask_mode]
 
-        # Create a dummy mask image from the shape and scale of the original
-        # mask to compute the samplable chunks of the image.
-        chunk_mask = ImageBase(mask.shape, mask.chunk_size, mask.axes,
-                               mode="masks")
-        chunk_mask.rescale(spatial_reference_shape=image.shape,
-                           spatial_reference_axes=image.axes)
-
         # This computes a chunk size in terms of the patch size instead of the
         # original array chunk size.
         spatial_chunk_sizes = {
@@ -410,7 +427,8 @@ class PatchSampler(object):
 
         valid_mask_toplefts = self._compute_grid(
             chunk_tlbr,
-            chunk_mask,
+            # chunk_mask,
+            mask,
             self._max_chunk_size,
             image_size,
             min_area=1,
