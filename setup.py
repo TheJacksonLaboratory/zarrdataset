@@ -24,7 +24,7 @@ setuptools.setup(
         'boto3>=1.28.17,<1.28.18',
         'fsspec>=2023.9.2',
         's3fs>=0.4.2',
-        'zarr>=2.12.0',
+        'zarr>=2.12.0,<3.0',
         'scikit-image>=0.19.3',
         'poisson-disc>=0.2.1',
     ],

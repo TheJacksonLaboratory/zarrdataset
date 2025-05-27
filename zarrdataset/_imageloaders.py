@@ -101,30 +101,30 @@ def image2array(arr_src: Union[str, zarr.Group, zarr.Array, np.ndarray],
                or (isinstance(data_group, str) and not len(data_group))):
                 tiff_args = dict(
                     key=None,
-                    level=None,
-                    series=None
+                    series=None,
+                    level=None
                 )
             elif isinstance(data_group, str) and len(data_group):
-                data_group_split = data_group.split("/")
+                data_group_split = data_group.replace("\\", "/").split("/")
 
                 if len(data_group_split) > 1:
                     tiff_args = dict(
-                        key=int(data_group_split[0]),
-                        level=int(data_group_split[1]),
-                        series=None
+                        key=None,
+                        series=int(data_group_split[0]),
+                        level=int(data_group_split[1])
                     )
                 else:
                     tiff_args = dict(
-                        key=int(data_group_split[0]),
-                        level=None,
-                        series=None
+                        key=None,
+                        series=None,
+                        level=int(data_group_split[0])
                     )
 
             elif isinstance(data_group, int):
                 tiff_args = dict(
-                    key=data_group,
-                    level=None,
-                    series=None
+                    key=None,
+                    series=None,
+                    level=data_group
                 )
             else:
                 raise ValueError(f"Incorrect data group format "
