@@ -171,8 +171,8 @@ class PatchSampler(object):
             for tls_coord in reference_idx.reshape(-1, len(reference_per_axis))
         ]
 
-        reference_arr = np.zeros(np.array(reference_idx[-1]) + 1,
-                                 dtype=np.int64)
+        reference_arr = np.full(np.array(reference_idx[-1]) + 1, -1,
+                                dtype=np.int64)
 
         reference_coords = tuple(np.hsplit(np.array(reference_idx),
                                  len(self.spatial_axes)))
@@ -312,6 +312,8 @@ class PatchSampler(object):
             covered_indices = reference_arr[tuple(
                 np.hsplit(corners_idx, len(self.spatial_axes))
             )].squeeze()
+            coverage = coverage[covered_indices >= 0]
+            covered_indices = covered_indices[covered_indices >= 0]
 
             patches_coverage = np.bincount(
                 covered_indices,
@@ -340,7 +342,7 @@ class PatchSampler(object):
             covered_indices[valid_corners_idx] = reference_arr[tuple(
                 np.hsplit(corners_idx[valid_corners_idx],
                           len(self.spatial_axes))
-            )].squeeze() > 0
+            )].squeeze() >= 0
 
             patches_coverage = np.sum(covered_indices.reshape(coverage.shape)
                                       * coverage, axis=0)
