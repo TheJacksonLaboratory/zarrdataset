@@ -26,7 +26,8 @@ from ._zarrdataset import (DatasetSpecs,
                            MasksDatasetSpecs,
                            ZarrDataset,
                            zarrdataset_worker_init_fn,
-                           chained_zarrdataset_worker_init_fn)
+                           chained_zarrdataset_worker_init_fn,
+                           zarrdataset_collate_fn)
 
 
 __all__ = ['DatasetSpecs',
@@ -36,6 +37,7 @@ __all__ = ['DatasetSpecs',
            'ZarrDataset',
            'zarrdataset_worker_init_fn',
            'chained_zarrdataset_worker_init_fn',
+           'zarrdataset_collate_fn',
            'PatchSampler',
            'BlueNoisePatchSampler',
            'ToDtype',

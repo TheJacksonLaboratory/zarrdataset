@@ -104,6 +104,95 @@ def chained_zarrdataset_worker_init_fn(worker_id):
         ds._num_workers = 1
 
 
+def zarrdataset_collate_fn(batch):
+    """Custom collate function for ZarrDataset that handles metadata.
+    
+    This function should be used with PyTorch DataLoader when return_metadata=True
+    in the ZarrDataset. It collates metadata dictionaries separately from tensor
+    data.
+    
+    Parameters
+    ----------
+    batch : list
+        A list of samples from the dataset. Each sample can be a single tensor,
+        a tuple of tensors, or a tuple with tensors followed by metadata dictionary
+        as the last element.
+    
+    Returns
+    -------
+    collated_batch : tuple
+        If metadata is present, returns (*collated_tensors, metadata_list).
+        Otherwise returns the default collated batch.
+    
+    Examples
+    --------
+    >>> from torch.utils.data import DataLoader
+    >>> import zarrdataset as zds
+    >>> 
+    >>> ds = zds.ZarrDataset(..., return_metadata=True)
+    >>> loader = DataLoader(ds, batch_size=4, 
+    ...                     collate_fn=zds.zarrdataset_collate_fn,
+    ...                     worker_init_fn=zds.zarrdataset_worker_init_fn)
+    >>> 
+    >>> for *data, metadata in loader:
+    ...     print(metadata)  # List of metadata dicts, one per sample
+    ...     # Process data...
+    """
+    if not PYTORCH_SUPPORT:
+        raise RuntimeError("PyTorch is required to use zarrdataset_collate_fn")
+    
+    if not batch:
+        return []
+    
+    # Check if last element of first sample is a metadata dictionary
+    first_sample = batch[0]
+    has_metadata = False
+    
+    if isinstance(first_sample, (tuple, list)) and len(first_sample) > 0:
+        if isinstance(first_sample[-1], dict):
+            has_metadata = True
+    
+    if not has_metadata:
+        # No metadata, use default collate
+        return torch.utils.data.default_collate(batch)
+    
+    # Extract metadata and tensors separately
+    metadata_list = []
+    tensor_batches = []
+    
+    for sample in batch:
+        if isinstance(sample, (tuple, list)):
+            metadata_list.append(sample[-1])
+            # Keep remaining items (excluding metadata) as tuple or extract single item
+            remaining = sample[:-1]
+            if len(remaining) == 1:
+                tensor_batches.append(remaining[0])
+            else:
+                tensor_batches.append(remaining)
+        else:
+            # This shouldn't happen if metadata is enabled, but handle gracefully
+            metadata_list.append({})
+            tensor_batches.append(sample)
+    
+    # Collate tensors using default collate
+    if tensor_batches:
+        # Check if tensor_batches contains tuples
+        if isinstance(tensor_batches[0], (tuple, list)):
+            # Transpose and collate each position
+            num_tensors = len(tensor_batches[0])
+            collated_tensors = []
+            for i in range(num_tensors):
+                tensor_list = [item[i] for item in tensor_batches]
+                collated_tensors.append(torch.utils.data.default_collate(tensor_list))
+            return (*collated_tensors, metadata_list)
+        else:
+            # Single tensor per sample
+            collated_tensors = torch.utils.data.default_collate(tensor_batches)
+            return (collated_tensors, metadata_list)
+    
+    return (metadata_list,)
+
+
 class ImageSample():
     _current_patch_idx = 0
     _ordering = None
@@ -478,6 +567,10 @@ class ZarrDataset(IterableDataset):
         along with the set of patches.
     return_worker_id: bool
         Return the worker id that extracted the sample.
+    return_metadata: bool
+        Return metadata dictionary containing `filename` and `data_scale` for
+        each sample. When using with PyTorch DataLoader, requires the use of
+        `zarrdataset_collate_fn` as the collate function.
     draw_same_chunk: bool
         Whether continue extracting samples from the same chunk, until
         depleting the posible patches to extract, before extract samples from
@@ -491,6 +584,7 @@ class ZarrDataset(IterableDataset):
                  progress_bar: bool = False,
                  return_positions: bool = False,
                  return_worker_id: bool = False,
+                 return_metadata: bool = False,
                  draw_same_chunk: bool = False):
 
         self._worker_sel = slice(None)
@@ -501,6 +595,7 @@ class ZarrDataset(IterableDataset):
         self._progress_bar = progress_bar
         self._return_positions = return_positions
         self._return_worker_id = return_worker_id
+        self._return_metadata = return_metadata
         self._draw_same_chunk = draw_same_chunk
 
         self._patch_sampler = patch_sampler
@@ -713,6 +808,29 @@ class ZarrDataset(IterableDataset):
             if self._return_worker_id:
                 wid = [np.array(self._worker_id, dtype=np.int64)]
                 patches = wid + patches
+
+            if self._return_metadata:
+                # Get filename from the reference modality in the collection
+                ref_collection = self._collections[self._ref_mod][im_id]
+                filename = ref_collection["filename"]
+                
+                # Convert filename to string representation if needed
+                if isinstance(filename, str):
+                    filename_str = filename
+                elif isinstance(filename, (zarr.Group, zarr.Array)):
+                    # For zarr objects, use their name/path
+                    filename_str = str(filename.name) if hasattr(filename, 'name') else str(filename)
+                elif isinstance(filename, np.ndarray):
+                    filename_str = f"<ndarray shape={filename.shape}>"
+                else:
+                    filename_str = str(filename)
+                
+                metadata = {
+                    "filename": filename_str,
+                    "data_scale": ref_collection.get("data_group", None)
+                }
+                # Append metadata at the end to not break existing code
+                patches = patches + [metadata]
 
             if len(patches) > 1:
                 patches = tuple(patches)
