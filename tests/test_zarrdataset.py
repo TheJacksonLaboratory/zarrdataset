@@ -317,3 +317,207 @@ def test_ZarrDataset(image_dataset_specs, shuffle, return_positions,
 
     assert n_samples > 0, ("Expected more than zero samples extracted from "
                            "this experiment.")
+
+
+@pytest.mark.parametrize(
+    "image_dataset_specs, return_metadata", [
+        (IMAGE_SPECS[10], True),
+        (IMAGE_SPECS[11], True),
+    ],
+    indirect=["image_dataset_specs"]
+)
+def test_ZarrDataset_metadata(image_dataset_specs, return_metadata):
+    dataset_specs, specs = image_dataset_specs
+
+    ds = zds.ZarrDataset(
+        dataset_specs=dataset_specs,
+        return_metadata=return_metadata,
+    )
+
+    if not isinstance(dataset_specs, list):
+        dataset_specs = [dataset_specs]
+
+    ds.add_transform(dataset_specs[0]["modality"], zds.ToDtype(np.float64))
+
+    n_samples = 0
+
+    for sample in ds:
+        n_samples += 1
+        
+        assert isinstance(sample, tuple), \
+            (f"When `return_metadata=True` is passed to ZarrDataset, retrieved "
+             f"samples should be a tuple, got {type(sample)} instead.")
+        
+        # Last element should be metadata dict
+        metadata = sample[-1]
+        assert isinstance(metadata, dict), \
+            (f"Last element of sample should be metadata dict, got "
+             f"{type(metadata)} instead.")
+        
+        assert "filename" in metadata, \
+            "Metadata should contain 'filename' key."
+        
+        assert "data_scale" in metadata, \
+            "Metadata should contain 'data_scale' key."
+        
+        assert isinstance(metadata["filename"], str), \
+            (f"Metadata filename should be a string, got "
+             f"{type(metadata['filename'])} instead.")
+        
+        # First element should be the image array (when only metadata is enabled)
+        sample_array = sample[0]
+        assert isinstance(sample_array, np.ndarray), \
+            (f"Sample should be a Numpy NDArray, got {type(sample_array)}"
+             f" instead.")
+
+        assert sample_array.dtype == np.float64, \
+            (f"Sample data type should be numpy.float64, got "
+             f"{sample_array.dtype} instead.")
+
+    assert n_samples > 0, ("Expected more than zero samples extracted from "
+                           "this experiment.")
+
+
+@pytest.mark.parametrize(
+    "image_dataset_specs, return_metadata, return_positions, return_worker_id", [
+        (IMAGE_SPECS[10], True, True, False),
+        (IMAGE_SPECS[10], True, False, True),
+        (IMAGE_SPECS[10], True, True, True),
+    ],
+    indirect=["image_dataset_specs"]
+)
+def test_ZarrDataset_metadata_combined(image_dataset_specs, return_metadata, 
+                                       return_positions, return_worker_id):
+    """Test metadata with other return flags."""
+    dataset_specs, specs = image_dataset_specs
+
+    ds = zds.ZarrDataset(
+        dataset_specs=dataset_specs,
+        return_metadata=return_metadata,
+        return_positions=return_positions,
+        return_worker_id=return_worker_id,
+    )
+
+    if not isinstance(dataset_specs, list):
+        dataset_specs = [dataset_specs]
+
+    ds.add_transform(dataset_specs[0]["modality"], zds.ToDtype(np.float64))
+
+    # Determine indices based on what's returned
+    # Order is: worker_id (if enabled), positions (if enabled), arrays, metadata (if enabled)
+    idx = 0
+    
+    worker_id_idx = idx if return_worker_id else -1
+    if return_worker_id:
+        idx += 1
+    
+    positions_idx = idx if return_positions else -1
+    if return_positions:
+        idx += 1
+    
+    array_idx = idx
+    # Metadata is always last when enabled
+
+    n_samples = 0
+
+    for sample in ds:
+        n_samples += 1
+        
+        assert isinstance(sample, tuple), \
+            "Sample should be a tuple when metadata or other flags are enabled"
+        
+        # Check metadata (always last)
+        metadata = sample[-1]
+        assert isinstance(metadata, dict), \
+            f"Metadata should be dict, got {type(metadata)}"
+        assert "filename" in metadata and "data_scale" in metadata, \
+            "Metadata should contain filename and data_scale"
+        
+        # Check worker_id if enabled
+        if return_worker_id:
+            worker_id = sample[worker_id_idx]
+            assert isinstance(worker_id, np.ndarray), \
+                f"Worker ID should be ndarray, got {type(worker_id)}"
+            assert worker_id.dtype == np.int64, \
+                f"Worker ID should be int64, got {worker_id.dtype}"
+        
+        # Check positions if enabled
+        if return_positions:
+            positions = sample[positions_idx]
+            assert isinstance(positions, np.ndarray), \
+                f"Positions should be ndarray, got {type(positions)}"
+            assert positions.dtype == np.int64, \
+                f"Positions should be int64, got {positions.dtype}"
+        
+        # Check array
+        sample_array = sample[array_idx]
+        assert isinstance(sample_array, np.ndarray), \
+            f"Sample should be ndarray, got {type(sample_array)}"
+
+    assert n_samples > 0, "Expected more than zero samples"
+
+
+
+@pytest.mark.parametrize(
+    "image_dataset_specs", [
+        IMAGE_SPECS[10],
+    ],
+    indirect=["image_dataset_specs"]
+)
+def test_ZarrDataset_collate_fn(image_dataset_specs):
+    """Test the custom collate function with metadata."""
+    try:
+        import torch
+        from torch.utils.data import DataLoader
+    except ModuleNotFoundError:
+        pytest.skip("PyTorch not installed, skipping collate_fn test")
+    
+    dataset_specs, specs = image_dataset_specs
+
+    ds = zds.ZarrDataset(
+        dataset_specs=dataset_specs,
+        return_metadata=True,
+    )
+
+    if not isinstance(dataset_specs, list):
+        dataset_specs = [dataset_specs]
+
+    ds.add_transform(dataset_specs[0]["modality"], zds.ToDtype(np.float64))
+
+    # Test with DataLoader and custom collate function
+    loader = DataLoader(
+        ds,
+        batch_size=2,
+        collate_fn=zds.zarrdataset_collate_fn,
+        num_workers=0
+    )
+
+    for batch in loader:
+        assert isinstance(batch, tuple), \
+            "Batch should be a tuple when metadata is returned"
+        
+        # Metadata should be last element
+        metadata_list = batch[-1]
+        assert isinstance(metadata_list, list), \
+            f"Last element should be list of metadata, got {type(metadata_list)}"
+        
+        assert len(metadata_list) <= 2, \
+            f"Batch size is 2, metadata list should have at most 2 items"
+        
+        for metadata in metadata_list:
+            assert isinstance(metadata, dict), \
+                f"Each metadata item should be dict, got {type(metadata)}"
+            assert "filename" in metadata, \
+                "Metadata should contain 'filename'"
+            assert "data_scale" in metadata, \
+                "Metadata should contain 'data_scale'"
+        
+        # Check that tensors are properly collated
+        if len(batch) > 1:
+            tensors = batch[0]
+            assert isinstance(tensors, torch.Tensor), \
+                f"First element should be tensor, got {type(tensors)}"
+            assert tensors.shape[0] <= 2, \
+                f"Batch dimension should be at most 2"
+        
+        break  # Just test one batch
