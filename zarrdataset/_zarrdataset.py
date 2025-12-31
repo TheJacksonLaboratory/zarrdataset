@@ -149,7 +149,11 @@ def zarrdataset_collate_fn(batch):
     has_metadata = False
     
     if isinstance(first_sample, (tuple, list)) and len(first_sample) > 0:
-        if isinstance(first_sample[-1], dict):
+        last_elem = first_sample[-1]
+        # Check if it's a dict with the expected metadata keys
+        if (isinstance(last_elem, dict) 
+            and "filename" in last_elem 
+            and "data_scale" in last_elem):
             has_metadata = True
     
     if not has_metadata:
@@ -569,7 +573,9 @@ class ZarrDataset(IterableDataset):
         Return the worker id that extracted the sample.
     return_metadata: bool
         Return metadata dictionary containing `filename` and `data_scale` for
-        each sample. When using with PyTorch DataLoader, requires the use of
+        each sample. The `data_scale` represents the data group/resolution level
+        (e.g., '0' for the base level in a pyramid structure, or None if not 
+        applicable). When using with PyTorch DataLoader, requires the use of
         `zarrdataset_collate_fn` as the collate function.
     draw_same_chunk: bool
         Whether continue extracting samples from the same chunk, until
@@ -819,7 +825,7 @@ class ZarrDataset(IterableDataset):
                     filename_str = filename
                 elif isinstance(filename, (zarr.Group, zarr.Array)):
                     # For zarr objects, use their name/path
-                    filename_str = str(filename.name) if hasattr(filename, 'name') else str(filename)
+                    filename_str = str(filename.name)
                 elif isinstance(filename, np.ndarray):
                     filename_str = f"<ndarray shape={filename.shape}>"
                 else:

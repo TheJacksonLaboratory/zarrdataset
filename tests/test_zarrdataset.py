@@ -379,15 +379,17 @@ def test_ZarrDataset_metadata(image_dataset_specs, return_metadata):
 
 
 @pytest.mark.parametrize(
-    "image_dataset_specs, return_metadata, return_positions, return_worker_id", [
+    "image_dataset_specs, return_metadata, return_positions, return_worker_id",
+    [
         (IMAGE_SPECS[10], True, True, False),
         (IMAGE_SPECS[10], True, False, True),
         (IMAGE_SPECS[10], True, True, True),
     ],
     indirect=["image_dataset_specs"]
 )
-def test_ZarrDataset_metadata_combined(image_dataset_specs, return_metadata, 
-                                       return_positions, return_worker_id):
+def test_ZarrDataset_metadata_combined(
+    image_dataset_specs, return_metadata, return_positions, return_worker_id
+):
     """Test metadata with other return flags."""
     dataset_specs, specs = image_dataset_specs
 
