@@ -439,3 +439,56 @@ def translate2roi(index : dict, roi : tuple, source_axes : str, axes : str):
     roi_mode_index, _ = select_axes(source_axes, roi_mode_index)
 
     return roi_mode_index
+
+
+def format_roi(roi: Union[slice, Iterable[slice], None]) -> str:
+    """Convert a ROI (slice or tuple of slices) to string format.
+    
+    Parameters
+    ----------
+    roi : Union[slice, Iterable[slice], None]
+        A slice or tuple of slices representing the region of interest.
+    
+    Returns
+    -------
+    str
+        String representation in format "(start_coords):(lengths)"
+        e.g., "(0,0,0):(100,100,3)" or ":" for full slice
+    """
+    if roi is None:
+        return ":"
+    
+    if isinstance(roi, slice):
+        roi = (roi,)
+    
+    if not isinstance(roi, (list, tuple)):
+        return str(roi)
+    
+    # Check if all slices are None (full selection)
+    if all(s.start is None and s.stop is None for s in roi if isinstance(s, slice)):
+        return ":"
+    
+    start_coords = []
+    lengths = []
+    
+    for s in roi:
+        if isinstance(s, slice):
+            start = s.start if s.start is not None else 0
+            stop = s.stop
+            
+            start_coords.append(str(start))
+            
+            if stop is None:
+                lengths.append("-1")  # -1 indicates till end
+            else:
+                length = stop - start
+                lengths.append(str(length))
+        else:
+            # If not a slice, just use as-is
+            start_coords.append(str(s))
+            lengths.append("1")
+    
+    start_str = "(" + ",".join(start_coords) + ")"
+    length_str = "(" + ",".join(lengths) + ")"
+    
+    return f"{start_str}:{length_str}"
