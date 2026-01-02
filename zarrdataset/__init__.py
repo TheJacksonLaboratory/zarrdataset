@@ -16,7 +16,8 @@ from ._utils import (parse_rois,
                      connect_s3,
                      isconsolidated,
                      scale_coords,
-                     translate2roi)
+                     translate2roi,
+                     format_roi)
 
 from ._augs import ToDtype
 
