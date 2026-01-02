@@ -251,3 +251,63 @@ def test_translate2roi(index, roi, source_axes, axes, expected_roi):
     assert translated_roi == expected_roi, \
         (f"Expected translated ROI to be {expected_roi}, got {translated_roi} "
          f"instead.")
+
+
+@pytest.mark.parametrize("roi, expected_format", [
+    # None input
+    (None, ":"),
+
+    # Not-a-slice input
+    (1, "1"),
+
+    # Tuple of not-slice inputs
+    ((0, 1), "(0,1):(1,1)"),
+    
+    # Single slice with start and stop
+    (slice(0, 10), "(0):(10)"),
+    (slice(5, 15), "(5):(10)"),
+    (slice(0, 100), "(0):(100)"),
+    
+    # Single slice with None start (defaults to 0)
+    (slice(None, 10), "(0):(10)"),
+    
+    # Single slice with None stop (uses -1 for length)
+    (slice(5, None), "(5):(-1)"),
+    (slice(0, None), "(0):(-1)"),
+    
+    # Full slice (None, None)
+    (slice(None, None), ":"),
+    
+    # Tuple of slices - multiple dimensions
+    ((slice(0, 10), slice(0, 20)), "(0,0):(10,20)"),
+    ((slice(5, 15), slice(10, 30)), "(5,10):(10,20)"),
+    
+    # Tuple with mix of None start
+    ((slice(None, 10), slice(None, 20)), "(0,0):(10,20)"),
+    
+    # Tuple with mix of None stop
+    ((slice(0, None), slice(0, None)), "(0,0):(-1,-1)"),
+    ((slice(5, None), slice(10, 20)), "(5,10):(-1,10)"),
+    
+    # Tuple with full slices
+    ((slice(None), slice(None)), ":"),
+    ((slice(None, None), slice(None, None)), ":"),
+    
+    # Three dimensional
+    ((slice(0, 1), slice(0, 100), slice(0, 100)), "(0,0,0):(1,100,100)"),
+    ((slice(0, 1), slice(None, None), slice(5, 15)), "(0,0,5):(1,-1,10)"),
+    
+    # Complex multi-dimensional cases
+    ((slice(0, 5), slice(10, 20), slice(100, 200)), "(0,10,100):(5,10,100)"),
+    ((slice(None), slice(5, 10), slice(None)), "(0,5,0):(-1,5,-1)"),
+    
+    # List of slices (should work same as tuple)
+    ([slice(0, 10), slice(0, 20)], "(0,0):(10,20)"),
+    ([slice(None), slice(None)], ":"),
+])
+def test_format_roi(roi, expected_format):
+    formatted_roi = zds.format_roi(roi)
+
+    assert formatted_roi == expected_format, \
+        (f"Expected formatted ROI to be {expected_format}, got "
+         f"{formatted_roi} instead.")
