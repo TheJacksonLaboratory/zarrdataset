@@ -150,12 +150,16 @@ def zarrdataset_collate_fn(batch):
     
     if isinstance(first_sample, (tuple, list)) and len(first_sample) > 0:
         last_elem = first_sample[-1]
+        last_elem_values = next(iter(last_elem.values()))
         # Check if it's a dict with the expected metadata keys
         if (isinstance(last_elem, dict) 
-            and "filename" in last_elem 
-            and "data_scale" in last_elem):
+          and "filenames" in last_elem_values
+          and "source_axes" in last_elem_values
+          and "axes" in last_elem_values
+          and "data_group" in last_elem_values
+          and "roi" in last_elem_values):
             has_metadata = True
-    
+
     if not has_metadata:
         # No metadata, use default collate
         return torch.utils.data.default_collate(batch)
@@ -817,24 +821,28 @@ class ZarrDataset(IterableDataset):
 
             if self._return_metadata:
                 # Get filename from the reference modality in the collection
-                ref_collection = self._collections[self._ref_mod][im_id]
-                filename = ref_collection["filename"]
-                
-                # Convert filename to string representation if needed
-                if isinstance(filename, str):
-                    filename_str = filename
-                elif isinstance(filename, (zarr.Group, zarr.Array)):
-                    # For zarr objects, use their name/path
-                    filename_str = str(filename.name)
-                elif isinstance(filename, np.ndarray):
-                    filename_str = f"<ndarray shape={filename.shape}>"
-                else:
-                    filename_str = str(filename)
-                
-                metadata = {
-                    "filename": filename_str,
-                    "data_scale": ref_collection.get("data_group", None)
-                }
+                metadata = {}
+                for mod_key, mod_metadata in self._collections.items():
+                    # Convert filename to string representation if needed
+                    filename = mod_metadata[im_id]["filename"]
+                    if isinstance(filename, str):
+                        filename_str = filename
+                    elif isinstance(filename, (zarr.Group, zarr.Array)):
+                        # For zarr objects, use their name/path
+                        filename_str = str(filename.name)
+                    elif isinstance(filename, np.ndarray):
+                        filename_str = f"<ndarray shape={filename.shape}>"
+                    else:
+                        filename_str = str(filename)
+
+                    metadata[mod_key] = dict(
+                        filenames=filename_str,
+                        source_axes=mod_metadata[im_id]["source_axes"],
+                        axes=mod_metadata[im_id]["axes"],
+                        data_group=mod_metadata[im_id]["data_group"],
+                        roi=mod_metadata[im_id]["roi"]
+                    )
+
                 # Append metadata at the end to not break existing code
                 patches = patches + [metadata]
 

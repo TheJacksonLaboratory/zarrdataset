@@ -353,17 +353,23 @@ def test_ZarrDataset_metadata(image_dataset_specs, return_metadata):
         assert isinstance(metadata, dict), \
             (f"Last element of sample should be metadata dict, got "
              f"{type(metadata)} instead.")
+
+        metadata_values = next(iter(metadata.values()))
+        assert "filenames" in metadata_values, \
+            "Metadata should contain 'filename'"
+        assert "source_axes" in metadata_values, \
+            "Metadata should contain 'source_axes'"
+        assert "axes" in metadata_values, \
+            "Metadata should contain 'axes'"
+        assert "data_group" in metadata_values, \
+            "Metadata should contain 'data_group'"
+        assert "roi" in metadata_values, \
+            "Metadata should contain 'roi'"
         
-        assert "filename" in metadata, \
-            "Metadata should contain 'filename' key."
-        
-        assert "data_scale" in metadata, \
-            "Metadata should contain 'data_scale' key."
-        
-        assert isinstance(metadata["filename"], str), \
+        assert isinstance(metadata_values["filenames"], str), \
             (f"Metadata filename should be a string, got "
-             f"{type(metadata['filename'])} instead.")
-        
+             f"{type(metadata_values['filenames'])} instead.")
+
         # First element should be the image array (when only metadata is enabled)
         sample_array = sample[0]
         assert isinstance(sample_array, np.ndarray), \
@@ -430,11 +436,20 @@ def test_ZarrDataset_metadata_combined(
         
         # Check metadata (always last)
         metadata = sample[-1]
+        metadata_values = next(iter(metadata.values()))
         assert isinstance(metadata, dict), \
             f"Metadata should be dict, got {type(metadata)}"
-        assert "filename" in metadata and "data_scale" in metadata, \
-            "Metadata should contain filename and data_scale"
-        
+        assert "filenames" in metadata_values, \
+            "Metadata should contain 'filename'"
+        assert "source_axes" in metadata_values, \
+            "Metadata should contain 'source_axes'"
+        assert "axes" in metadata_values, \
+            "Metadata should contain 'axes'"
+        assert "data_group" in metadata_values, \
+            "Metadata should contain 'data_group'"
+        assert "roi" in metadata_values, \
+            "Metadata should contain 'roi'"
+
         # Check worker_id if enabled
         if return_worker_id:
             worker_id = sample[worker_id_idx]
@@ -497,7 +512,7 @@ def test_ZarrDataset_collate_fn(image_dataset_specs):
     for batch in loader:
         assert isinstance(batch, tuple), \
             "Batch should be a tuple when metadata is returned"
-        
+
         # Metadata should be last element
         metadata_list = batch[-1]
         assert isinstance(metadata_list, list), \
@@ -505,15 +520,22 @@ def test_ZarrDataset_collate_fn(image_dataset_specs):
         
         assert len(metadata_list) <= 2, \
             f"Batch size is 2, metadata list should have at most 2 items"
-        
+
         for metadata in metadata_list:
+            metadata_values = next(iter(metadata.values()))
             assert isinstance(metadata, dict), \
                 f"Each metadata item should be dict, got {type(metadata)}"
-            assert "filename" in metadata, \
+            assert "filenames" in metadata_values, \
                 "Metadata should contain 'filename'"
-            assert "data_scale" in metadata, \
-                "Metadata should contain 'data_scale'"
-        
+            assert "source_axes" in metadata_values, \
+                "Metadata should contain 'source_axes'"
+            assert "axes" in metadata_values, \
+                "Metadata should contain 'axes'"
+            assert "data_group" in metadata_values, \
+                "Metadata should contain 'data_group'"
+            assert "roi" in metadata_values, \
+                "Metadata should contain 'roi'"
+
         # Check that tensors are properly collated
         if len(batch) > 1:
             tensors = batch[0]
