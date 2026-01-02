@@ -50,6 +50,59 @@ except ModuleNotFoundError:
     PYTORCH_SUPPORT = False
 
 
+def format_roi(roi: Union[slice, Iterable[slice], None]) -> str:
+    """Convert a ROI (slice or tuple of slices) to string format.
+    
+    Parameters
+    ----------
+    roi : Union[slice, Iterable[slice], None]
+        A slice or tuple of slices representing the region of interest.
+    
+    Returns
+    -------
+    str
+        String representation in format "(start_coords):(lengths)"
+        e.g., "(0,0,0):(100,100,3)" or ":" for full slice
+    """
+    if roi is None:
+        return ":"
+    
+    if isinstance(roi, slice):
+        roi = (roi,)
+    
+    if not isinstance(roi, (list, tuple)):
+        return str(roi)
+    
+    # Check if all slices are None (full selection)
+    if all(s.start is None and s.stop is None for s in roi if isinstance(s, slice)):
+        return ":"
+    
+    start_coords = []
+    lengths = []
+    
+    for s in roi:
+        if isinstance(s, slice):
+            start = s.start if s.start is not None else 0
+            stop = s.stop
+            
+            start_coords.append(str(start))
+            
+            if stop is None:
+                lengths.append("-1")  # -1 indicates till end
+            else:
+                length = stop - start
+                lengths.append(str(length))
+        else:
+            # If not a slice, just use as-is
+            start_coords.append(str(s))
+            lengths.append("1")
+    
+    start_str = "(" + ",".join(start_coords) + ")"
+    length_str = "(" + ",".join(lengths) + ")"
+    
+    return f"{start_str}:{length_str}"
+
+
 def get_ddp_info():
     """Returns local rank and work size if available, else defaults to 0,1
     """
@@ -576,10 +629,10 @@ class ZarrDataset(IterableDataset):
     return_worker_id: bool
         Return the worker id that extracted the sample.
     return_metadata: bool
-        Return metadata dictionary containing `filename` and `data_scale` for
-        each sample. The `data_scale` represents the data group/resolution level
-        (e.g., '0' for the base level in a pyramid structure, or None if not 
-        applicable). When using with PyTorch DataLoader, requires the use of
+        Return metadata dictionary for each modality containing the standard
+        DatasetSpecs fields: `filenames`, `source_axes`, `axes`, `data_group`,
+        and `roi`. This metadata helps track sample provenance during training
+        or inference. When using with PyTorch DataLoader, requires the use of
         `zarrdataset_collate_fn` as the collate function.
     draw_same_chunk: bool
         Whether continue extracting samples from the same chunk, until
@@ -835,12 +888,16 @@ class ZarrDataset(IterableDataset):
                     else:
                         filename_str = str(filename)
 
+                    # Convert ROI to string format
+                    roi = mod_metadata[im_id]["roi"]
+                    roi_str = format_roi(roi)
+
                     metadata[mod_key] = dict(
                         filenames=filename_str,
                         source_axes=mod_metadata[im_id]["source_axes"],
                         axes=mod_metadata[im_id]["axes"],
                         data_group=mod_metadata[im_id]["data_group"],
-                        roi=mod_metadata[im_id]["roi"]
+                        roi=roi_str
                     )
 
                 # Append metadata at the end to not break existing code
