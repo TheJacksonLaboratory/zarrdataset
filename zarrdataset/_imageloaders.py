@@ -178,6 +178,7 @@ class ImageBase(object):
     spatial_axes = "ZYX"
     source_axes = None
     axes = None
+    axes_scale = None
     mode = ""
     permute_order = None
     _padding_mode = "constant"
@@ -189,7 +190,7 @@ class ImageBase(object):
     _spatial_reference_shape = None
     _spatial_reference_axes = None
     _chunk_size = None
-    _cached_coords = None
+    cached_coords = None
     _image_func = None
 
     def __init__(self, shape: Iterable[int],
@@ -211,7 +212,7 @@ class ImageBase(object):
         self._chunk_size = chunk_size
 
     def _iscached(self, coords):
-        if self._cached_coords is None:
+        if self.cached_coords is None:
             return False
         else:
             return all(
@@ -221,12 +222,12 @@ class ImageBase(object):
                     and (coord.stop if coord.stop is not None else s)
                     <= (cache.stop if cache.stop is not None else s),
                     coords,
-                    self._cached_coords,
+                    self.cached_coords,
                     self.arr.shape))
 
     def _cache_chunk(self, index):
         if not self._iscached(index):
-            self._cached_coords = tuple(
+            self.cached_coords = tuple(
                 map(lambda i, chk, s:
                     slice(max(0, chk * int(i.start / chk))
                           if i.start is not None else 0,
@@ -241,18 +242,18 @@ class ImageBase(object):
                 (cc.start - i.start
                  if i.start is not None and i.start < 0 else 0,
                  i.stop - cc.stop if i.stop is not None and i.stop > s else 0)
-                for cc, i, s in zip(self._cached_coords, index, self.arr.shape)
+                for cc, i, s in zip(self.cached_coords, index, self.arr.shape)
             )
 
-            self._cache = self.arr[self._cached_coords]
+            self._cache = self.arr[self.cached_coords]
 
             if any([any(pad) for pad in padding]):
                 self._cache = np.pad(self._cache, padding,
                                      mode=self._padding_mode)
-                self._cached_coords = tuple(
+                self.cached_coords = tuple(
                     slice(cc.start - p_low, cc.stop + p_high)
                     for (p_low, p_high), cc in zip(padding,
-                                                   self._cached_coords)
+                                                   self.cached_coords)
                 )
 
         cached_index = tuple(
@@ -260,7 +261,7 @@ class ImageBase(object):
                 slice((i.start - cache.start) if i.start is not None else 0,
                       (i.stop - cache.start) if i.stop is not None else None,
                       None),
-                self._cached_coords, index)
+                self.cached_coords, index)
         )
 
         return cached_index
@@ -335,6 +336,17 @@ class ImageBase(object):
             else:
                 self._shape.append(1)
                 self._chunk_size.append(1)
+
+        if self.axes_scale is not None:
+            self._shape = [
+                int(math.ceil(self.axes_scale.get(ax, 1) * s))
+                for ax, s in zip(self.axes, self._shape)
+            ]
+
+            self._chunk_size = [
+                int(math.ceil(self.axes_scale.get(ax, 1) * cs))
+                for ax, cs in zip(self.axes, self._chunk_size)
+            ]
 
         if self._spatial_reference_axes is None:
             self._spatial_reference_axes = [
@@ -500,6 +512,7 @@ class ImageLoader(ImageBase):
 
         if image_func is not None:
             self.axes = image_func.axes
+            self.axes_scale = image_func.axes_scale
 
     def __del__(self):
         # Close the connection to the image file

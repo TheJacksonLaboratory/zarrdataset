@@ -171,7 +171,15 @@ class PatchSampler(object):
             for tls_coord in reference_idx.reshape(-1, len(reference_per_axis))
         ]
 
-        return reference_per_axis, reference_idx
+        reference_arr = np.full(np.array(reference_idx[-1]) + 1, -1,
+                                dtype=np.int64)
+
+        reference_coords = tuple(np.hsplit(np.array(reference_idx),
+                                 len(self.spatial_axes)))
+        reference_arr[reference_coords] =\
+            np.arange(len(reference_idx), dtype=np.int64)[..., None]
+
+        return reference_per_axis, reference_arr
 
     def _compute_overlap(self, corners_coordinates: np.ndarray,
                          reference_per_axis: np.ndarray) -> Tuple[np.ndarray,
@@ -199,6 +207,8 @@ class PatchSampler(object):
         dist2cut = np.fabs(corners_coordinates - corners_cut[None])
         coverage = np.prod(dist2cut, axis=-1)
 
+        tls_idx = tls_idx.reshape(-1, len(self.spatial_axes))
+
         return coverage, tls_idx
 
     def _compute_grid(self, chunk_tlbr: dict, mask: ImageBase,
@@ -206,14 +216,6 @@ class PatchSampler(object):
                       image_size: dict,
                       min_area: float,
                       allow_incomplete_patches: bool = False):
-        mask_scale = np.array([mask.scale.get(ax, 1)
-                               for ax in self.spatial_axes],
-                              dtype=np.float32)
-
-        image_scale = np.array([image_size.get(ax, 1) / patch_size.get(ax, 1)
-                                for ax in self.spatial_axes],
-                               dtype=np.float32)
-
         round_fn = math.ceil if allow_incomplete_patches else math.floor
 
         image_blocks = [
@@ -245,65 +247,79 @@ class PatchSampler(object):
                                    for ax in self.spatial_axes],
                                   dtype=np.float32)
 
-        mask_coordinates = list(np.nonzero(mask[:]))
-        for ax_i, ax in enumerate(self.spatial_axes):
-            if ax not in mask.axes:
-                mask_coordinates.insert(
-                    ax_i,
-                    np.zeros(mask_coordinates[0].size)
-                )
+        # Apply the chunk_tlbr to the mask coordinates to avoid computing the
+        # whole mask on every iteration.
+        mask_chunk_tlbr = {
+            ax: slice(
+                (math.floor(chk_tlbr.start * mask.scale[ax]) / mask.scale[ax])
+                if chk_tlbr.start is not None else None,
+                (math.ceil(chk_tlbr.stop * mask.scale[ax]) / mask.scale[ax])
+                if chk_tlbr.stop is not None else None
+            )
+            for ax, chk_tlbr in chunk_tlbr.items()
+            if ax in mask.axes
+        }
+        org_mask_coordinates = np.nonzero(mask[mask_chunk_tlbr])
+
+        if any(map(lambda axis_coords: axis_coords.size == 0,
+                   org_mask_coordinates)):
+            return []
+
+        mask_coordinates = list(
+            org_mask_coordinates[mask.axes.index(ax)]
+            if ax in mask.axes
+            else np.zeros(org_mask_coordinates[0].size)
+            for ax in self.spatial_axes
+        )
 
         mask_coordinates = np.stack(mask_coordinates, dtype=np.float32).T
         mask_coordinates *= mask_scale[None, ...]
 
-        # Filter out mask coordinates outside the current selected chunk
-        chunk_tl_coordinates = np.array(
-            [chunk_tlbr[ax].start if chunk_tlbr[ax].start is not None else 0
+        # Compute an offset for the mask coordinates with chunk_tlbr as
+        # reference.
+        mask_tl_coordinates = np.array(
+            [(mask_chunk_tlbr.get(ax, slice(None)).start
+              if mask_chunk_tlbr.get(ax, slice(None)).start is not None else 0)
+             - (chunk_tlbr[ax].start
+                if chunk_tlbr[ax].start is not None else 0)
              for ax in self.spatial_axes],
             dtype=np.float32
         )
 
-        chunk_br_coordinates = np.array(
-            [chunk_tlbr[ax].stop
-             if chunk_tlbr[ax].stop is not None
-             else float('inf')
-             for ax in self.spatial_axes],
-            dtype=np.float32
-        )
-
-        in_chunk = np.all(
-            np.bitwise_and(
-                mask_coordinates > (chunk_tl_coordinates - mask_scale - 1e-4),
-                mask_coordinates < chunk_br_coordinates + 1e-4
-            ),
-            axis=1
-        )
-        mask_coordinates = mask_coordinates[in_chunk]
-
-        # Translate the mask coordinates to the origin for comparison with
-        # image coordinates.
-        mask_coordinates -= chunk_tl_coordinates
+        # Translate the mask coordinates using an offset computed from the
+        # difference between the mask_chunk_tlbr and chunk_tlbr coordinates.
+        mask_coordinates += mask_tl_coordinates
 
         if all(map(operator.ge, image_scale, mask_scale)):
             mask_corners = self._compute_corners(mask_coordinates, mask_scale)
 
             (reference_per_axis,
-             reference_idx) =\
+             reference_arr) =\
                 self._compute_reference_indices(image_coordinates, image_scale)
 
             (coverage,
              corners_idx) = self._compute_overlap(mask_corners,
                                                   reference_per_axis)
 
-            covered_indices = [
-                reference_idx.index(tuple(idx))
-                if tuple(idx) in reference_idx else len(reference_idx)
-                for idx in corners_idx.reshape(-1, len(self.spatial_axes))
-            ]
+            valid_corners_idx = np.all(
+                np.less(corners_idx, reference_arr.shape),
+                axis=1
+            )
 
-            patches_coverage = np.bincount(covered_indices,
-                                           weights=coverage.flatten(),
-                                           minlength=len(reference_idx) + 1)
+            corners_idx = corners_idx[valid_corners_idx]
+            coverage = coverage.flatten()[valid_corners_idx]
+
+            covered_indices = reference_arr[tuple(
+                np.hsplit(corners_idx, len(self.spatial_axes))
+            )].squeeze()
+            coverage = coverage[covered_indices >= 0]
+            covered_indices = covered_indices[covered_indices >= 0]
+
+            patches_coverage = np.bincount(
+                covered_indices,
+                weights=coverage,
+                minlength=np.prod(np.array(reference_arr.shape) - 1) + 1
+            )
             patches_coverage = patches_coverage[:-1]
 
         else:
@@ -311,19 +327,25 @@ class PatchSampler(object):
                                                   image_scale)
 
             (reference_per_axis,
-             reference_idx) = self._compute_reference_indices(mask_coordinates,
+             reference_arr) = self._compute_reference_indices(mask_coordinates,
                                                               mask_scale)
 
             (coverage,
              corners_idx) = self._compute_overlap(image_corners,
                                                   reference_per_axis)
+            valid_corners_idx = np.all(
+                np.less(corners_idx, reference_arr.shape),
+                axis=1
+            )
 
-            covered_indices = np.array([
-                tuple(idx) in reference_idx
-                for idx in corners_idx.reshape(-1, len(self.spatial_axes))
-            ]).reshape(coverage.shape)
+            covered_indices = np.zeros(corners_idx.shape[0])
+            covered_indices[valid_corners_idx] = reference_arr[tuple(
+                np.hsplit(corners_idx[valid_corners_idx],
+                          len(self.spatial_axes))
+            )].squeeze() >= 0
 
-            patches_coverage = np.sum(covered_indices * coverage, axis=0)
+            patches_coverage = np.sum(covered_indices.reshape(coverage.shape)
+                                      * coverage, axis=0)
 
         patches_coverage = np.round(patches_coverage)
 
@@ -407,6 +429,7 @@ class PatchSampler(object):
 
         valid_mask_toplefts = self._compute_grid(
             chunk_tlbr,
+            # chunk_mask,
             mask,
             self._max_chunk_size,
             image_size,
